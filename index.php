@@ -1,10 +1,17 @@
 <?php
 // ============================================================
-// AeroGlide — index.php
-// Static replica of the AeroGlide travel mockup.
-// Requires only a PHP-capable web server (or rename to .html —
-// the page works without any server-side logic).
+// AeroGlide — homepage/index.php
+// Protected homepage: only reachable once a user is logged in.
 // ============================================================
+
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: ../login/login.php');
+    exit;
+}
+
+$username = $_SESSION['username'] ?? 'Guest';
 
 $CDN = "https://id-preview--9af213b0-9d68-412c-a382-7cf2bea5e25d.lovable.app";
 
@@ -115,9 +122,10 @@ function initials(string $name): string {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       </label>
       <a href="#" class="signup">
-        Sign up
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.7c1.6-2.6 6.4-2.6 10 0"/></svg>
+        Hi, <?= htmlspecialchars($username) ?>
       </a>
+      <a href="../logout/logout.php" class="signup">Logout</a>
     </div>
   </header>
 
