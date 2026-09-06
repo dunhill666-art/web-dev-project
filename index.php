@@ -3,34 +3,20 @@
 // AeroGlide — index.php
 // Public homepage: replicating the modern AeroGlide design mockup.
 // ============================================================
-
+ 
 session_start();
-
+ 
 $isLoggedIn = isset($_SESSION['user_id']);
 $username   = $isLoggedIn ? ($_SESSION['username'] ?? 'User') : '';
-
+ 
 /**
  * Resolve image assets by KEYWORD instead of exact filename.
- *
- * Real asset filenames are messy ("Boracay Sunrise Magic - Boracay White
- * Beach_ A Tropical Paradis....jpg", "Taal Volcano, Philippines.jpg", etc.),
- * so matching an exact hardcoded name like "boracay.jpg" always failed and
- * silently fell back to a placeholder for every image. Instead, this scans
- * /asset and /assets once, normalizes every filename (lowercase, strip the
- * extension, collapse punctuation to spaces), and returns the first file
- * whose normalized name contains ALL of the given keywords.
- *
- * Example: asset_find(['taal']) matches "Taal Volcano, Philippines.jpg".
- *          asset_find(['avatar', 'dane']) matches "avatar-dane.jpg".
- *
- * @param string[]      $keywords          All must appear (case-insensitive) in the filename.
- * @param string[]|null $fallbackKeywords   Keywords to fall back to if no match (null = no photo fallback, use SVG).
  */
 function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): string
 {
     static $files = null;
     $folders = ['asset', 'assets'];
-
+ 
     if ($files === null) {
         $files = [];
         foreach ($folders as $folder) {
@@ -48,7 +34,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             }
         }
     }
-
+ 
     $match = function (array $kw) use ($files): ?array {
         foreach ($files as $f) {
             $ok = true;
@@ -64,15 +50,15 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         }
         return null;
     };
-
+ 
     if ($found = $match($keywords)) {
         return $found['folder'] . '/' . rawurlencode($found['name']);
     }
-
+ 
     if ($fallbackKeywords && ($found = $match($fallbackKeywords))) {
         return $found['folder'] . '/' . rawurlencode($found['name']);
     }
-
+ 
     $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><circle cx="690" cy="145" r="70" fill="#fff" opacity=".45"/><path d="M0 430 C170 360 250 470 420 405 C590 340 700 430 900 365 V600 H0Z" fill="#fff" opacity=".48"/></svg>';
     return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
 }
@@ -89,15 +75,8 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="aeroglide-page">
-
+ 
 <!-- Atmospheric floating background clouds -->
-<div class="sky-clouds-backdrop" aria-hidden="true">
-  <div class="cloud-layer cloud-layer-1"></div>
-  <div class="cloud-layer cloud-layer-2"></div>
-  <div class="cloud-layer cloud-layer-3"></div>
-  <div class="cloud-layer cloud-layer-4"></div>
-  <div class="cloud-layer cloud-layer-5"></div>
-</div>
 
 <!-- ============ NAVBAR ============ -->
 <nav class="main-nav">
@@ -106,14 +85,14 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
       <span class="brand-text">AeroGlide</span>
     </a>
-
+ 
     <div class="nav-menu">
       <a href="index.php" class="nav-item is-active">Home</a>
       <a href="#booking" class="nav-item">Flights</a>
       <a href="#deals" class="nav-item">Package</a>
       <a href="#about" class="nav-item">Support</a>
     </div>
-
+ 
     <div class="nav-right">
       <form class="nav-search-bar" id="nav-search-form" role="search">
         <input type="text" id="nav-search-input" placeholder="SEARCH" aria-label="Search destinations">
@@ -121,7 +100,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         </button>
       </form>
-
+ 
       <?php if ($isLoggedIn): ?>
         <span class="nav-user-greeting">Hi, <?= htmlspecialchars($username) ?></span>
         <a class="nav-auth-btn" href="logout.php" title="Logout">
@@ -136,7 +115,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </div>
   </div>
 </nav>
-
+ 
 <!-- ============ HERO SECTION ============ -->
 <header class="hero-section">
   <div class="hero-container">
@@ -149,7 +128,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         Your next destination<br>
         is just a click away
       </p>
-
+ 
       <!-- Preview Slider -->
       <div class="hero-slider-wrap">
         <div class="hero-slides" id="hero-slider-track">
@@ -175,20 +154,20 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <img src="<?= htmlspecialchars(asset_find(['aurora']), ENT_QUOTES) ?>" alt="Aurora, Philippines">
           </div>
         </div>
-
+ 
         <!-- Slider controls: < 1/07 > -->
         <div class="hero-slider-nav">
           <button type="button" class="slider-arrow" id="slide-prev" aria-label="Previous destination">‹</button>
           <span class="slider-index" id="slide-index-display">1/07</span>
           <button type="button" class="slider-arrow" id="slide-next" aria-label="Next destination">›</button>
         </div>
-
+ 
         <a href="#booking" class="btn-book-now">
           Book a trip now
         </a>
       </div>
     </div>
-
+ 
     <!-- Airplane Visual -->
     <div class="hero-plane-visual">
       <div class="plane-float-wrapper">
@@ -210,9 +189,9 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </div>
   </div>
 </header>
-
+ 
 <main>
-
+ 
 <!-- ============ INTERACTIVE FLIGHTS BOOKING CARD ============ -->
 <section class="booking-section" id="booking" aria-label="Flight booking panel">
   <div class="booking-container">
@@ -233,7 +212,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
               <button type="button" class="dropdown-option" data-val="Packages">Packages</button>
             </div>
           </div>
-
+ 
           <!-- Adult dropdown -->
           <div class="dropdown-wrapper" id="dropdown-passengers">
             <button type="button" class="pill-btn" id="btn-passengers" aria-haspopup="true" aria-expanded="false">
@@ -248,7 +227,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
               <button type="button" class="dropdown-option" data-val="Family (2+2)">Family (2+2)</button>
             </div>
           </div>
-
+ 
           <!-- Economy dropdown -->
           <div class="dropdown-wrapper" id="dropdown-class">
             <button type="button" class="pill-btn" id="btn-class" aria-haspopup="true" aria-expanded="false">
@@ -264,7 +243,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             </div>
           </div>
         </div>
-
+ 
         <!-- Trip Type radios -->
         <div class="trip-radio-group" role="radiogroup" aria-label="Trip direction">
           <label class="radio-label">
@@ -279,7 +258,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
           </label>
         </div>
       </div>
-
+ 
       <!-- Main Search Inputs Bar (White Capsule) -->
       <form class="search-capsule" id="flight-search-form">
         <!-- Field 1: Destinations -->
@@ -299,9 +278,9 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <button type="button" class="quick-dest-item" data-city="Bukidnon">Bukidnon</button>
           </div>
         </div>
-
+ 
         <div class="segment-divider" aria-hidden="true"></div>
-
+ 
         <!-- Field 2: Check In -->
         <div class="search-segment segment-date">
           <label class="segment-label" for="input-checkin">
@@ -313,9 +292,9 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <span class="calendar-icon" aria-hidden="true">📅</span>
           </div>
         </div>
-
+ 
         <div class="segment-divider" aria-hidden="true"></div>
-
+ 
         <!-- Field 3: Check Out -->
         <div class="search-segment segment-date" id="wrap-checkout">
           <label class="segment-label" for="input-checkout">
@@ -327,9 +306,9 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <span class="calendar-icon" aria-hidden="true">📅</span>
           </div>
         </div>
-
+ 
         <div class="segment-divider" aria-hidden="true"></div>
-
+ 
         <!-- Field 4: Guest -->
         <div class="search-segment segment-guest">
           <label class="segment-label" id="label-guests-trigger">
@@ -359,7 +338,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <button type="button" class="btn-guest-done" id="btn-guest-done">Done</button>
           </div>
         </div>
-
+ 
         <!-- Search Action Button -->
         <button type="submit" class="btn-search-flights" aria-label="Search available flights">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -368,14 +347,14 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </div>
   </div>
 </section>
-
+ 
 <!-- ============ EXCLUSIVE AEROGLIDE DEALS ============ -->
 <section class="deals-section" id="deals">
   <div class="section-header">
     <h2 class="section-main-title">Exclusive AeroGlide Deals</h2>
     <p class="section-tagline">Premium Travel Experiences at Unbeatable Rates.</p>
   </div>
-
+ 
   <div class="deals-grid">
     <!-- Deal 1: Boracay, Aklan -->
     <article class="deal-card" data-city="Boracay, Aklan">
@@ -384,7 +363,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       </div>
       <div class="deal-content">
         <h3 class="deal-destination-title">Boracay, Aklan</h3>
-
+ 
         <div class="fare-options-list" role="radiogroup" aria-label="Fare options for Boracay">
           <label class="fare-option">
             <input type="radio" name="fare_boracay" value="lite">
@@ -395,7 +374,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             </div>
             <span class="fare-tier-price">₱3,499</span>
           </label>
-
+ 
           <label class="fare-option is-active">
             <input type="radio" name="fare_boracay" value="smart" checked>
             <span class="fare-radio-dot"></span>
@@ -405,7 +384,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             </div>
             <span class="fare-tier-price">₱4,999</span>
           </label>
-
+ 
           <label class="fare-option">
             <input type="radio" name="fare_boracay" value="budget">
             <span class="fare-radio-dot"></span>
@@ -416,13 +395,13 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <span class="fare-tier-price">₱6,499</span>
           </label>
         </div>
-
+ 
         <button type="button" class="btn-learn-more" data-target="Boracay, Aklan">
           Learn more
         </button>
       </div>
     </article>
-
+ 
     <!-- Deal 2: Coron, Palawan -->
     <article class="deal-card" data-city="Coron, Palawan">
       <div class="deal-media">
@@ -430,7 +409,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       </div>
       <div class="deal-content">
         <h3 class="deal-destination-title">Coron, Palawan</h3>
-
+ 
         <div class="fare-options-list" role="radiogroup" aria-label="Fare options for Coron">
           <label class="fare-option">
             <input type="radio" name="fare_coron" value="lite">
@@ -441,7 +420,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             </div>
             <span class="fare-tier-price">₱4,299</span>
           </label>
-
+ 
           <label class="fare-option is-active">
             <input type="radio" name="fare_coron" value="smart" checked>
             <span class="fare-radio-dot"></span>
@@ -451,7 +430,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             </div>
             <span class="fare-tier-price">₱5,799</span>
           </label>
-
+ 
           <label class="fare-option">
             <input type="radio" name="fare_coron" value="budget">
             <span class="fare-radio-dot"></span>
@@ -462,13 +441,13 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <span class="fare-tier-price">₱7,299</span>
           </label>
         </div>
-
+ 
         <button type="button" class="btn-learn-more" data-target="Coron, Palawan">
           Learn more
         </button>
       </div>
     </article>
-
+ 
     <!-- Deal 3: Siargao, Surigao del Norte -->
     <article class="deal-card" data-city="Siargao, Surigao del Norte">
       <div class="deal-media">
@@ -476,7 +455,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       </div>
       <div class="deal-content">
         <h3 class="deal-destination-title">Siargao, Surigao del Norte</h3>
-
+ 
         <div class="fare-options-list" role="radiogroup" aria-label="Fare options for Siargao">
           <label class="fare-option">
             <input type="radio" name="fare_siargao" value="lite">
@@ -487,7 +466,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             </div>
             <span class="fare-tier-price">₱3,999</span>
           </label>
-
+ 
           <label class="fare-option is-active">
             <input type="radio" name="fare_siargao" value="smart" checked>
             <span class="fare-radio-dot"></span>
@@ -497,7 +476,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             </div>
             <span class="fare-tier-price">₱5,499</span>
           </label>
-
+ 
           <label class="fare-option">
             <input type="radio" name="fare_siargao" value="budget">
             <span class="fare-radio-dot"></span>
@@ -508,7 +487,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
             <span class="fare-tier-price">₱6,999</span>
           </label>
         </div>
-
+ 
         <button type="button" class="btn-learn-more" data-target="Siargao, Surigao del Norte">
           Learn more
         </button>
@@ -516,63 +495,93 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </article>
   </div>
 </section>
-
+ 
 <!-- ============ POPULAR DESTINATIONS ============ -->
 <section class="popular-section" id="destinations">
   <div class="section-header">
     <h2 class="section-main-title">Popular Destinations</h2>
   </div>
-
+ 
   <div class="popular-capsule-grid">
     <!-- 1: Albay (Mayon Volcano) -->
     <div class="capsule-card" role="button" tabindex="0" data-destination="Mayon Volcano, Albay" aria-label="Select Mayon Volcano, Albay">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['albay']), ENT_QUOTES) ?>" alt="Mayon Volcano and Cagsawa Ruins, Albay, Philippines">
-      </div>
+      
+        <div class="capsule-hover-panel">
+          <span class="hover-price-label">For as low as</span>
+          <strong class="hover-price">₱2,499*</strong>
+          <span class="hover-destination">Mayon Volcano</span>
+          <span class="hover-book-btn">Book now</span>
+        </div></div>
       <div class="capsule-info">
         <h3 class="capsule-city">Albay</h3>
         <p class="capsule-country">Philippines</p>
       </div>
     </div>
-
+ 
     <!-- 2: Bukidnon -->
     <div class="capsule-card" role="button" tabindex="0" data-destination="Bukidnon" aria-label="Select Bukidnon">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['bukidnon']), ENT_QUOTES) ?>" alt="Communal Ranch, Bukidnon, Philippines">
-      </div>
+      
+        <div class="capsule-hover-panel">
+          <span class="hover-price-label">For as low as</span>
+          <strong class="hover-price">₱2,799*</strong>
+          <span class="hover-destination">Bukidnon</span>
+          <span class="hover-book-btn">Book now</span>
+        </div></div>
       <div class="capsule-info">
         <h3 class="capsule-city">Bukidnon</h3>
         <p class="capsule-country">Philippines</p>
       </div>
     </div>
-
+ 
     <!-- 3: Chocolate Hills, Bohol -->
     <div class="capsule-card" role="button" tabindex="0" data-destination="Chocolate Hills, Bohol" aria-label="Select Chocolate Hills, Bohol">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['chocolate']), ENT_QUOTES) ?>" alt="Chocolate Hills, Carmen, Bohol, Philippines">
-      </div>
+      
+        <div class="capsule-hover-panel">
+          <span class="hover-price-label">For as low as</span>
+          <strong class="hover-price">₱2,299*</strong>
+          <span class="hover-destination">Chocolate Hills</span>
+          <span class="hover-book-btn">Book now</span>
+        </div></div>
       <div class="capsule-info">
         <h3 class="capsule-city">Chocolate Hills</h3>
         <p class="capsule-country">Philippines</p>
       </div>
     </div>
-
+ 
     <!-- 4: Malapascua Island, Cebu -->
     <div class="capsule-card" role="button" tabindex="0" data-destination="Malapascua Island, Cebu" aria-label="Select Malapascua Island, Cebu">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['malapascua']), ENT_QUOTES) ?>" alt="Malapascua Island, Cebu, Philippines">
-      </div>
+      
+        <div class="capsule-hover-panel">
+          <span class="hover-price-label">For as low as</span>
+          <strong class="hover-price">₱3,199*</strong>
+          <span class="hover-destination">Malapascua Island</span>
+          <span class="hover-book-btn">Book now</span>
+        </div></div>
       <div class="capsule-info">
         <h3 class="capsule-city">Malapascua Island</h3>
         <p class="capsule-country">Philippines</p>
       </div>
     </div>
-
+ 
     <!-- 5: Taal Volcano, Batangas -->
     <div class="capsule-card" role="button" tabindex="0" data-destination="Taal Volcano, Batangas" aria-label="Select Taal Volcano, Batangas">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['taal']), ENT_QUOTES) ?>" alt="Taal Volcano, Batangas, Philippines">
-      </div>
+      
+        <div class="capsule-hover-panel">
+          <span class="hover-price-label">For as low as</span>
+          <strong class="hover-price">₱2,199*</strong>
+          <span class="hover-destination">Taal Volcano</span>
+          <span class="hover-book-btn">Book now</span>
+        </div></div>
       <div class="capsule-info">
         <h3 class="capsule-city">Taal Volcano</h3>
         <p class="capsule-country">Philippines</p>
@@ -580,7 +589,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </div>
   </div>
 </section>
-
+ 
 <!-- ============ ABOUT US ============ -->
 <section class="about-section" id="about">
   <div class="about-container">
@@ -593,7 +602,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         We believe that traveling should be more than simply getting from one place to another. It should be about discovering new places, experiencing different cultures, and creating unforgettable memories. That is why AeroGlide is committed to providing reliable service while keeping travel accessible and budget-friendly.
       </p>
     </div>
-
+ 
     <div class="about-image-column">
       <div class="about-arch-frame">
         <img src="<?= htmlspecialchars(asset_find(['about', 'plane']), ENT_QUOTES) ?>" alt="AeroGlide airliner taking off against glowing sunset sky" class="about-arch-img">
@@ -601,13 +610,13 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </div>
   </div>
 </section>
-
+ 
 <!-- ============ AEROGLIDE CLIENTS ============ -->
 <section class="clients-section" id="reviews">
   <div class="section-header">
     <h2 class="section-main-title">AeroGlide Clients</h2>
   </div>
-
+ 
   <div class="clients-cards-grid">
     <!-- Testimonial 1 -->
     <div class="client-card">
@@ -620,7 +629,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         <span class="client-name">Noblesam Martizano</span>
       </div>
     </div>
-
+ 
     <!-- Testimonial 2 -->
     <div class="client-card">
       <div class="client-stars" aria-label="5 stars rating">★★★★★</div>
@@ -632,7 +641,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         <span class="client-name">Bianca Briel Cruz</span>
       </div>
     </div>
-
+ 
     <!-- Testimonial 3 -->
     <div class="client-card">
       <div class="client-stars" aria-label="5 stars rating">★★★★★</div>
@@ -646,9 +655,9 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </div>
   </div>
 </section>
-
+ 
 </main>
-
+ 
 <!-- ============ FOOTER ============ -->
 <footer class="site-footer">
   <div class="footer-container">
@@ -657,7 +666,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="footer-brand-logo">
         <span class="footer-brand-name">A e r o G l i d e</span>
       </div>
-
+ 
       <div class="footer-social-section">
         <span class="social-title">Follow</span>
         <div class="social-buttons-list">
@@ -670,7 +679,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         </div>
       </div>
     </div>
-
+ 
     <div class="footer-links-grid">
       <!-- Col 1 -->
       <div class="footer-col">
@@ -682,7 +691,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
           <li><a href="#destinations">America</a></li>
         </ul>
       </div>
-
+ 
       <!-- Col 2 -->
       <div class="footer-col">
         <h4 class="footer-col-title">Company</h4>
@@ -692,7 +701,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
           <li><a href="#about">Contact Us</a></li>
         </ul>
       </div>
-
+ 
       <!-- Col 3 -->
       <div class="footer-col">
         <h4 class="footer-col-title">Extra Links</h4>
@@ -705,15 +714,15 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     </div>
   </div>
 </footer>
-
+ 
 <!-- Interactive UI Scripts -->
 <script>
 (function() {
   'use strict';
-
+ 
   const $ = (s, c = document) => c.querySelector(s);
   const $$ = (s, c = document) => [...c.querySelectorAll(s)];
-
+ 
   /* ---------- IMAGE FALLBACK HANDLING ----------
      Replace failed images with a real data-URI placeholder instead of
      leaving the browser's broken-image icon / ALT text visible. */
@@ -723,7 +732,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     '<rect width="900" height="600" fill="url(#g)"/><circle cx="690" cy="145" r="70" fill="#fff" opacity=".45"/>' +
     '<path d="M0 430 C170 360 250 470 420 405 C590 340 700 430 900 365 V600 H0Z" fill="#fff" opacity=".48"/></svg>'
   );
-
+ 
   document.querySelectorAll('img').forEach(img => {
     const applyFallback = () => {
       if (img.dataset.fallbackApplied === '1') return;
@@ -733,11 +742,11 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       img.alt = '';
       img.src = fallbackSvg;
     };
-
+ 
     img.addEventListener('error', applyFallback, { once: true });
     if (img.complete && img.naturalWidth === 0) applyFallback();
   });
-
+ 
   /* ---------- Toast notification ---------- */
   function showToast(msg) {
     let t = $('#global-toast');
@@ -752,13 +761,13 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     clearTimeout(t._timer);
     t._timer = setTimeout(() => t.classList.remove('is-visible'), 3200);
   }
-
+ 
   /* ---------- HERO SLIDER (NO AUTO-SCROLL TO TOP!) ---------- */
   const slides = $$('.hero-slide');
   const indexDisplay = $('#slide-index-display');
   let currentSlide = 0;
   let sliderTimer = null;
-
+ 
   function setSlide(n) {
     currentSlide = (n + slides.length) % slides.length;
     slides.forEach((s, idx) => s.classList.toggle('is-active', idx === currentSlide));
@@ -767,29 +776,29 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     }
     // Note: NEVER calling window.scrollTo or scrollIntoView here to ensure the user scrolls freely!
   }
-
+ 
   function startSlideShow() {
     clearInterval(sliderTimer);
     sliderTimer = setInterval(() => setSlide(currentSlide + 1), 4500);
   }
-
+ 
   $('#slide-prev')?.addEventListener('click', () => { setSlide(currentSlide - 1); startSlideShow(); });
   $('#slide-next')?.addEventListener('click', () => { setSlide(currentSlide + 1); startSlideShow(); });
   slides.forEach((slide, idx) => slide.addEventListener('click', () => { setSlide(idx); startSlideShow(); }));
-
+ 
   const sliderTrack = $('#hero-slider-track');
   sliderTrack?.addEventListener('mouseenter', () => clearInterval(sliderTimer));
   sliderTrack?.addEventListener('mouseleave', startSlideShow);
   setSlide(0);
   startSlideShow();
-
+ 
   /* ---------- DROPDOWN PILLS INTERACTIVITY ---------- */
   const dropdownWrappers = $$('.dropdown-wrapper');
   dropdownWrappers.forEach(wrap => {
     const btn = $('button', wrap);
     const menu = $('.dropdown-menu', wrap);
     if (!btn || !menu) return;
-
+ 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isExpanded = btn.getAttribute('aria-expanded') === 'true';
@@ -799,7 +808,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         menu.hidden = false;
       }
     });
-
+ 
     $$('.dropdown-option', menu).forEach(opt => {
       opt.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -812,7 +821,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       });
     });
   });
-
+ 
   function closeAllDropdowns() {
     dropdownWrappers.forEach(wrap => {
       const btn = $('button', wrap);
@@ -825,14 +834,14 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     const destQuick = $('#dest-quick-menu');
     if (destQuick) destQuick.hidden = true;
   }
-
+ 
   document.addEventListener('click', closeAllDropdowns);
-
+ 
   /* ---------- TRIP TYPE RADIOS ---------- */
   const tripRadios = $$('input[name="trip_mode"]');
   const wrapCheckout = $('#wrap-checkout');
   const inputCheckout = $('#input-checkout');
-
+ 
   tripRadios.forEach(r => {
     r.addEventListener('change', () => {
       const isOneWay = r.value === 'one_way';
@@ -844,7 +853,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       }
     });
   });
-
+ 
   /* ---------- DATES SETUP ---------- */
   const inDays = (n) => {
     const d = new Date(Date.now() + n * 864e5);
@@ -853,16 +862,16 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
   const inputCheckin = $('#input-checkin');
   const nativeCheckin = $('#native-checkin');
   const nativeCheckout = $('#native-checkout');
-
+ 
   if (inputCheckin) inputCheckin.value = inDays(5);
   if (inputCheckout) inputCheckout.value = inDays(12);
-
+ 
   // Sync date pickers
   inputCheckin?.addEventListener('click', () => nativeCheckin?.showPicker?.() || nativeCheckin?.focus());
   inputCheckout?.addEventListener('click', () => {
     if (!inputCheckout.disabled) nativeCheckout?.showPicker?.() || nativeCheckout?.focus();
   });
-
+ 
   nativeCheckin?.addEventListener('change', (e) => {
     if (e.target.value) {
       const d = new Date(e.target.value);
@@ -875,16 +884,16 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       inputCheckout.value = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   });
-
+ 
   /* ---------- DESTINATION AUTOCOMPLETE / QUICK SELECT ---------- */
   const destInput = $('#input-destination');
   const destMenu = $('#dest-quick-menu');
-
+ 
   destInput?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (destMenu) destMenu.hidden = false;
   });
-
+ 
   $$('.quick-dest-item').forEach(item => {
     item.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -893,34 +902,34 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       showToast(`Destination set to ${item.dataset.city}`);
     });
   });
-
+ 
   /* ---------- GUEST POPOVER COUNTER ---------- */
   const guestBtn = $('#btn-guests-modal');
   const guestPopover = $('#guest-popover-box');
   const guestText = $('#guest-display-text');
   let adults = 1, children = 0;
-
+ 
   function updateGuestText() {
     let parts = [];
     if (adults > 0) parts.push(`${adults} Adult${adults > 1 ? 's' : ''}`);
     if (children > 0) parts.push(`${children} Child${children > 1 ? 'ren' : ''}`);
     guestText.textContent = parts.length ? parts.join(', ') : 'Add Guests';
   }
-
+ 
   guestBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     closeAllDropdowns();
     if (guestPopover) guestPopover.hidden = !guestPopover.hidden;
   });
-
+ 
   guestPopover?.addEventListener('click', (e) => e.stopPropagation());
-
+ 
   $('#adult-dec')?.addEventListener('click', () => { if (adults > 1) { adults--; $('#adult-count').textContent = adults; updateGuestText(); } });
   $('#adult-inc')?.addEventListener('click', () => { if (adults < 9) { adults++; $('#adult-count').textContent = adults; updateGuestText(); } });
   $('#child-dec')?.addEventListener('click', () => { if (children > 0) { children--; $('#child-count').textContent = children; updateGuestText(); } });
   $('#child-inc')?.addEventListener('click', () => { if (children < 9) { children++; $('#child-count').textContent = children; updateGuestText(); } });
   $('#btn-guest-done')?.addEventListener('click', () => { if (guestPopover) guestPopover.hidden = true; });
-
+ 
   /* ---------- FLIGHT SEARCH SUBMIT ---------- */
   $('#flight-search-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -932,7 +941,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     }
     showToast(`Searching flights to ${dest}... Best fares found!`);
   });
-
+ 
   /* ---------- POPULAR DESTINATIONS CLICK ---------- */
   $$('.capsule-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -942,7 +951,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       $('#booking')?.scrollIntoView({ behavior: 'smooth' });
     });
   });
-
+ 
   /* ---------- DEALS FARE SELECTION ---------- */
   $$('.deal-card').forEach(card => {
     const fareLabels = $$('.fare-option', card);
@@ -952,18 +961,29 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         label.classList.add('is-active');
       });
     });
-
+ 
     const learnBtn = $('.btn-learn-more', card);
     learnBtn?.addEventListener('click', () => {
       const city = card.dataset.city;
-      const activeOption = $('.fare-option.is-active .fare-tier-name', card)?.textContent.trim() || 'Selected package';
-      const activePrice = $('.fare-option.is-active .fare-tier-price', card)?.textContent.trim() || '';
-      showToast(`${city} (${activeOption} ${activePrice}) loaded for booking.`);
-      if (destInput) destInput.value = city;
-      $('#booking')?.scrollIntoView({ behavior: 'smooth' });
+      const activeOption = $('.fare-option.is-active', card);
+      const fareValue = activeOption?.querySelector('input[type="radio"]')?.value || 'smart';
+      const fareName  = activeOption?.querySelector('.fare-tier-name')?.textContent.trim() || 'Smart Saver';
+      const fareDesc  = activeOption?.querySelector('.fare-tier-desc')?.textContent.trim() || '';
+      const farePrice = activeOption?.querySelector('.fare-tier-price')?.textContent.trim() || '';
+ 
+      // Hand the selected package off to the destination details page,
+      // where the traveler can browse hotels & car rentals for that city.
+      const params = new URLSearchParams({
+        city: city,
+        fare: fareValue,
+        fareName: fareName,
+        desc: fareDesc,
+        price: farePrice
+      });
+      window.location.href = `destination.php?${params.toString()}`;
     });
   });
-
+ 
   /* ---------- NAV SEARCH ---------- */
   $('#nav-search-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -981,7 +1001,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
       showToast(`No destinations found for "${q}".`);
     }
   });
-
+ 
 })();
 </script>
 </body>
