@@ -4,7 +4,7 @@ session_start();
 
 // Already logged in? Skip straight to the homepage.
 if (isset($_SESSION['user_id'])) {
-    header('Location: ../homepage/index.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -85,6 +85,23 @@ $message = $_GET['message'] ?? null;
             font-size: 12px;
             margin-bottom: 16px;
         }
+
+        .guest-link {
+            text-align: center;
+            margin-top: 18px;
+        }
+
+        .guest-link a {
+            color: #666;
+            font-size: 13px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .guest-link a:hover {
+            color: #111;
+            text-decoration: underline;
+        }
     </style>
 </head>
 
@@ -98,7 +115,7 @@ $message = $_GET['message'] ?? null;
             <p class="error"><?= htmlspecialchars($message) ?></p>
         <?php endif; ?>
 
-        <form method="POST" action="login_function.php">
+        <form method="POST" action="loginfunction.php">
 
             <label>Username</label>
             <input type="text" name="username" required>
@@ -109,6 +126,10 @@ $message = $_GET['message'] ?? null;
             <button type="submit">Log in</button>
 
         </form>
+
+        <div class="guest-link">
+            <a href="index.php">&larr; Continue as Guest</a>
+        </div>
 
     </div>
 
