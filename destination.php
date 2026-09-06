@@ -12,31 +12,69 @@ $isLoggedIn = isset($_SESSION['user_id']);
 $username   = $isLoggedIn ? ($_SESSION['username'] ?? 'User') : '';
  
 /**
- * Resolve image assets by KEYWORD instead of exact filename.
+ * Build (once) a flat index of every file inside /asset and /assets,
+ * with two normalized keys per file:
+ *   - norm   : lowercase, non-alnum runs collapsed to single spaces
+ *              (used for loose keyword-list matching)
+ *   - squash : lowercase, ALL non-alnum characters stripped entirely
+ *              (used for "does this name appear in the filename"
+ *              matching, so "Midsize SUV" still finds a file saved as
+ *              "mid size suv for tourist white background", and
+ *              "Discovery Shores Boracay" finds every photo that
+ *              starts with those words regardless of what follows —
+ *              no digit suffix required).
+ */
+function asset_index(): array
+{
+    static $files = null;
+    if ($files !== null) {
+        return $files;
+    }
+
+    $files = [];
+    foreach (['asset', 'assets'] as $folder) {
+        $dir = __DIR__ . DIRECTORY_SEPARATOR . $folder;
+        if (!is_dir($dir)) {
+            continue;
+        }
+        foreach (glob($dir . DIRECTORY_SEPARATOR . '*') ?: [] as $path) {
+            if (!is_file($path)) {
+                continue;
+            }
+            $base = basename($path);
+            $stem = pathinfo($base, PATHINFO_FILENAME);
+            $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $stem));
+            $squash = strtolower(preg_replace('/[^a-z0-9]+/i', '', $stem));
+            $files[] = [
+                'folder' => $folder,
+                'name'   => $base,
+                'norm'   => ' ' . trim($norm) . ' ',
+                'squash' => $squash,
+            ];
+        }
+    }
+    return $files;
+}
+
+function asset_url(array $file): string
+{
+    return $file['folder'] . '/' . rawurlencode($file['name']);
+}
+
+function asset_placeholder(): string
+{
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><circle cx="690" cy="145" r="70" fill="#fff" opacity=".45"/><path d="M0 430 C170 360 250 470 420 405 C590 340 700 430 900 365 V600 H0Z" fill="#fff" opacity=".48"/></svg>';
+    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
+}
+
+/**
+ * Resolve a SINGLE image by keyword list (hero banners, logo, etc).
+ * Falls back to $fallbackKeywords, then to a generated placeholder.
  */
 function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): string
 {
-    static $files = null;
-    $folders = ['asset', 'assets'];
- 
-    if ($files === null) {
-        $files = [];
-        foreach ($folders as $folder) {
-            $dir = __DIR__ . DIRECTORY_SEPARATOR . $folder;
-            if (!is_dir($dir)) {
-                continue;
-            }
-            foreach (glob($dir . DIRECTORY_SEPARATOR . '*') ?: [] as $path) {
-                if (!is_file($path)) {
-                    continue;
-                }
-                $base = basename($path);
-                $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', pathinfo($base, PATHINFO_FILENAME)));
-                $files[] = ['folder' => $folder, 'name' => $base, 'norm' => ' ' . $norm . ' '];
-            }
-        }
-    }
- 
+    $files = asset_index();
+
     $match = function (array $kw) use ($files): ?array {
         foreach ($files as $f) {
             $ok = true;
@@ -52,32 +90,56 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         }
         return null;
     };
- 
+
     if ($found = $match($keywords)) {
-        return $found['folder'] . '/' . rawurlencode($found['name']);
+        return asset_url($found);
     }
- 
     if ($fallbackKeywords && ($found = $match($fallbackKeywords))) {
-        return $found['folder'] . '/' . rawurlencode($found['name']);
+        return asset_url($found);
     }
- 
-    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><circle cx="690" cy="145" r="70" fill="#fff" opacity=".45"/><path d="M0 430 C170 360 250 470 420 405 C590 340 700 430 900 365 V600 H0Z" fill="#fff" opacity=".48"/></svg>';
-    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
+    return asset_placeholder();
 }
 
 /**
- * Helper to gather up to 4 exact images for an item name.
+ * Gather EVERY real photo that belongs to a named hotel/vehicle, up to
+ * $max. A file "belongs" if the item's name (squashed, no spaces or
+ * punctuation) appears inside the file's squashed name — so it finds
+ * "Discovery Shores Boracay (1)", "...Island - Phillipines", etc. all
+ * at once, and it finds "mid size suv for tourist white background"
+ * for an item literally named "Midsize SUV". No digit suffix needed,
+ * and it never pads a card with unrelated/duplicate fallback photos —
+ * if only one real photo exists for that item, the gallery just has
+ * one photo (and the UI hides slideshow arrows/dots for it).
+ * If NOTHING matches at all, it falls back to a single destination
+ * scenery photo so the card never looks empty.
  */
-function asset_find_all(string $baseName, array $fallbackKeywords): array {
-    $images = [];
-    for ($i = 1; $i <= 4; $i++) {
-        // Try specific variants like "Hotel Name 1", "Hotel Name 2", etc.
-        $img = asset_find([$baseName, (string)$i], $fallbackKeywords);
-        // Avoid duplicate fallbacks if unique images aren't found
-        $images[] = $img;
+function asset_gallery(string $itemName, array $heroFallbackKeywords, int $max = 4): array
+{
+    $files  = asset_index();
+    $needle = strtolower(preg_replace('/[^a-z0-9]+/i', '', $itemName));
+
+    $matches = [];
+    $seen = [];
+    if ($needle !== '') {
+        foreach ($files as $f) {
+            if (isset($seen[$f['name']])) {
+                continue;
+            }
+            if (strpos($f['squash'], $needle) !== false) {
+                $matches[] = $f;
+                $seen[$f['name']] = true;
+            }
+        }
     }
-    // If they all ended up identical or missing, generate varied keyword passes
-    return $images;
+
+    // Keep numbered/related variants in a stable, human-friendly order
+    usort($matches, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+
+    if (empty($matches)) {
+        return [asset_find($heroFallbackKeywords)];
+    }
+
+    return array_map('asset_url', array_slice($matches, 0, $max));
 }
  
 /* ------------------------------------------------------------
@@ -249,13 +311,10 @@ function peso(float $n): string
  
   <div class="option-grid" id="hotel-grid" data-kind="hotel">
     <?php foreach ($destination['hotels'] as $i => $hotel): 
-      // Gather 4 unique images mapped from query data or fallback inventory
-      $hotelImages = [
-          asset_find([$hotel['name'], '1'], $destination['asset']),
-          asset_find([$hotel['name'], '2'], $destination['asset']),
-          asset_find([$hotel['name'], '3'], $destination['asset']),
-          asset_find([$hotel['name'], '4'], $destination['asset']),
-      ];
+      // Pull every real photo that belongs to this hotel (no digit
+      // guessing) so cards only ever show genuine, distinct images.
+      $hotelImages = asset_gallery($hotel['name'], $destination['asset']);
+      $hasMultiple = count($hotelImages) > 1;
     ?>
     <div class="option-card<?= $i === 0 ? ' is-selected' : '' ?>"
          role="button" tabindex="0"
@@ -264,27 +323,31 @@ function peso(float $n): string
          data-images='<?= json_encode($hotelImages) ?>'>
          
       <!-- Image Slideshow Container -->
-      <div class="card-slideshow-container">
+      <div class="card-slideshow-container<?= $hasMultiple ? '' : ' is-single' ?>">
         <?php foreach ($hotelImages as $imgIdx => $imgSrc): ?>
-          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" alt="Hotel view">
+          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" alt="<?= htmlspecialchars($hotel['name'], ENT_QUOTES) ?> photo <?= $imgIdx + 1 ?>">
         <?php endforeach; ?>
+        <?php if ($hasMultiple): ?>
         <button type="button" class="slide-arrow prev-arrow" aria-label="Previous image">&#10094;</button>
         <button type="button" class="slide-arrow next-arrow" aria-label="Next image">&#10095;</button>
         <div class="slide-indicators">
-          <?php for($si=0; $si<4; $si++): ?>
+          <?php foreach ($hotelImages as $si => $_): ?>
             <span class="dot<?= $si === 0 ? ' active' : '' ?>"></span>
-          <?php endfor; ?>
+          <?php endforeach; ?>
         </div>
+        <?php endif; ?>
       </div>
 
-      <div class="option-body">
-        <h3 class="option-name"><?= htmlspecialchars($hotel['name'], ENT_QUOTES) ?></h3>
-        <p class="option-meta"><?= htmlspecialchars($hotel['tier'], ENT_QUOTES) ?> · ★ <?= htmlspecialchars(number_format($hotel['rating'], 1), ENT_QUOTES) ?></p>
-      </div>
-      <div class="option-price-col">
-        <span class="option-price"><?= peso($hotel['price']) ?></span>
-        <span class="option-price-unit">per night</span>
-        <span class="option-select-btn">Select</span>
+      <div class="option-info-row">
+        <div class="option-body">
+          <h3 class="option-name"><?= htmlspecialchars($hotel['name'], ENT_QUOTES) ?></h3>
+          <p class="option-meta"><?= htmlspecialchars($hotel['tier'], ENT_QUOTES) ?> · ★ <?= htmlspecialchars(number_format($hotel['rating'], 1), ENT_QUOTES) ?></p>
+        </div>
+        <div class="option-price-col">
+          <span class="option-price"><?= peso($hotel['price']) ?></span>
+          <span class="option-price-unit">per night</span>
+          <span class="option-select-btn">Select</span>
+        </div>
       </div>
     </div>
     <?php endforeach; ?>
@@ -309,12 +372,11 @@ function peso(float $n): string
  
   <div class="option-grid" id="car-grid" data-kind="car">
     <?php foreach ($destination['cars'] as $i => $car): 
-      $carImages = [
-          asset_find([$car['name'], '1'], $destination['asset']),
-          asset_find([$car['name'], '2'], $destination['asset']),
-          asset_find([$car['name'], '3'], $destination['asset']),
-          asset_find([$car['name'], '4'], $destination['asset']),
-      ];
+      // Most vehicles only have ONE real photo in /asset — that's fine,
+      // the gallery just returns that single image and the card shows
+      // a plain static photo (no arrows/dots) instead of faking a loop.
+      $carImages = asset_gallery($car['name'], $destination['asset']);
+      $hasMultiple = count($carImages) > 1;
     ?>
     <div class="option-card<?= $i === 0 ? ' is-selected' : '' ?>"
          role="button" tabindex="0"
@@ -323,27 +385,31 @@ function peso(float $n): string
          data-images='<?= json_encode($carImages) ?>'>
          
       <!-- Image Slideshow Container -->
-      <div class="card-slideshow-container">
+      <div class="card-slideshow-container<?= $hasMultiple ? '' : ' is-single' ?>">
         <?php foreach ($carImages as $imgIdx => $imgSrc): ?>
-          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" alt="Vehicle view">
+          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" alt="<?= htmlspecialchars($car['name'], ENT_QUOTES) ?> photo <?= $imgIdx + 1 ?>">
         <?php endforeach; ?>
+        <?php if ($hasMultiple): ?>
         <button type="button" class="slide-arrow prev-arrow" aria-label="Previous image">&#10094;</button>
         <button type="button" class="slide-arrow next-arrow" aria-label="Next image">&#10095;</button>
         <div class="slide-indicators">
-          <?php for($si=0; $si<4; $si++): ?>
+          <?php foreach ($carImages as $si => $_): ?>
             <span class="dot<?= $si === 0 ? ' active' : '' ?>"></span>
-          <?php endfor; ?>
+          <?php endforeach; ?>
         </div>
+        <?php endif; ?>
       </div>
 
-      <div class="option-body">
-        <h3 class="option-name"><?= htmlspecialchars($car['name'], ENT_QUOTES) ?></h3>
-        <p class="option-meta"><?= (int) $car['seats'] ?> seats · Free cancellation</p>
-      </div>
-      <div class="option-price-col">
-        <span class="option-price"><?= peso($car['price']) ?></span>
-        <span class="option-price-unit">per day</span>
-        <span class="option-select-btn">Select</span>
+      <div class="option-info-row">
+        <div class="option-body">
+          <h3 class="option-name"><?= htmlspecialchars($car['name'], ENT_QUOTES) ?></h3>
+          <p class="option-meta"><?= (int) $car['seats'] ?> seats · Free cancellation</p>
+        </div>
+        <div class="option-price-col">
+          <span class="option-price"><?= peso($car['price']) ?></span>
+          <span class="option-price-unit">per day</span>
+          <span class="option-select-btn">Select</span>
+        </div>
       </div>
     </div>
     <?php endforeach; ?>
@@ -539,21 +605,34 @@ function peso(float $n): string
   // Initialize Card Slideshows & Auto-advance
   $$('.option-card').forEach(card => {
     const images = JSON.parse(card.dataset.images || '[]');
-    if(images.length === 0) return;
+    if (images.length === 0) return;
 
-    const slides = $$('.slide-img', card);
-    const dots = $$('.dot', card);
+    const slides  = $$('.slide-img', card);
+    const dots    = $$('.dot', card);
     const nextBtn = $('.next-arrow', card);
     const prevBtn = $('.prev-arrow', card);
     let currentIndex = 0;
     let slideInterval;
 
+    // Enlarge on clicking the visible slide image — works even for
+    // single-image cards, which have no arrows/dots at all.
+    slides.forEach((slideImg, sIdx) => {
+      slideImg.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openLightbox(images, sIdx);
+      });
+    });
+
+    // A single real photo just sits there statically — no arrows,
+    // no dots, no auto-rotation to fake motion that isn't there.
+    if (slides.length <= 1) return;
+
     function showSlide(idx) {
       slides[currentIndex].classList.remove('active');
-      dots[currentIndex].classList.remove('active');
+      if (dots[currentIndex]) dots[currentIndex].classList.remove('active');
       currentIndex = (idx + slides.length) % slides.length;
       slides[currentIndex].classList.add('active');
-      dots[currentIndex].classList.add('active');
+      if (dots[currentIndex]) dots[currentIndex].classList.add('active');
     }
 
     nextBtn?.addEventListener('click', (e) => {
@@ -566,14 +645,6 @@ function peso(float $n): string
       e.stopPropagation();
       showSlide(currentIndex - 1);
       resetInterval();
-    });
-
-    // Enlarge on clicking the active slide image
-    slides.forEach((slideImg, sIdx) => {
-      slideImg.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openLightbox(images, sIdx);
-      });
     });
 
     // Auto slideshow slow rotation loop

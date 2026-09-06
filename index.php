@@ -129,9 +129,9 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
         is just a click away
       </p>
  
-      <!-- Preview Slider -->
+      <!-- Preview Slideshow -->
       <div class="hero-slider-wrap">
-        <div class="hero-slides" id="hero-slider-track">
+        <div class="hero-slide-stage" id="hero-slider-track">
           <div class="hero-slide is-active" data-name="Vigan">
             <img src="<?= htmlspecialchars(asset_find(['vigan']), ENT_QUOTES) ?>" alt="Vigan, Ilocos Sur, Philippines">
           </div>
@@ -153,16 +153,29 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
           <div class="hero-slide" data-name="Aurora">
             <img src="<?= htmlspecialchars(asset_find(['aurora']), ENT_QUOTES) ?>" alt="Aurora, Philippines">
           </div>
+
+          <!-- Manual controls: beautified glassy arrows over the photo -->
+          <button type="button" class="hero-stage-arrow prev" id="slide-prev" aria-label="Previous destination">&#10094;</button>
+          <button type="button" class="hero-stage-arrow next" id="slide-next" aria-label="Next destination">&#10095;</button>
+
+          <div class="hero-stage-dots" id="hero-stage-dots" aria-hidden="true">
+            <span class="hero-dot is-active"></span>
+            <span class="hero-dot"></span>
+            <span class="hero-dot"></span>
+            <span class="hero-dot"></span>
+            <span class="hero-dot"></span>
+            <span class="hero-dot"></span>
+            <span class="hero-dot"></span>
+          </div>
+
+          <div class="hero-stage-caption">
+            <span class="hero-stage-caption-name" id="hero-caption-name">Vigan</span>
+            <span class="hero-stage-caption-index" id="slide-index-display">01 / 07</span>
+          </div>
         </div>
- 
-        <!-- Slider controls: < 1/07 > -->
-        <div class="hero-slider-nav">
-          <button type="button" class="slider-arrow" id="slide-prev" aria-label="Previous destination">‹</button>
-          <span class="slider-index" id="slide-index-display">1/07</span>
-          <button type="button" class="slider-arrow" id="slide-next" aria-label="Next destination">›</button>
-        </div>
- 
+
         <a href="#booking" class="btn-book-now">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
           Book a trip now
         </a>
       </div>
@@ -764,15 +777,21 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
  
   /* ---------- HERO SLIDER (NO AUTO-SCROLL TO TOP!) ---------- */
   const slides = $$('.hero-slide');
+  const heroDots = $$('.hero-dot');
   const indexDisplay = $('#slide-index-display');
+  const captionName = $('#hero-caption-name');
   let currentSlide = 0;
   let sliderTimer = null;
  
   function setSlide(n) {
     currentSlide = (n + slides.length) % slides.length;
     slides.forEach((s, idx) => s.classList.toggle('is-active', idx === currentSlide));
+    heroDots.forEach((d, idx) => d.classList.toggle('is-active', idx === currentSlide));
     if (indexDisplay) {
-      indexDisplay.textContent = `${currentSlide + 1}/${String(slides.length).padStart(2, '0')}`;
+      indexDisplay.textContent = `${String(currentSlide + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+    }
+    if (captionName) {
+      captionName.textContent = slides[currentSlide]?.dataset.name || '';
     }
     // Note: NEVER calling window.scrollTo or scrollIntoView here to ensure the user scrolls freely!
   }
@@ -784,7 +803,7 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
  
   $('#slide-prev')?.addEventListener('click', () => { setSlide(currentSlide - 1); startSlideShow(); });
   $('#slide-next')?.addEventListener('click', () => { setSlide(currentSlide + 1); startSlideShow(); });
-  slides.forEach((slide, idx) => slide.addEventListener('click', () => { setSlide(idx); startSlideShow(); }));
+  heroDots.forEach((dot, idx) => dot.addEventListener('click', () => { setSlide(idx); startSlideShow(); }));
  
   const sliderTrack = $('#hero-slider-track');
   sliderTrack?.addEventListener('mouseenter', () => clearInterval(sliderTimer));
