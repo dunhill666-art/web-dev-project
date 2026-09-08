@@ -501,6 +501,20 @@ function peso(float $n): string
   </div>
   <button type="button" class="btn-proceed" id="btn-proceed">Proceed to booking</button>
 </div>
+
+<!-- Hidden hand-off form: carries the traveler's picks to checkout.php -->
+<form id="checkout-form" action="checkout.php" method="GET" style="display:none">
+  <input type="hidden" name="city"     value="<?= htmlspecialchars($destination['label'], ENT_QUOTES) ?>">
+  <input type="hidden" name="fareName" value="<?= htmlspecialchars($fareName, ENT_QUOTES) ?>">
+  <input type="hidden" name="fareDesc" value="<?= htmlspecialchars($fareDesc, ENT_QUOTES) ?>">
+  <input type="hidden" name="price"    value="<?= htmlspecialchars($farePriceRaw, ENT_QUOTES) ?>">
+  <input type="hidden" name="hotelName"  value="">
+  <input type="hidden" name="hotelPrice" value="">
+  <input type="hidden" name="nights"     value="">
+  <input type="hidden" name="carName"    value="">
+  <input type="hidden" name="carPrice"   value="">
+  <input type="hidden" name="days"       value="">
+</form>
  
 <script>
 (function() {
@@ -567,7 +581,20 @@ function peso(float $n): string
   recalc();
  
   $('#btn-proceed')?.addEventListener('click', () => {
-    alert('This is a demo build — hook this button up to your real booking / payment flow to complete checkout.');
+    const form = $('#checkout-form');
+    if (!form) return;
+
+    const hotelCard = $('#hotel-grid .option-card.is-selected');
+    const carCard   = $('#car-grid .option-card.is-selected');
+
+    form.querySelector('[name="hotelName"]').value  = hotelCard ? hotelCard.dataset.name : '';
+    form.querySelector('[name="hotelPrice"]').value = hotelPrice;
+    form.querySelector('[name="nights"]').value      = nights;
+    form.querySelector('[name="carName"]').value    = carCard ? carCard.dataset.name : '';
+    form.querySelector('[name="carPrice"]').value   = carPrice;
+    form.querySelector('[name="days"]').value        = days;
+
+    form.submit();
   });
 
   // ==========================================================
