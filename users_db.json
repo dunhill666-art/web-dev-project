@@ -1,0 +1,54 @@
+{
+    "users": {
+        "demo": {
+            "id": 1,
+            "name": "Demo Traveler",
+            "email": "demo@aeroglide.com",
+            "username": "demo",
+            "password": "$2y$12$uqFOMveUPo69bMpOmFgrf.baCXqu9kK9TUmzD1u1mxdx\/Vm4mM1Wi",
+            "bookings": [
+                {
+                    "bookingRef": "AG-68A63677",
+                    "bookingDate": "2026-09-08 21:43:07",
+                    "travelerName": "Demo Traveler",
+                    "travelerEmail": "demo@aeroglide.com",
+                    "travelerPhone": "11111111111",
+                    "city": "Coron, Palawan",
+                    "mode": "packages",
+                    "adults": 1,
+                    "cabin": "Economy",
+                    "fareName": "Smart Saver",
+                    "fareDesc": "Flight + checked baggage",
+                    "flightSchedule": "Philippines AirAsia AG-204 (03:55 AM MNL T2 \u2192 05:20 AM)",
+                    "hotelName": "Coron Westown Resort",
+                    "hotelPrice": 7200,
+                    "nights": 3,
+                    "carName": "Economy Sedan",
+                    "carPrice": 1900,
+                    "days": 3,
+                    "subTotal": 33099,
+                    "discountNum": 1500,
+                    "discountLabel": "September Deal (-\u20b11,500)",
+                    "grandTotal": 31599,
+                    "promoCode": "SEPTDEAL2026"
+                }
+            ],
+            "used_coupons": [
+                "SEPTDEAL2026"
+            ]
+        },
+        "juan": {
+            "id": 2,
+            "name": "Juan Dela Cruz",
+            "email": "juan@example.com",
+            "username": "juan",
+            "password": "$2y$12$6Z6.D0sbtV4yrfyLuz\/5CeZZeRFyw8j0KVzUmgCPgPlGeeaJjdHaS"
+        }
+    },
+    "tokens": {
+        "7c40f5e11d698591c721fc27c2eafa77": {
+            "user_key": "demo",
+            "expires": 1788906221
+        }
+    }
+}
