@@ -131,46 +131,39 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
  
       <!-- Preview Slideshow -->
       <div class="hero-slider-wrap">
-        <div class="hero-slide-stage" id="hero-slider-track">
-          <div class="hero-slide is-active" data-name="Vigan">
-            <img src="<?= htmlspecialchars(asset_find(['vigan']), ENT_QUOTES) ?>" alt="Vigan, Ilocos Sur, Philippines">
-          </div>
-          <div class="hero-slide" data-name="The Ruins">
-            <img src="<?= htmlspecialchars(asset_find(['ruins']), ENT_QUOTES) ?>" alt="The Ruins, Bacolod City, Philippines">
-          </div>
-          <div class="hero-slide" data-name="Hundred Islands">
-            <img src="<?= htmlspecialchars(asset_find(['pangasinan']), ENT_QUOTES) ?>" alt="Pangasinan's Hidden Gem, Hundred Islands, Philippines">
-          </div>
-          <div class="hero-slide" data-name="Kambugahay Falls">
-            <img src="<?= htmlspecialchars(asset_find(['kambugahay']), ENT_QUOTES) ?>" alt="Kambugahay Falls, Siquijor, Philippines">
-          </div>
-          <div class="hero-slide" data-name="Maria Cristina Falls">
-            <img src="<?= htmlspecialchars(asset_find(['maria', 'cristina']), ENT_QUOTES) ?>" alt="Maria Cristina Falls, Philippines">
-          </div>
-          <div class="hero-slide" data-name="Banaue Rice Terraces">
-            <img src="<?= htmlspecialchars(asset_find(['banaue']), ENT_QUOTES) ?>" alt="Banaue Rice Terraces, Ifugao, Philippines">
-          </div>
-          <div class="hero-slide" data-name="Aurora">
-            <img src="<?= htmlspecialchars(asset_find(['aurora']), ENT_QUOTES) ?>" alt="Aurora, Philippines">
-          </div>
-
-          <!-- Manual controls: beautified glassy arrows over the photo -->
-          <button type="button" class="hero-stage-arrow prev" id="slide-prev" aria-label="Previous destination">&#10094;</button>
-          <button type="button" class="hero-stage-arrow next" id="slide-next" aria-label="Next destination">&#10095;</button>
-
-          <div class="hero-stage-dots" id="hero-stage-dots" aria-hidden="true">
-            <span class="hero-dot is-active"></span>
-            <span class="hero-dot"></span>
-            <span class="hero-dot"></span>
-            <span class="hero-dot"></span>
-            <span class="hero-dot"></span>
-            <span class="hero-dot"></span>
-            <span class="hero-dot"></span>
+        <div class="hero-preview-row">
+          <div class="hero-slide-stage" id="hero-slider-track">
+            <div class="hero-slide-viewport">
+              <div class="hero-slide-track">
+                <div class="hero-slide is-active" data-name="Vigan">
+                  <img src="<?= htmlspecialchars(asset_find(['vigan']), ENT_QUOTES) ?>" alt="Vigan, Ilocos Sur, Philippines">
+                </div>
+                <div class="hero-slide" data-name="The Ruins">
+                  <img src="<?= htmlspecialchars(asset_find(['ruins']), ENT_QUOTES) ?>" alt="The Ruins, Bacolod City, Philippines">
+                </div>
+                <div class="hero-slide" data-name="Hundred Islands">
+                  <img src="<?= htmlspecialchars(asset_find(['pangasinan']), ENT_QUOTES) ?>" alt="Pangasinan's Hidden Gem, Hundred Islands, Philippines">
+                </div>
+                <div class="hero-slide" data-name="Kambugahay Falls">
+                  <img src="<?= htmlspecialchars(asset_find(['kambugahay']), ENT_QUOTES) ?>" alt="Kambugahay Falls, Siquijor, Philippines">
+                </div>
+                <div class="hero-slide" data-name="Maria Cristina Falls">
+                  <img src="<?= htmlspecialchars(asset_find(['maria', 'cristina']), ENT_QUOTES) ?>" alt="Maria Cristina Falls, Philippines">
+                </div>
+                <div class="hero-slide" data-name="Banaue Rice Terraces">
+                  <img src="<?= htmlspecialchars(asset_find(['banaue']), ENT_QUOTES) ?>" alt="Banaue Rice Terraces, Ifugao, Philippines">
+                </div>
+                <div class="hero-slide" data-name="Aurora">
+                  <img src="<?= htmlspecialchars(asset_find(['aurora']), ENT_QUOTES) ?>" alt="Aurora, Philippines">
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="hero-stage-caption">
-            <span class="hero-stage-caption-name" id="hero-caption-name">Vigan</span>
+          <div class="hero-preview-controls">
+            <button type="button" class="hero-preview-arrow" id="slide-prev" aria-label="Previous destination">&#10094;</button>
             <span class="hero-stage-caption-index" id="slide-index-display">01 / 07</span>
+            <button type="button" class="hero-preview-arrow" id="slide-next" aria-label="Next destination">&#10095;</button>
           </div>
         </div>
 
@@ -787,6 +780,18 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
     currentSlide = (n + slides.length) % slides.length;
     slides.forEach((s, idx) => s.classList.toggle('is-active', idx === currentSlide));
     heroDots.forEach((d, idx) => d.classList.toggle('is-active', idx === currentSlide));
+
+    const slideTrack = $('.hero-slide-track');
+    if (slideTrack && slides.length) {
+      // Keep three compact previews visible and center the active preview.
+      const cardWidth = slides[0].getBoundingClientRect().width || 84;
+      const gap = 8;
+      const viewportWidth = $('#hero-slider-track')?.getBoundingClientRect().width || 270;
+      const target = Math.max(0, (currentSlide * (cardWidth + gap)) - ((viewportWidth - cardWidth) / 2));
+      const maxOffset = Math.max(0, slideTrack.scrollWidth - viewportWidth);
+      slideTrack.style.transform = `translateX(-${Math.min(target, maxOffset)}px)`;
+    }
+
     if (indexDisplay) {
       indexDisplay.textContent = `${String(currentSlide + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
     }
