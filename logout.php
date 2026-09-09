@@ -1,12 +1,12 @@
 <?php
 // ============================================================
 // AeroGlide — logout.php
-// Log out the current user session and redirect to homepage.
+// User Logout Handler
 // ============================================================
 
+require_once __DIR__ . '/database/function.php';
 require_once __DIR__ . '/auth_helper.php';
 
 auth_logout();
-
-header('Location: index.php?msg=' . urlencode('You have been logged out successfully.'));
+header('Location: ' . ag_base_url('index.php?msg=' . urlencode('You have been logged out safely.')));
 exit;
