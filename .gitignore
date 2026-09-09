@@ -1,0 +1,10 @@
+# Dependencies & Cache
+/vendor/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# WAMP / Apache temp files
+/tmp/
+/scratch/

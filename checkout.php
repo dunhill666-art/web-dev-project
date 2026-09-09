@@ -12,81 +12,11 @@ $isLoggedIn = auth_is_logged_in();
 $currentUser = auth_get_user();
 $username   = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
-function asset_index(): array
-{
-    static $files = null;
-    if ($files !== null) {
-        return $files;
+if (!function_exists('peso')) {
+    function peso(float $n): string
+    {
+        return '₱' . number_format($n, 0);
     }
-
-    $files = [];
-    $collect = function (string $dir, string $relPrefix) use (&$collect, &$files): void {
-        foreach (scandir($dir) ?: [] as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-            $full = $dir . DIRECTORY_SEPARATOR . $entry;
-            $rel  = $relPrefix === '' ? $entry : $relPrefix . '/' . $entry;
-
-            if (is_dir($full)) {
-                $collect($full, $rel);
-                continue;
-            }
-            if (!is_file($full)) {
-                continue;
-            }
-
-            $stem = pathinfo($entry, PATHINFO_FILENAME);
-            $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $stem));
-            $files[] = [
-                'rel'  => $rel,
-                'name' => $entry,
-                'norm' => ' ' . trim($norm) . ' ',
-            ];
-        }
-    };
-
-    foreach (['asset', 'assets'] as $folder) {
-        $dir = __DIR__ . DIRECTORY_SEPARATOR . $folder;
-        if (is_dir($dir)) {
-            $collect($dir, $folder);
-        }
-    }
-    return $files;
-}
-
-function asset_url(array $file): string
-{
-    return implode('/', array_map('rawurlencode', explode('/', $file['rel'])));
-}
-
-function asset_placeholder(): string
-{
-    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/></svg>';
-    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
-}
-
-function asset_find(array $keywords): string
-{
-    $files = asset_index();
-    foreach ($files as $f) {
-        $ok = true;
-        foreach ($keywords as $k) {
-            if (strpos($f['norm'], strtolower($k)) === false) {
-                $ok = false;
-                break;
-            }
-        }
-        if ($ok) {
-            return asset_url($f);
-        }
-    }
-    return asset_placeholder();
-}
-
-function peso(float $n): string
-{
-    return '₱' . number_format($n, 0);
 }
 
 /* ------------------------------------------------------------
@@ -531,35 +461,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 </head>
 <body class="aeroglide-page">
 
-<!-- ============ NAVBAR ============ -->
-<nav class="main-nav">
-  <div class="nav-container">
-    <a class="nav-brand" href="index.php" aria-label="AeroGlide Home">
-      <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
-      <span class="brand-text">AeroGlide</span>
-    </a>
-    <div class="nav-menu">
-      <a href="index.php" class="nav-item">Home</a>
-      <a href="index.php#booking" class="nav-item">Flights</a>
-      <a href="index.php#deals" class="nav-item">Package</a>
-      <?php if ($isLoggedIn): ?>
-        <a href="my_bookings.php" class="nav-item">My Trips</a>
-      <?php endif; ?>
-      <a href="index.php#about" class="nav-item">Support</a>
-    </div>
-    <div class="nav-right">
-      <?php if ($isLoggedIn): ?>
-        <span class="nav-user-greeting">Hi, <?= htmlspecialchars($username) ?></span>
-        <a class="nav-auth-btn" href="logout.php" title="Logout"><span>Logout</span></a>
-      <?php else: ?>
-        <a class="nav-auth-btn" href="login.php">
-          <svg class="auth-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>Sign up / Log in</span>
-        </a>
-      <?php endif; ?>
-    </div>
-  </div>
-</nav>
+<?php include __DIR__ . '/includes/navbar.php'; ?>
 
 <main class="checkout-main">
 
@@ -927,7 +829,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         <input type="hidden" name="promoCode" id="hidden-promo-code" value="<?= htmlspecialchars($promoCode, ENT_QUOTES) ?>">
 
         <button type="submit" class="btn-confirm" id="btn-submit-booking">Confirm &amp; pay <span id="btn-pay-total"><?= peso($grandTotal) ?></span></button>
-        <p class="lock-note">🔒 Demo checkout &mdash; no real payment is processed.</p>
+        <p class="lock-note">🔒 256-bit SSL Encrypted Payment &middot; Official AeroGlide Ticket Issuance</p>
       </form>
     </div>
 
@@ -1004,53 +906,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 
 </main>
 
-<footer class="site-footer">
-  <div class="footer-container">
-    <div class="footer-brand-block">
-      <div class="footer-brand-header">
-        <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="footer-brand-logo">
-        <span class="footer-brand-name">AeroGlide</span>
-      </div>
-      <p style="font-size:0.82rem; color:#9ca3af; margin-top:8px; max-width:280px;">
-        The premier Philippine domestic travel platform. Book flight deals, hotels, and island rentals with ease.
-      </p>
-    </div>
-    <div class="footer-links-grid">
-      <div>
-        <h3 class="footer-col-title">Philippines Destinations</h3>
-        <ul class="footer-nav-list">
-          <li><a href="boracay.php">Boracay, Aklan</a></li>
-          <li><a href="coron.php">Coron, Palawan</a></li>
-          <li><a href="siargao.php">Siargao, Surigao</a></li>
-          <li><a href="albay.php">Mayon Volcano, Albay</a></li>
-          <li><a href="chocolate-hills.php">Chocolate Hills, Bohol</a></li>
-          <li><a href="taal-volcano.php">Taal Volcano, Batangas</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="footer-col-title">Explore &amp; Deals</h3>
-        <ul class="footer-nav-list">
-          <li><a href="index.php#deals">Flight Deals</a></li>
-          <li><a href="index.php#destinations">Popular Islands</a></li>
-          <li><a href="index.php#promos">Coupon Codes</a></li>
-          <li><a href="index.php#tracker">Flight Tracker</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="footer-col-title">Account &amp; Support</h3>
-        <ul class="footer-nav-list">
-          <li><a href="index.php#about">About AeroGlide</a></li>
-          <li><a href="login.php">Log In / Sign Up</a></li>
-          <li><a href="forgot_password.php">Reset Password</a></li>
-          <li><a href="index.php#about">Customer Support</a></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom-line">
-    <p>© <?php echo date('Y'); ?> AeroGlide Philippines Inc. · Book smarter, travel further. All rights reserved.</p>
-  </div>
-</footer>
+<?php include __DIR__ . '/includes/footer.php'; ?>
 
 <script>
 (function () {

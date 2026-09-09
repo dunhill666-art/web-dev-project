@@ -6,80 +6,11 @@
 // "Discover What's Happening" coupon sections.
 // ============================================================
 
-session_start();
+require_once __DIR__ . '/auth_helper.php';
 
- $isLoggedIn = isset($_SESSION['user_id']);
- $username   = $isLoggedIn ? ($_SESSION['username'] ?? 'User') : '';
-
-/**
- * Resolve image assets by KEYWORD instead of exact filename.
- */
-function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): string
-{
-    static $files = null;
-    $folders = ['asset', 'assets'];
-
-    if ($files === null) {
-        $files = [];
-
-        $collect = function (string $dir, string $relPrefix) use (&$collect, &$files): void {
-            foreach (scandir($dir) ?: [] as $entry) {
-                if ($entry === '.' || $entry === '..') {
-                    continue;
-                }
-                $full = $dir . DIRECTORY_SEPARATOR . $entry;
-                $rel  = $relPrefix === '' ? $entry : $relPrefix . '/' . $entry;
-
-                if (is_dir($full)) {
-                    $collect($full, $rel);
-                    continue;
-                }
-                if (!is_file($full)) {
-                    continue;
-                }
-
-                $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', pathinfo($entry, PATHINFO_FILENAME)));
-                $files[] = ['rel' => $rel, 'name' => $entry, 'norm' => ' ' . $norm . ' '];
-            }
-        };
-
-        foreach ($folders as $folder) {
-            $dir = __DIR__ . DIRECTORY_SEPARATOR . $folder;
-            if (is_dir($dir)) {
-                $collect($dir, $folder);
-            }
-        }
-    }
-
-    $match = function (array $kw) use ($files): ?array {
-        foreach ($files as $f) {
-            $ok = true;
-            foreach ($kw as $k) {
-                if (strpos($f['norm'], strtolower($k)) === false) {
-                    $ok = false;
-                    break;
-                }
-            }
-            if ($ok) {
-                return $f;
-            }
-        }
-        return null;
-    };
-
-    $toUrl = fn(array $f): string => implode('/', array_map('rawurlencode', explode('/', $f['rel'])));
-
-    if ($found = $match($keywords)) {
-        return $toUrl($found);
-    }
-
-    if ($fallbackKeywords && ($found = $match($fallbackKeywords))) {
-        return $toUrl($found);
-    }
-
-    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><circle cx="690" cy="145" r="70" fill="#fff" opacity=".45"/><path d="M0 430 C170 360 250 470 420 405 C590 340 700 430 900 365 V600 H0Z" fill="#fff" opacity=".48"/></svg>';
-    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
-}
+$isLoggedIn  = auth_is_logged_in();
+$currentUser = auth_get_user();
+$username    = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
 /* ---- Hero background photo (airplane in the sky) ---- */
  $heroBgSrc   = asset_find(['hero'], ['plane']);
@@ -87,62 +18,17 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
 
 /* ---- About photo ---- */
  $aboutImgSrc = asset_find(['about'], ['banaue']);
+$pageTitle = 'AeroGlide — Book Smarter, Travel Further';
+$activeNav = 'home';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AeroGlide — Book Smarter, Travel Further</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<?php include __DIR__ . '/includes/head.php'; ?>
 </head>
 <body class="aeroglide-page">
 
-<!-- ============ NAVBAR ============ -->
-<nav class="main-nav">
-  <div class="nav-container">
-    <a class="nav-brand" href="index.php" aria-label="AeroGlide Home">
-      <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
-      <span class="brand-text">AeroGlide</span>
-    </a>
-
-    <div class="nav-menu">
-      <a href="index.php" class="nav-item is-active">Home</a>
-      <a href="#booking" class="nav-item">Flights</a>
-      <a href="#promos" class="nav-item">Deals</a>
-      <a href="#tracker" class="nav-item">Track</a>
-      <a href="#destinations" class="nav-item">Destinations</a>
-      <?php if ($isLoggedIn): ?>
-        <a href="my_bookings.php" class="nav-item">My Trips</a>
-      <?php endif; ?>
-      <a href="#about" class="nav-item">About</a>
-    </div>
-
-    <div class="nav-right">
-      <form class="nav-search-bar" id="nav-search-form" role="search">
-        <input type="text" id="nav-search-input" placeholder="SEARCH" aria-label="Search destinations">
-        <button type="submit" class="search-submit-btn" aria-label="Submit search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        </button>
-      </form>
-
-      <?php if ($isLoggedIn): ?>
-        <span class="nav-user-greeting">Hi, <?= htmlspecialchars($username) ?></span>
-        <a class="nav-auth-btn" href="logout.php" title="Logout">
-          <span>Logout</span>
-        </a>
-      <?php else: ?>
-        <a class="nav-auth-btn" href="login.php">
-          <svg class="auth-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>Sign up</span>
-        </a>
-      <?php endif; ?>
-    </div>
-  </div>
-</nav>
+<?php include __DIR__ . '/includes/navbar.php'; ?>
 
 <!-- ============ HERO SECTION (airplane-sky photo background) ============ -->
 <header class="hero-section"<?= $heroBgIsImg ? ' style="background-image: url(\'' . htmlspecialchars($heroBgSrc, ENT_QUOTES) . '\');"' : '' ?>>
@@ -767,140 +653,9 @@ function asset_find(array $keywords, ?array $fallbackKeywords = ['coron']): stri
   </div>
 </section>
 
-<!-- ============ ABOUT ============ -->
-<section class="about-section" id="about">
-  <div class="about-container">
-    <div class="about-copy">
-      <h2 class="about-title">Making the Islands<br>Easier to Reach</h2>
-      <p class="about-paragraph">
-        Since 2012, AeroGlide has connected travelers to the Philippines' most
-        breathtaking destinations — from the white sands of Boracay to the
-        limestone cliffs of Coron and the surf breaks of Siargao.
-      </p>
-      <p class="about-paragraph">
-        With honest peso pricing, flexible rebooking, and 24/7 Filipino customer
-        support, we make island-hopping as effortless as the breeze.
-      </p>
-      <ul class="about-points">
-        <li>✔ Best-price guarantee on every domestic booking</li>
-        <li>✔ Free 24-hour cancellation on flexible fares</li>
-        <li>✔ Support in English &amp; Filipino, day or night</li>
-      </ul>
-      <a href="#booking" class="btn-book-now">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
-        Plan your island trip
-      </a>
-    </div>
-    <div class="about-arch-frame">
-      <img class="about-arch-img" src="<?= htmlspecialchars($aboutImgSrc, ENT_QUOTES) ?>" alt="Banaue Rice Terraces, Ifugao, Philippines">
-    </div>
-  </div>
-</section>
-
-<!-- ============ CLIENTS / TESTIMONIALS ============ -->
-<section class="clients-section" id="reviews">
-  <div class="section-header">
-    <h2 class="section-main-title">What Our Travelers Say</h2>
-    <p class="section-tagline">Real stories from real island-hoppers.</p>
-  </div>
-
-  <div class="clients-cards-grid">
-    <article class="client-card">
-      <div class="client-stars">★★★★★</div>
-      <p class="client-quote">"Flew Manila to Caticlan for less than a bus ticket to the provinces.
-      The Smart Saver fare with baggage included was the best deal I found anywhere."</p>
-      <div class="client-author">
-        <img class="client-avatar" src="<?= htmlspecialchars(asset_find(['avatar', '1'], ['vigan']), ENT_QUOTES) ?>" alt="Maria Santos">
-        <div>
-          <div class="client-name">Maria Santos</div>
-          <div class="client-role">Frequent Flyer · Quezon City</div>
-        </div>
-      </div>
-    </article>
-
-    <article class="client-card">
-      <div class="client-stars">★★★★★</div>
-      <p class="client-quote">"Our barkada used the 5 People Deal for Coron — five of us flew for
-      the price of four. The whole booking took ten minutes on a phone."</p>
-      <div class="client-author">
-        <img class="client-avatar" src="<?= htmlspecialchars(asset_find(['avatar', '2'], ['siargao']), ENT_QUOTES) ?>" alt="Paolo Reyes">
-        <div>
-          <div class="client-name">Paolo Reyes</div>
-          <div class="client-role">Barkada Trip Organizer · Cebu City</div>
-        </div>
-      </div>
-    </article>
-
-    <article class="client-card">
-      <div class="client-stars">★★★★★</div>
-      <p class="client-quote">"A typhoon re-routed my Siargao flight and support rebooked me
-      overnight with zero fees. That's the kind of alaga you hope for."</p>
-      <div class="client-author">
-        <img class="client-avatar" src="<?= htmlspecialchars(asset_find(['avatar', '3'], ['aurora']), ENT_QUOTES) ?>" alt="Liza Dela Cruz">
-        <div>
-          <div class="client-name">Liza Dela Cruz</div>
-          <div class="client-role">Solo Traveler · Davao</div>
-        </div>
-      </div>
-    </article>
-  </div>
-</section>
-
 </main>
 
-<!-- ============ FOOTER ============ -->
-<footer class="site-footer">
-  <div class="footer-container">
-    <div class="footer-brand-block">
-      <div class="footer-brand-header">
-        <img class="footer-brand-logo" src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo">
-        <span class="footer-brand-name">AeroGlide</span>
-      </div>
-      <span class="social-title">Follow us</span>
-      <div class="social-buttons-list">
-        <a href="#" class="social-circle-btn" aria-label="Facebook">f</a>
-        <a href="#" class="social-circle-btn" aria-label="Instagram">◎</a>
-        <a href="#" class="social-circle-btn" aria-label="Twitter">𝕏</a>
-        <a href="#" class="social-circle-btn" aria-label="YouTube">▶</a>
-      </div>
-    </div>
-
-    <div class="footer-links-grid">
-      <div>
-        <h3 class="footer-col-title">Philippines Destinations</h3>
-        <ul class="footer-nav-list">
-          <li><a href="boracay.php">Boracay, Aklan</a></li>
-          <li><a href="coron.php">Coron, Palawan</a></li>
-          <li><a href="siargao.php">Siargao, Surigao</a></li>
-          <li><a href="albay.php">Mayon Volcano, Albay</a></li>
-          <li><a href="chocolate-hills.php">Chocolate Hills, Bohol</a></li>
-          <li><a href="taal-volcano.php">Taal Volcano, Batangas</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="footer-col-title">Explore &amp; Deals</h3>
-        <ul class="footer-nav-list">
-          <li><a href="#deals">Exclusive Deals</a></li>
-          <li><a href="#destinations">Popular Islands</a></li>
-          <li><a href="#promos">Coupon Codes</a></li>
-          <li><a href="#tracker">Flight Tracker</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="footer-col-title">Account &amp; Support</h3>
-        <ul class="footer-nav-list">
-          <li><a href="#about">About AeroGlide</a></li>
-          <li><a href="login.php">Log In / Sign Up</a></li>
-          <li><a href="forgot_password.php">Reset Password</a></li>
-          <li><a href="#about">Help Center &amp; Support</a></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom-line">
-    <p>© <?php echo date('Y'); ?> AeroGlide Philippines Inc. · Book smarter, travel further. All rights reserved.</p>
-  </div>
-</footer>
+<?php include __DIR__ . '/includes/footer.php'; ?>
 
 <!-- Toast Notification -->
 <div class="toast-notification" id="toast" role="status" aria-live="polite"></div>

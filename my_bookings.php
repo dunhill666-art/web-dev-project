@@ -1,14 +1,16 @@
 <?php
 // ============================================================
 // AeroGlide — my_bookings.php
-// Dedicated "My Trips" dashboard for authenticated users.
-// Shows complete summary of booked flights, hotels, cars, & boarding passes.
+// User Dashboard & My Trips area with Flight Cancellation Flow
 // ============================================================
 
+require_once __DIR__ . '/database/function.php';
+require_once __DIR__ . '/database/validation.php';
+require_once __DIR__ . '/database/success.php';
 require_once __DIR__ . '/auth_helper.php';
 
 if (!auth_is_logged_in()) {
-    header('Location: login.php?redirect=my_bookings.php&msg=login_required');
+    header('Location: ' . ag_base_url('login.php?redirect=my_bookings.php&msg=login_required'));
     exit;
 }
 
@@ -16,49 +18,71 @@ $currentUser  = auth_get_user();
 $userId       = $currentUser['id'];
 $username     = $currentUser['username'];
 $userBookings = auth_get_user_bookings($userId);
+$usedCoupon   = auth_user_has_claimed_coupon($userId);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Booked Trips — AeroGlide</title>
+<title>User Dashboard &amp; My Trips — AeroGlide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= ag_base_url('style.css') ?>">
 <style>
-  .my-trips-main {
-    max-width: 1080px;
+  .user-dash-wrap {
+    max-width: 1120px;
     margin: 40px auto 80px;
     padding: 0 24px;
   }
-  .trips-page-header {
+  .user-header-card {
+    background: linear-gradient(135deg, #0d6efd, #0a4fa0);
+    border-radius: 24px;
+    padding: 2.25rem 2.5rem;
+    color: #ffffff;
+    box-shadow: 0 16px 40px rgba(13, 110, 253, 0.22);
     margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
   }
-  .trips-page-title {
+  .user-header-info h1 {
     font-family: 'Montserrat', sans-serif;
-    font-size: 2.2rem;
+    font-size: 2rem;
+    font-weight: 900;
+    margin: 0 0 6px 0;
+  }
+  .user-header-info p {
+    margin: 0;
+    font-size: 0.95rem;
+    opacity: 0.9;
+  }
+  .user-badge-grid {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .u-stat-chip {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 14px;
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .th-city-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.4rem;
     font-weight: 900;
     color: var(--ink, #0a1425);
-    margin: 0 0 6px;
-  }
-  .trips-page-sub {
-    color: var(--muted, #5b6b7f);
-    font-size: 1rem;
-    margin: 0;
-  }
-  .empty-trips-card {
-    background: #ffffff;
-    border: 1px solid var(--ag-line, #e2e8f0);
-    border-radius: 20px;
-    padding: 4rem 2rem;
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-  }
-  .empty-trips-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .trip-history-card {
     background: #ffffff;
@@ -89,22 +113,6 @@ $userBookings = auth_get_user_bookings($userId);
     padding: 6px 14px;
     border-radius: 999px;
     font-size: 0.85rem;
-    letter-spacing: 0.5px;
-  }
-  .th-date {
-    font-size: 0.85rem;
-    color: var(--muted);
-    font-weight: 600;
-  }
-  .th-city-title {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.4rem;
-    font-weight: 900;
-    color: var(--ink);
-    margin: 0 0 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
   .th-details-grid {
     display: grid;
@@ -120,23 +128,15 @@ $userBookings = auth_get_user_bookings($userId);
   .th-detail-label {
     font-size: 0.72rem;
     font-weight: 800;
-    color: var(--muted);
+    color: #5b6b7f;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
     display: block;
     margin-bottom: 4px;
   }
   .th-detail-val {
     font-size: 0.95rem;
     font-weight: 800;
-    color: var(--ink);
-  }
-  .th-footer-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 16px;
-    border-top: 1px solid #f1f5f9;
+    color: #0a1425;
   }
   .btn-view-ticket {
     background: #0d6efd;
@@ -152,9 +152,37 @@ $userBookings = auth_get_user_bookings($userId);
     align-items: center;
     gap: 6px;
   }
-  .btn-view-ticket:hover {
-    background: #0a4fa0;
+  .btn-view-ticket:hover { background: #0a4fa0; }
+
+  .btn-cancel-trip {
+    background: #fff;
+    color: #dc2626;
+    border: 1.5px solid #fca5a5;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
+  .btn-cancel-trip:hover {
+    background: #fdeceb;
+    border-color: #f87171;
+    transform: translateY(-1px);
+  }
+
+  .empty-trips-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 4rem 2rem;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  }
+
   /* Ticket Modal */
   .ticket-modal-overlay {
     position: fixed;
@@ -167,9 +195,7 @@ $userBookings = auth_get_user_bookings($userId);
     padding: 24px;
     z-index: 2000;
   }
-  .ticket-modal-overlay.is-active {
-    display: flex;
-  }
+  .ticket-modal-overlay.is-active { display: flex; }
   .ticket-modal-card {
     background: #fff;
     border-radius: 20px;
@@ -188,115 +214,326 @@ $userBookings = auth_get_user_bookings($userId);
     cursor: pointer;
     z-index: 10;
   }
+
+  /* Cancel Modal Styling */
+  .cancel-modal-card {
+    background: #ffffff;
+    border-radius: 24px;
+    max-width: 540px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 25px 60px rgba(10, 20, 35, 0.35);
+    overflow: hidden;
+    animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes modalPop {
+    from { opacity:0; transform: scale(0.92); }
+    to   { opacity:1; transform: scale(1); }
+  }
+  .cancel-modal-header {
+    background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+    padding: 2.25rem 2rem 1.5rem;
+    text-align: center;
+    border-bottom: 1px solid #fecdd3;
+  }
+  .cancel-warning-icon {
+    font-size: 2.75rem;
+    margin-bottom: 8px;
+  }
+  .cancel-modal-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #9f1239;
+    margin: 0 0 6px;
+  }
+  .cancel-modal-subtitle {
+    font-size: 0.9rem;
+    color: #be123c;
+    margin: 0;
+    line-height: 1.4;
+  }
+  .cancel-modal-body {
+    padding: 1.75rem 2rem 2rem;
+  }
+  .cancel-summary-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+  }
+  .cs-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.88rem;
+    padding: 5px 0;
+    border-bottom: 1px dashed #e2e8f0;
+  }
+  .cs-row:last-child { border-bottom: none; }
+  .cs-label { color: #64748b; font-weight: 600; }
+  .cs-val { color: #0f172a; font-weight: 800; text-align: right; }
+
+  .cancel-calc-box {
+    background: #fff1f2;
+    border: 1.5px solid #fecdd3;
+    border-radius: 16px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  .cc-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.92rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #334155;
+  }
+  .cc-fee { color: #dc2626; }
+  .cc-refund {
+    border-top: 1.5px solid #fca5a5;
+    padding-top: 10px;
+    margin-top: 8px;
+    font-size: 1.05rem;
+  }
+  .cc-note {
+    font-size: 0.78rem;
+    color: #9f1239;
+    margin-top: 10px;
+    line-height: 1.35;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+  .cancel-btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .btn-keep-booking {
+    background: #f1f5f9;
+    color: #334155;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .btn-keep-booking:hover { background: #e2e8f0; }
+
+  .btn-confirm-cancel {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+    color: #ffffff;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3);
+    transition: all 0.2s ease;
+  }
+  .btn-confirm-cancel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(220, 38, 38, 0.4);
+  }
 </style>
 </head>
 <body class="aeroglide-page">
 
-<!-- ============ NAVBAR ============ -->
-<nav class="main-nav">
-  <div class="nav-container">
-    <a class="nav-brand" href="index.php" aria-label="AeroGlide Home">
-      <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
-      <span class="brand-text">AeroGlide</span>
-    </a>
+<?php
+$activeNav = 'trips';
+include __DIR__ . '/includes/navbar.php';
+?>
 
-    <div class="nav-menu">
-      <a href="index.php" class="nav-item">Home</a>
-      <a href="index.php#booking" class="nav-item">Flights</a>
-      <a href="index.php#deals" class="nav-item">Package</a>
-      <a href="my_bookings.php" class="nav-item is-active">My Trips</a>
-      <a href="index.php#about" class="nav-item">Support</a>
+<main class="user-dash-wrap">
+  <!-- USER WELCOME CARD -->
+  <div class="user-header-card">
+    <div class="user-header-info">
+      <h1>Welcome, <?= htmlspecialchars($currentUser['name']) ?> 👋</h1>
+      <p>Manage your booked flight itineraries, print boarding passes, or initiate trip cancellations with automated refund processing.</p>
     </div>
-
-    <div class="nav-right">
-      <span class="nav-user-greeting">Hi, <?= htmlspecialchars($username) ?></span>
-      <a class="nav-auth-btn" href="logout.php" title="Logout"><span>Logout</span></a>
+    <div class="user-badge-grid">
+      <div class="u-stat-chip">✈️ <?= count($userBookings) ?> Booked Trip<?= count($userBookings) === 1 ? '' : 's' ?></div>
+      <div class="u-stat-chip">🎁 Coupon Status: <?= $usedCoupon ? "Claimed ('{$usedCoupon}')" : '3 Deals Available' ?></div>
     </div>
   </div>
-</nav>
 
-<main class="my-trips-main">
-  <div class="trips-page-header">
-    <h1 class="trips-page-title">My Booked Trips</h1>
-    <p class="trips-page-sub">View your flight itineraries, boarding passes, and booking summaries.</p>
-  </div>
+  <!-- CANCELLATION NOTIFICATION BANNER -->
+  <?php if (($_GET['msg'] ?? '') === 'cancelled'): 
+    $cRef    = htmlspecialchars($_GET['ref'] ?? 'Your booking', ENT_QUOTES);
+    $cRefund = htmlspecialchars($_GET['refund'] ?? '4,500', ENT_QUOTES);
+  ?>
+    <div style="background:#ecfdf5; border:1.5px solid #a7f3d0; border-radius:18px; padding:1.25rem 1.5rem; margin-bottom:24px; display:flex; align-items:center; gap:16px; box-shadow:0 6px 20px rgba(16,185,129,0.12);">
+      <div style="font-size:2.2rem; line-height:1;">✓</div>
+      <div>
+        <h3 style="font-family:'Montserrat',sans-serif; font-weight:800; font-size:1.1rem; color:#065f46; margin:0 0 4px;">Trip Cancelled Successfully</h3>
+        <p style="margin:0; font-size:0.9rem; color:#047857; line-height:1.4;">
+          Reservation <strong><?= $cRef ?></strong> has been updated to <strong>CANCELLED</strong>. An estimated refund of <strong>₱<?= $cRefund ?></strong> (after ₱500 cancellation fee) will be credited to your original payment method.
+        </p>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($_GET['error'])): ?>
+    <div style="background:#fdeceb; border:1.5px solid #f4b8b3; border-radius:18px; padding:1.25rem 1.5rem; margin-bottom:24px; color:#8a1f14; font-weight:700;">
+      ⚠️ <?= htmlspecialchars($_GET['error'], ENT_QUOTES) ?>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($usedCoupon)): ?>
+    <?php render_success_banner('Active Promo Coupon Claimed', "Your account currently has active promo '{$usedCoupon}' applied to your trip history. Each traveler account is limited to 1 claimed coupon.", ag_base_url('index.php#deals'), 'View Deals'); ?>
+  <?php endif; ?>
+
+  <h2 style="font-family:'Montserrat',sans-serif; font-size:1.5rem; font-weight:800; margin-bottom:20px; color:#0a1425;">Your Flight &amp; Package History</h2>
 
   <?php if (empty($userBookings)): ?>
     <div class="empty-trips-card">
-      <div class="empty-trips-icon">✈️</div>
-      <h2 style="font-family:'Montserrat',sans-serif; font-size:1.4rem; margin-bottom:8px;">No booked trips yet</h2>
-      <p style="color:var(--muted); margin-bottom:24px;">Explore our exclusive flight deals and package options to book your first getaway!</p>
-      <a href="index.php#deals" class="btn-proceed" style="text-decoration:none; display:inline-block;">Browse Exclusive Deals</a>
+      <div style="font-size:3rem; margin-bottom:1rem;">✈️</div>
+      <h2 style="font-family:'Montserrat',sans-serif; font-size:1.4rem; margin-bottom:8px;">No booked trips found</h2>
+      <p style="color:#5b6b7f; margin-bottom:24px;">Explore our domestic flight routes and getaway deals to schedule your next adventure!</p>
+      <a href="<?= ag_base_url('index.php#deals') ?>" class="btn-proceed" style="text-decoration:none; display:inline-block;">Browse Philippine Deals</a>
     </div>
   <?php else: ?>
     <?php foreach ($userBookings as $idx => $b): 
-      $bRef   = $b['bookingRef'] ?? ('AG-' . strtoupper(substr(md5($idx . time()), 0, 8)));
-      $bCity  = $b['city'] ?? 'Boracay, Aklan';
-      $bDate  = isset($b['bookingDate']) ? date('M d, Y', strtotime($b['bookingDate'])) : date('M d, Y');
-      $bSched = $b['flightSchedule'] ?? 'Philippines AirAsia AG-204 (03:55 AM MNL T2 → 05:20 AM)';
-      $bFare  = $b['fareName'] ?? 'Smart Saver';
-      $bAdults= $b['adults'] ?? 1;
-      $bCabin = $b['cabin'] ?? 'Economy';
-      $bHotel = $b['hotelName'] ?? '';
-      $bCar   = $b['carName'] ?? '';
-      $bTotal = $b['grandTotal'] ?? $b['subTotal'] ?? 4999;
-      $bCoupon= $b['discountLabel'] ?? '';
+      $bRef        = $b['bookingRef'] ?? ('AG-' . strtoupper(substr(md5($idx . time()), 0, 8)));
+      $bCity       = $b['city'] ?? 'Boracay, Aklan';
+      $bDate       = isset($b['bookingDate']) ? date('M d, Y', strtotime($b['bookingDate'])) : date('M d, Y');
+      $bSched      = $b['flightSchedule'] ?? 'Philippines AirAsia AG-204 (03:55 AM MNL T2 → 05:20 AM)';
+      $bFare       = $b['fareName'] ?? 'Smart Saver';
+      $bAdults     = $b['adults'] ?? 1;
+      $bCabin      = $b['cabin'] ?? 'Economy';
+      $bHotel      = $b['hotelName'] ?? '';
+      $bCar        = $b['carName'] ?? '';
+      $bTotal      = $b['grandTotal'] ?? $b['subTotal'] ?? 4999;
+      $bCoupon     = $b['discountLabel'] ?? '';
+      $isCancelled = (strtolower($b['status'] ?? '') === 'cancelled');
     ?>
-    <div class="trip-history-card">
-      <div class="th-top-row">
-        <span class="th-ref-badge">Ref: <?= htmlspecialchars($bRef, ENT_QUOTES) ?></span>
-        <span class="th-date">Booked on <?= htmlspecialchars($bDate, ENT_QUOTES) ?> &middot; <strong style="color:#16a34a;">CONFIRMED</strong></span>
+
+    <?php if ($isCancelled): ?>
+      <!-- CANCELLED BOOKING CARD -->
+      <div class="trip-history-card" style="background:#fafafa; border-color:#cbd5e1; box-shadow:none;">
+        <div class="th-top-row">
+          <span class="th-ref-badge" style="background:#fdeceb; color:#9f1239; font-weight:800;">Ref: <?= htmlspecialchars($bRef, ENT_QUOTES) ?></span>
+          <span style="font-size:0.85rem; color:#9f1239; font-weight:700; background:#ffe4e6; padding:4px 12px; border-radius:999px;">
+            ● CANCELLED
+          </span>
+        </div>
+
+        <h2 class="th-city-title" style="color:#64748b;">
+          <span>📍</span> <?= htmlspecialchars($bCity, ENT_QUOTES) ?>
+          <span style="font-size:0.75rem; font-weight:800; color:#dc2626; background:#fee2e2; padding:3px 10px; border-radius:8px; margin-left:8px;">VOID</span>
+        </h2>
+
+        <div class="th-details-grid">
+          <div class="th-detail-box" style="background:#f1f5f9;">
+            <span class="th-detail-label">Fare &amp; Cabin Class</span>
+            <span class="th-detail-val" style="color:#64748b;"><?= htmlspecialchars($bFare, ENT_QUOTES) ?> &middot; <?= htmlspecialchars($bCabin, ENT_QUOTES) ?> (<?= $bAdults ?> Guest<?= $bAdults > 1 ? 's' : '' ?>)</span>
+          </div>
+          <div class="th-detail-box" style="background:#f1f5f9;">
+            <span class="th-detail-label">Flight Schedule</span>
+            <span class="th-detail-val" style="color:#94a3b8; text-decoration:line-through;"><?= htmlspecialchars($bSched, ENT_QUOTES) ?></span>
+          </div>
+        </div>
+
+        <!-- CANCELLATION & REFUND BREAKDOWN BOX -->
+        <?php 
+          $cFee = $b['cancellationFee'] > 0 ? $b['cancellationFee'] : min(500, $bTotal);
+          $cRefundVal = $b['refundAmount'] > 0 ? $b['refundAmount'] : max(0, $bTotal - $cFee);
+          $cDate = !empty($b['cancelledAt']) ? date('M d, Y', strtotime($b['cancelledAt'])) : date('M d, Y');
+        ?>
+        <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:14px; padding:16px 20px; margin-bottom:16px;">
+          <div style="font-size:0.8rem; font-weight:800; color:#9f1239; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+            <span>💸</span> Cancellation &amp; Refund Record
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; font-size:0.9rem;">
+            <div><span style="color:#64748b; font-size:0.8rem; display:block;">Original Total Paid:</span> <strong>₱<?= number_format($bTotal) ?></strong></div>
+            <div><span style="color:#64748b; font-size:0.8rem; display:block;">Cancellation Fee:</span> <strong style="color:#dc2626;">- ₱<?= number_format($cFee) ?></strong></div>
+            <div><span style="color:#64748b; font-size:0.8rem; display:block;">Refund Credited:</span> <strong style="color:#16a34a; font-size:1.05rem;">₱<?= number_format($cRefundVal) ?></strong></div>
+            <div><span style="color:#64748b; font-size:0.8rem; display:block;">Refund Destination:</span> <strong>Original Payment Method</strong></div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px; border-top:1px solid #e2e8f0;">
+          <span style="font-size:0.85rem; color:#64748b; font-weight:600;">Cancelled on <?= $cDate ?></span>
+          <span style="font-size:0.88rem; font-weight:800; color:#9f1239; background:#ffe4e6; padding:8px 16px; border-radius:10px;">❌ Ticket Void / Flight Cancelled</span>
+        </div>
       </div>
 
-      <h2 class="th-city-title">
-        <span>📍</span> <?= htmlspecialchars($bCity, ENT_QUOTES) ?>
-      </h2>
+    <?php else: ?>
+      <!-- CONFIRMED BOOKING CARD -->
+      <div class="trip-history-card">
+        <div class="th-top-row">
+          <span class="th-ref-badge">Ref: <?= htmlspecialchars($bRef, ENT_QUOTES) ?></span>
+          <span style="font-size:0.85rem; color:#5b6b7f; font-weight:600;">Booked on <?= htmlspecialchars($bDate, ENT_QUOTES) ?> &middot; <strong style="color:#16a34a;">CONFIRMED</strong></span>
+        </div>
 
-      <div class="th-details-grid">
-        <div class="th-detail-box">
-          <span class="th-detail-label">Flight Package &amp; Cabin</span>
-          <span class="th-detail-val"><?= htmlspecialchars($bFare, ENT_QUOTES) ?> &middot; <?= htmlspecialchars($bCabin, ENT_QUOTES) ?> (<?= $bAdults ?> Guest<?= $bAdults > 1 ? 's' : '' ?>)</span>
-        </div>
-        <div class="th-detail-box">
-          <span class="th-detail-label">Flight Schedule</span>
-          <span class="th-detail-val" style="color:#0d6efd;"><?= htmlspecialchars($bSched, ENT_QUOTES) ?></span>
-        </div>
-        <?php if ($bHotel !== ''): ?>
-        <div class="th-detail-box">
-          <span class="th-detail-label">Hotel Stay</span>
-          <span class="th-detail-val">🏨 <?= htmlspecialchars($bHotel, ENT_QUOTES) ?> (<?= $b['nights'] ?? 1 ?> nights)</span>
-        </div>
-        <?php endif; ?>
-        <?php if ($bCar !== ''): ?>
-        <div class="th-detail-box">
-          <span class="th-detail-label">Car Rental</span>
-          <span class="th-detail-val">🚗 <?= htmlspecialchars($bCar, ENT_QUOTES) ?> (<?= $b['days'] ?? 1 ?> days)</span>
-        </div>
-        <?php endif; ?>
-      </div>
+        <h2 class="th-city-title">
+          <span>📍</span> <?= htmlspecialchars($bCity, ENT_QUOTES) ?>
+        </h2>
 
-      <div class="th-footer-row">
-        <div>
-          <span style="font-size:0.8rem; color:var(--muted); display:block;">Total Paid</span>
-          <strong style="font-size:1.3rem; color:var(--ink); font-family:'Montserrat',sans-serif;">₱<?= number_format($bTotal) ?></strong>
-          <?php if ($bCoupon !== ''): ?>
-            <span style="font-size:0.75rem; color:#16a34a; font-weight:700; display:block; margin-top:2px;">🎉 <?= htmlspecialchars($bCoupon, ENT_QUOTES) ?></span>
+        <div class="th-details-grid">
+          <div class="th-detail-box">
+            <span class="th-detail-label">Fare &amp; Cabin Class</span>
+            <span class="th-detail-val"><?= htmlspecialchars($bFare, ENT_QUOTES) ?> &middot; <?= htmlspecialchars($bCabin, ENT_QUOTES) ?> (<?= $bAdults ?> Guest<?= $bAdults > 1 ? 's' : '' ?>)</span>
+          </div>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Flight Schedule</span>
+            <span class="th-detail-val" style="color:#0d6efd;"><?= htmlspecialchars($bSched, ENT_QUOTES) ?></span>
+          </div>
+          <?php if ($bHotel !== ''): ?>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Hotel Accommodation</span>
+            <span class="th-detail-val">🏨 <?= htmlspecialchars($bHotel, ENT_QUOTES) ?> (<?= $b['nights'] ?? 1 ?> nights)</span>
+          </div>
+          <?php endif; ?>
+          <?php if ($bCar !== ''): ?>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Car Rental Service</span>
+            <span class="th-detail-val">🚗 <?= htmlspecialchars($bCar, ENT_QUOTES) ?> (<?= $b['days'] ?? 1 ?> days)</span>
+          </div>
           <?php endif; ?>
         </div>
 
-        <button type="button" class="btn-view-ticket" data-ticket='<?= json_encode([
-          'ref'     => $bRef,
-          'name'    => $b['travelerName'] ?? $currentUser['name'],
-          'city'    => $bCity,
-          'sched'   => $bSched,
-          'cabin'   => $bCabin,
-          'fare'    => $bFare,
-          'date'    => date('M d, Y', strtotime('+3 days')),
-        ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
-          <span>🎟️</span> View Boarding Pass
-        </button>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px; border-top:1px solid #f1f5f9; flex-wrap:wrap; gap:16px;">
+          <div>
+            <span style="font-size:0.8rem; color:#5b6b7f; display:block;">Grand Total Paid</span>
+            <strong style="font-size:1.3rem; color:#0a1425; font-family:'Montserrat',sans-serif;">₱<?= number_format($bTotal) ?></strong>
+            <?php if ($bCoupon !== ''): ?>
+              <span style="font-size:0.75rem; color:#16a34a; font-weight:700; display:block; margin-top:2px;">🎉 <?= htmlspecialchars($bCoupon, ENT_QUOTES) ?></span>
+            <?php endif; ?>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="btn-view-ticket" data-ticket='<?= json_encode([
+              'ref'     => $bRef,
+              'name'    => $b['travelerName'] ?? $currentUser['name'],
+              'city'    => $bCity,
+              'sched'   => $bSched,
+              'cabin'   => $bCabin,
+              'fare'    => $bFare,
+              'date'    => date('M d, Y', strtotime('+3 days')),
+            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
+              <span>🎟️</span> View Boarding Pass
+            </button>
+
+            <button type="button" class="btn-cancel-trip" data-cancel='<?= json_encode([
+              'ref'    => $bRef,
+              'city'   => $bCity,
+              'date'   => $bDate,
+              'sched'  => $bSched,
+              'total'  => $bTotal,
+              'name'   => $b['travelerName'] ?? $currentUser['name'],
+            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
+              <span>❌</span> Cancel Trip
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    <?php endif; ?>
+
     <?php endforeach; ?>
   <?php endif; ?>
 </main>
@@ -312,57 +549,51 @@ $userBookings = auth_get_user_bookings($userId);
   </div>
 </div>
 
-<footer class="site-footer">
-  <div class="footer-container">
-    <div class="footer-brand-block">
-      <div class="footer-brand-header">
-        <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="footer-brand-logo">
-        <span class="footer-brand-name">AeroGlide</span>
-      </div>
-      <p style="font-size:0.82rem; color:#9ca3af; margin-top:8px; max-width:280px;">
-        The premier Philippine domestic travel platform. Book flight deals, hotels, and island rentals with ease.
-      </p>
+<!-- CANCELLATION CONFIRMATION MODAL -->
+<div class="ticket-modal-overlay" id="cancel-modal">
+  <div class="cancel-modal-card">
+    <span class="modal-close-btn" id="cancel-modal-close" style="color:#9f1239;">&times;</span>
+    <div class="cancel-modal-header">
+      <div class="cancel-warning-icon">⚠️</div>
+      <h2 class="cancel-modal-title">Cancel this trip?</h2>
+      <p class="cancel-modal-subtitle">Are you sure you want to cancel this reservation? Cancellation has financial consequences.</p>
     </div>
-    <div class="footer-links-grid">
-      <div>
-        <h3 class="footer-col-title">Philippines Destinations</h3>
-        <ul class="footer-nav-list">
-          <li><a href="boracay.php">Boracay, Aklan</a></li>
-          <li><a href="coron.php">Coron, Palawan</a></li>
-          <li><a href="siargao.php">Siargao, Surigao</a></li>
-          <li><a href="albay.php">Mayon Volcano, Albay</a></li>
-          <li><a href="chocolate-hills.php">Chocolate Hills, Bohol</a></li>
-          <li><a href="taal-volcano.php">Taal Volcano, Batangas</a></li>
-        </ul>
+
+    <div class="cancel-modal-body">
+      <div class="cancel-summary-box">
+        <div class="cs-row"><span class="cs-label">Booking Ref</span><strong class="cs-val" id="cm-ref">AG-12345</strong></div>
+        <div class="cs-row"><span class="cs-label">Flight Route</span><strong class="cs-val" id="cm-city">Boracay, Aklan</strong></div>
+        <div class="cs-row"><span class="cs-label">Passenger Name</span><span class="cs-val" id="cm-name">Traveler</span></div>
+        <div class="cs-row"><span class="cs-label">Schedule</span><span class="cs-val" id="cm-sched" style="font-size:0.82rem;">AirAsia AG-204</span></div>
       </div>
-      <div>
-        <h3 class="footer-col-title">Explore &amp; Deals</h3>
-        <ul class="footer-nav-list">
-          <li><a href="index.php#deals">Flight Deals</a></li>
-          <li><a href="index.php#destinations">Popular Islands</a></li>
-          <li><a href="index.php#promos">Coupon Codes</a></li>
-          <li><a href="index.php#tracker">Flight Tracker</a></li>
-        </ul>
+
+      <div class="cancel-calc-box">
+        <div class="cc-row"><span>Original Total Paid:</span><strong id="cm-total">₱5,000</strong></div>
+        <div class="cc-row cc-fee"><span>Cancellation Fee:</span><strong>- ₱500</strong></div>
+        <div class="cc-row cc-refund"><span>Estimated Refund:</span><strong id="cm-refund" style="color:#16a34a; font-size:1.15rem;">₱4,500</strong></div>
+        <div class="cc-note">💡 Refund will be automatically recorded and credited back to your <strong>Original Payment Method</strong>.</div>
       </div>
-      <div>
-        <h3 class="footer-col-title">Account &amp; Support</h3>
-        <ul class="footer-nav-list">
-          <li><a href="index.php#about">About AeroGlide</a></li>
-          <li><a href="my_bookings.php">My Trips</a></li>
-          <li><a href="forgot_password.php">Reset Password</a></li>
-          <li><a href="index.php#about">Customer Support</a></li>
-        </ul>
-      </div>
+
+      <form method="POST" action="<?= ag_base_url('auth.php') ?>">
+        <input type="hidden" name="action" value="cancel_booking">
+        <input type="hidden" name="booking_ref" id="cm-input-ref" value="">
+        
+        <div class="cancel-btn-group">
+          <button type="button" class="btn-keep-booking" id="btn-keep-booking">Go Back &amp; Keep Booking</button>
+          <button type="submit" class="btn-confirm-cancel">Confirm Cancellation</button>
+        </div>
+      </form>
     </div>
   </div>
-  <div class="footer-bottom-line">
-    <p>© <?php echo date('Y'); ?> AeroGlide Philippines Inc. · Book smarter, travel further. All rights reserved.</p>
-  </div>
-</footer>
+</div>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>
 
 <script>
 (function() {
   'use strict';
+
+  // Ticket Modal logic
   const modal = document.getElementById('ticket-modal');
   const closeBtn = document.getElementById('modal-close');
   const container = document.getElementById('modal-ticket-container');
@@ -375,9 +606,7 @@ $userBookings = auth_get_user_bookings($userId);
     return `
       <div class="ticket-wrapper" style="margin:0; box-shadow:none; border-radius:0; border:none;">
         <div class="ticket-header">
-          <div class="ticket-brand">
-            ✈ AIRLINE TICKET
-          </div>
+          <div class="ticket-brand">✈ AIRLINE TICKET</div>
           <div class="ticket-stub-title">BOARDING PASS</div>
         </div>
 
@@ -510,6 +739,44 @@ $userBookings = auth_get_user_bookings($userId);
 
   closeBtn?.addEventListener('click', () => modal.classList.remove('is-active'));
   modal?.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('is-active'); });
+
+  // Cancel Modal Logic
+  const cancelModal = document.getElementById('cancel-modal');
+  const cancelClose = document.getElementById('cancel-modal-close');
+  const keepBtn     = document.getElementById('btn-keep-booking');
+
+  const cmRef       = document.getElementById('cm-ref');
+  const cmCity      = document.getElementById('cm-city');
+  const cmName      = document.getElementById('cm-name');
+  const cmSched     = document.getElementById('cm-sched');
+  const cmTotal     = document.getElementById('cm-total');
+  const cmRefund    = document.getElementById('cm-refund');
+  const cmInputRef  = document.getElementById('cm-input-ref');
+
+  document.querySelectorAll('.btn-cancel-trip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const data = JSON.parse(btn.dataset.cancel);
+      const totalNum = parseFloat(data.total) || 0;
+      const feeNum   = Math.min(500, totalNum);
+      const refundNum = Math.max(0, totalNum - feeNum);
+
+      cmRef.textContent      = data.ref;
+      cmCity.textContent     = data.city;
+      cmName.textContent     = data.name;
+      cmSched.textContent    = data.sched;
+      cmTotal.textContent    = '₱' + totalNum.toLocaleString('en-US');
+      cmRefund.textContent   = '₱' + refundNum.toLocaleString('en-US');
+      cmInputRef.value       = data.ref;
+
+      cancelModal.classList.add('is-active');
+    });
+  });
+
+  const hideCancelModal = () => cancelModal.classList.remove('is-active');
+  cancelClose?.addEventListener('click', hideCancelModal);
+  keepBtn?.addEventListener('click', hideCancelModal);
+  cancelModal?.addEventListener('click', (e) => { if (e.target === cancelModal) hideCancelModal(); });
+
 })();
 </script>
 </body>

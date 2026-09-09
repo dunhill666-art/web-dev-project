@@ -1,26 +1,32 @@
 <?php
 // ============================================================
 // AeroGlide — reset_password.php
-// Password Reset Confirmation Form
+// Password Reset Confirmation Form & Handler
 // ============================================================
 
+require_once __DIR__ . '/database/function.php';
+require_once __DIR__ . '/database/validation.php';
 require_once __DIR__ . '/auth_helper.php';
 
 $token   = $_REQUEST['token'] ?? '';
 $error   = $_GET['error'] ?? '';
 $success = $_GET['msg']   ?? '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $token       = $_POST['token'] ?? '';
     $newPassword = $_POST['password'] ?? '';
     $confirm     = $_POST['confirm_password'] ?? '';
 
+    $passErr = val_password($newPassword);
+
     if ($newPassword !== $confirm) {
         $error = 'Passwords do not match. Please verify and re-type.';
+    } elseif ($passErr) {
+        $error = $passErr;
     } else {
         $res = auth_reset_password($token, $newPassword);
         if ($res['success']) {
-            header('Location: login.php?msg=' . urlencode('Password updated successfully! You can now log in.'));
+            header('Location: ' . ag_base_url('login.php?msg=' . urlencode('Password updated successfully! You can now log in.')));
             exit;
         } else {
             $error = $res['message'];
@@ -37,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= ag_base_url('style.css') ?>">
 <style>
   :root{
     --ag-sky-1:#eaf4fe;
@@ -208,11 +214,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="auth-page">
 
 <header class="auth-nav">
-  <a class="nav-brand" href="index.php" aria-label="AeroGlide Home">
+  <a class="nav-brand" href="<?= ag_base_url('index.php') ?>" aria-label="AeroGlide Home">
     <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
     <span class="brand-text">AeroGlide</span>
   </a>
-  <a href="login.php" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Log In</a>
+  <a href="<?= ag_base_url('login.php') ?>" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Log In</a>
 </header>
 
 <main class="auth-main-wrap">
@@ -235,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     <?php endif; ?>
 
-    <form method="POST" action="reset_password.php">
+    <form method="POST" action="<?= ag_base_url('reset_password.php') ?>">
       <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
 
       <div class="auth-form-group">
@@ -252,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 
     <div class="auth-footer-text">
-      <a href="login.php">Return to Log In</a>
+      <a href="<?= ag_base_url('login.php') ?>">Return to Log In</a>
     </div>
   </div>
 </main>

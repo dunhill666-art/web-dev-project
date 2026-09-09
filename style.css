@@ -673,16 +673,21 @@ body.aeroglide-page {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    border: 1px solid #ddd;
-    background: #fff;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #000000 !important;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.cnt-val {
+.cnt-val, #dest-guest-count, #adult-count, #child-count {
     font-weight: 800;
     min-width: 18px;
     text-align: center;
+    color: #000000 !important;
 }
 
 .btn-guest-done {
@@ -2861,4 +2866,499 @@ body.aeroglide-page {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+/* ============================================================
+   AEROGLIDE — HELP CENTER & USER MANUAL ROOM STYLES
+   ============================================================ */
+
+.help-hero-section {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0d6efd 100%);
+    color: #fff;
+    padding: 4.5rem 2rem 5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.help-hero-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -20%;
+    width: 140%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.help-hero-container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+.help-badge-pill {
+    display: inline-block;
+    padding: 8px 18px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 1.25rem;
+}
+
+.help-hero-title {
+    font-family: var(--font-heading);
+    font-size: clamp(2.2rem, 4vw, 3.2rem);
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+    color: #ffffff;
+}
+
+.help-hero-subtitle {
+    font-size: 1.1rem;
+    color: #e2e8f0;
+    max-width: 720px;
+    margin: 0 auto 2.25rem;
+    line-height: 1.6;
+}
+
+.help-search-box {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 6px 8px 6px 18px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    max-width: 680px;
+    margin: 0 auto 1.75rem;
+}
+
+.help-search-box .search-icon {
+    font-size: 1.2rem;
+    margin-right: 10px;
+}
+
+.help-search-box input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    font-family: inherit;
+    color: #0f172a;
+    padding: 10px 0;
+}
+
+.btn-help-search {
+    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.btn-help-search:hover {
+    background: #0a58ca;
+    transform: translateY(-1px);
+}
+
+.help-quick-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.85rem;
+}
+
+.tag-label {
+    color: #cbd5e1;
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.quick-tag-chip {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    padding: 6px 14px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: all 0.2s ease;
+}
+
+.quick-tag-chip:hover {
+    background: #ffffff;
+    color: #0d6efd;
+    transform: translateY(-2px);
+}
+
+/* Room Nav Tabs */
+.help-room-nav-section {
+    padding: 3rem 2rem 5rem;
+    background: #f8fafc;
+    min-height: 500px;
+}
+
+.help-room-container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.help-tabs-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 12px;
+}
+
+.help-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #475569;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.help-tab-btn:hover {
+    border-color: #0d6efd;
+    color: #0d6efd;
+    background: #f0f7ff;
+}
+
+.help-tab-btn.active {
+    background: #0d6efd;
+    color: #ffffff;
+    border-color: #0d6efd;
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.25);
+}
+
+.help-room-panel {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.help-room-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.room-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed #cbd5e1;
+}
+
+.panel-icon-circle {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: #e0f2fe;
+    color: #0369a1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+}
+
+.panel-title {
+    font-family: var(--font-heading);
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.panel-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+/* Manual Step Cards */
+.manual-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.manual-step-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.75rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    position: relative;
+    transition: all 0.25s ease;
+}
+
+.manual-step-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px rgba(13, 110, 253, 0.1);
+    border-color: #93c5fd;
+}
+
+.step-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 0.75rem;
+    font-weight: 800;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.85rem;
+}
+
+.step-card-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 0.6rem;
+}
+
+.step-card-desc {
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+.step-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.step-checklist li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 0.88rem;
+    color: #334155;
+    line-height: 1.45;
+}
+
+.step-checklist li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: #10b981;
+    font-weight: 900;
+}
+
+/* Visual Booking Flow */
+.booking-flow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem;
+}
+
+.flow-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.75rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+    position: relative;
+}
+
+.flow-number {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #cbd5e1;
+    font-family: var(--font-heading);
+    margin-bottom: 0.5rem;
+}
+
+.flow-content h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+}
+
+.flow-content p {
+    font-size: 0.88rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+.flow-pill {
+    display: inline-block;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 8px;
+}
+
+/* System Rules */
+.system-rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+}
+
+.system-rule-box {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.75rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+}
+
+.rule-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+}
+
+.rule-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+}
+
+.system-rule-box p {
+    font-size: 0.88rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* FAQ Accordion */
+.faq-accordion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.faq-item {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.faq-item.is-open {
+    border-color: #93c5fd;
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.08);
+}
+
+.faq-question-btn {
+    width: 100%;
+    text-align: left;
+    padding: 1.25rem 1.5rem;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.faq-toggle-icon {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #0d6efd;
+    line-height: 1;
+}
+
+.faq-answer-content {
+    display: none;
+    padding: 0 1.5rem 1.25rem;
+    color: #475569;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    border-top: 1px dashed #f1f5f9;
+    margin-top: -4px;
+}
+
+.faq-item.is-open .faq-answer-content {
+    display: block;
+}
+
+.faq-answer-content ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.faq-answer-content li {
+    margin-bottom: 4px;
+}
+
+/* Baggage cards */
+.baggage-rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.baggage-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.75rem;
+    border: 1px solid #e2e8f0;
+}
+
+.baggage-card h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 0.6rem;
+}
+
+.baggage-card p {
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* Footer Brand Desc */
+.footer-brand-desc {
+    color: #9ca3af;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    margin: 0.75rem 0 1.25rem;
+    max-width: 320px;
 }

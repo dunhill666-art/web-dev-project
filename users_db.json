@@ -43,6 +43,13 @@
             "email": "juan@example.com",
             "username": "juan",
             "password": "$2y$12$6Z6.D0sbtV4yrfyLuz\/5CeZZeRFyw8j0KVzUmgCPgPlGeeaJjdHaS"
+        },
+        "santino": {
+            "id": 1788907292,
+            "name": "santino",
+            "email": "santino@123.com",
+            "username": "santino",
+            "password": "$2y$12$Fwz1OoGH.k6kRM2rg.Rbx.CoWZr4emfJNcOvIrMntbHooT1Jkw50C"
         }
     },
     "tokens": {

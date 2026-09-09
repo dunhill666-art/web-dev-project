@@ -6,153 +6,64 @@
 // and redirection to checkout.
 // ============================================================
 
-session_start();
+require_once __DIR__ . '/auth_helper.php';
 
-$isLoggedIn = isset($_SESSION['user_id']);
-$username   = $isLoggedIn ? ($_SESSION['username'] ?? 'User') : '';
+$isLoggedIn  = auth_is_logged_in();
+$currentUser = auth_get_user();
+$username    = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
-/**
- * Build a flat index of every file inside /asset and /assets,
- * recursively traversing subdirectories (e.g. asset/albay, asset/coron).
- */
-function asset_index(): array
-{
-    static $files = null;
-    if ($files !== null) {
-        return $files;
-    }
+if (!function_exists('asset_gallery')) {
+    /**
+     * Gather images belonging to a specific hotel or car.
+     */
+    function asset_gallery(string $itemName, array $heroFallbackKeywords, int $max = 4): array
+    {
+        $files  = asset_index();
+        $needle = strtolower(preg_replace('/[^a-z0-9]+/i', '', $itemName));
 
-    $files = [];
-    $collect = function (string $dir, string $relPrefix) use (&$collect, &$files): void {
-        foreach (scandir($dir) ?: [] as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-            $full = $dir . DIRECTORY_SEPARATOR . $entry;
-            $rel  = $relPrefix === '' ? $entry : $relPrefix . '/' . $entry;
+        $matches = [];
+        $seen = [];
 
-            if (is_dir($full)) {
-                $collect($full, $rel);
-                continue;
-            }
-            if (!is_file($full)) {
-                continue;
-            }
-
-            $stem = pathinfo($entry, PATHINFO_FILENAME);
-            $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $stem));
-            $squash = strtolower(preg_replace('/[^a-z0-9]+/i', '', $stem));
-            $files[] = [
-                'rel'    => $rel,
-                'name'   => $entry,
-                'norm'   => ' ' . trim($norm) . ' ',
-                'squash' => $squash,
-            ];
-        }
-    };
-
-    foreach (['asset', 'assets'] as $folder) {
-        $dir = __DIR__ . DIRECTORY_SEPARATOR . $folder;
-        if (is_dir($dir)) {
-            $collect($dir, $folder);
-        }
-    }
-    return $files;
-}
-
-function asset_url(array $file): string
-{
-    return implode('/', array_map('rawurlencode', explode('/', $file['rel'])));
-}
-
-function asset_placeholder(): string
-{
-    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><circle cx="690" cy="145" r="70" fill="#fff" opacity=".45"/><path d="M0 430 C170 360 250 470 420 405 C590 340 700 430 900 365 V600 H0Z" fill="#fff" opacity=".48"/></svg>';
-    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
-}
-
-/**
- * Resolve a single asset URL by matching keywords.
- */
-function asset_find(array $keywords, ?array $fallbackKeywords = ['albay', 'coron']): string
-{
-    $files = asset_index();
-
-    $match = function (array $kw) use ($files): ?array {
-        foreach ($files as $f) {
-            $ok = true;
-            foreach ($kw as $k) {
-                if (strpos($f['norm'], strtolower($k)) === false) {
-                    $ok = false;
-                    break;
-                }
-            }
-            if ($ok) {
-                return $f;
-            }
-        }
-        return null;
-    };
-
-    if ($found = $match($keywords)) {
-        return asset_url($found);
-    }
-    if ($fallbackKeywords && ($found = $match($fallbackKeywords))) {
-        return asset_url($found);
-    }
-    return asset_placeholder();
-}
-
-/**
- * Gather images belonging to a specific hotel or car.
- */
-function asset_gallery(string $itemName, array $heroFallbackKeywords, int $max = 4): array
-{
-    $files  = asset_index();
-    $needle = strtolower(preg_replace('/[^a-z0-9]+/i', '', $itemName));
-
-    $matches = [];
-    $seen = [];
-
-    // 1. Direct match on full squashed needle
-    if ($needle !== '') {
-        foreach ($files as $f) {
-            if (isset($seen[$f['name']])) {
-                continue;
-            }
-            if (strpos($f['squash'], $needle) !== false) {
-                $matches[] = $f;
-                $seen[$f['name']] = true;
-            }
-        }
-    }
-
-    // 2. Keyword token fallback for words (e.g. "Fazzio", "Communal", "Bellevue", "Ocean", "Taalisay")
-    if (empty($matches)) {
-        $words = array_filter(explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))), fn($w) => strlen($w) >= 4);
-        foreach ($words as $w) {
+        // 1. Direct match on full squashed needle
+        if ($needle !== '') {
             foreach ($files as $f) {
                 if (isset($seen[$f['name']])) {
                     continue;
                 }
-                if (strpos($f['squash'], $w) !== false) {
+                if (strpos($f['squash'], $needle) !== false) {
                     $matches[] = $f;
                     $seen[$f['name']] = true;
                 }
             }
-            if (!empty($matches)) {
-                break;
+        }
+
+        // 2. Keyword token fallback for words (e.g. "Fazzio", "Communal", "Bellevue", "Ocean", "Taalisay")
+        if (empty($matches)) {
+            $words = array_filter(explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))), fn($w) => strlen($w) >= 4);
+            foreach ($words as $w) {
+                foreach ($files as $f) {
+                    if (isset($seen[$f['name']])) {
+                        continue;
+                    }
+                    if (strpos($f['squash'], $w) !== false) {
+                        $matches[] = $f;
+                        $seen[$f['name']] = true;
+                    }
+                }
+                if (!empty($matches)) {
+                    break;
+                }
             }
         }
+
+        usort($matches, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+
+        if (empty($matches)) {
+            return [asset_find($heroFallbackKeywords)];
+        }
+
+        return array_map('asset_url', array_slice($matches, 0, $max));
     }
-
-    usort($matches, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
-
-    if (empty($matches)) {
-        return [asset_find($heroFallbackKeywords)];
-    }
-
-    return array_map('asset_url', array_slice($matches, 0, $max));
 }
 
 /* ------------------------------------------------------------
@@ -349,55 +260,23 @@ if ($destination['label'] === null) {
 
 $heroImage = asset_find($destination['asset']);
 
-function peso(float $n): string
-{
-    return '₱' . number_format($n, 0);
+if (!function_exists('peso')) {
+    function peso(float $n): string
+    {
+        return '₱' . number_format($n, 0);
+    }
 }
+$pageTitle = htmlspecialchars($destination['label'], ENT_QUOTES) . ' — AeroGlide';
+$activeNav = 'deals';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars($destination['label'], ENT_QUOTES) ?> — AeroGlide</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<?php include __DIR__ . '/includes/head.php'; ?>
 </head>
 <body class="aeroglide-page">
 
-<!-- ============ NAVBAR ============ -->
-<nav class="main-nav">
-  <div class="nav-container">
-    <a class="nav-brand" href="index.php" aria-label="AeroGlide Home">
-      <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
-      <span class="brand-text">AeroGlide</span>
-    </a>
-
-    <div class="nav-menu">
-      <a href="index.php" class="nav-item">Home</a>
-      <a href="index.php#booking" class="nav-item">Flights</a>
-      <a href="index.php#deals" class="nav-item is-active">Package</a>
-      <?php if ($isLoggedIn): ?>
-        <a href="my_bookings.php" class="nav-item">My Trips</a>
-      <?php endif; ?>
-      <a href="index.php#about" class="nav-item">Support</a>
-    </div>
-
-    <div class="nav-right">
-      <?php if ($isLoggedIn): ?>
-        <span class="nav-user-greeting">Hi, <?= htmlspecialchars($username) ?></span>
-        <a class="nav-auth-btn" href="logout.php" title="Logout"><span>Logout</span></a>
-      <?php else: ?>
-        <a class="nav-auth-btn" href="login.php">
-          <svg class="auth-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>Sign up</span>
-        </a>
-      <?php endif; ?>
-    </div>
-  </div>
-</nav>
+<?php include __DIR__ . '/includes/navbar.php'; ?>
 
 <main class="destination-main">
 
@@ -697,56 +576,7 @@ function peso(float $n): string
   <div id="lightbox-caption"></div>
 </div>
 
-<!-- ============ FOOTER ============ -->
-<footer class="site-footer">
-  <div class="footer-container">
-    <div class="footer-brand-col">
-      <div class="footer-brand-header">
-        <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="footer-brand-logo">
-        <span class="footer-brand-name">A e r o G l i d e</span>
-      </div>
-      <div class="footer-social-section">
-        <span class="social-title">Follow</span>
-        <div class="social-buttons-list">
-          <a href="#" class="social-circle-btn" aria-label="Follow us on Facebook">f</a>
-          <a href="#" class="social-circle-btn" aria-label="Follow us on X">𝕏</a>
-          <a href="#" class="social-circle-btn" aria-label="Follow us on YouTube">▶</a>
-        </div>
-      </div>
-    </div>
-    <div class="footer-links-grid">
-      <div>
-        <h3 class="footer-col-title">Philippines Destinations</h3>
-        <ul class="footer-nav-list">
-          <li><a href="boracay.php">Boracay, Aklan</a></li>
-          <li><a href="coron.php">Coron, Palawan</a></li>
-          <li><a href="siargao.php">Siargao, Surigao</a></li>
-          <li><a href="albay.php">Mayon Volcano, Albay</a></li>
-          <li><a href="chocolate-hills.php">Chocolate Hills, Bohol</a></li>
-          <li><a href="taal-volcano.php">Taal Volcano, Batangas</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="footer-col-title">Explore &amp; Deals</h3>
-        <ul class="footer-nav-list">
-          <li><a href="index.php#deals">Flight Deals</a></li>
-          <li><a href="index.php#destinations">Popular Islands</a></li>
-          <li><a href="index.php#promos">Coupon Codes</a></li>
-          <li><a href="index.php#tracker">Flight Tracker</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="footer-col-title">Account &amp; Support</h3>
-        <ul class="footer-nav-list">
-          <li><a href="index.php#about">About AeroGlide</a></li>
-          <li><a href="login.php">Log In / Sign Up</a></li>
-          <li><a href="forgot_password.php">Reset Password</a></li>
-          <li><a href="index.php#about">Customer Support</a></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</footer>
+<?php include __DIR__ . '/includes/footer.php'; ?>
 
 <!-- ============ STICKY TRIP SUMMARY BAR ============ -->
 <div class="trip-summary-bar" id="trip-summary-bar">

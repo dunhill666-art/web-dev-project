@@ -1,13 +1,14 @@
 <?php
 // ============================================================
 // AeroGlide — signup.php
-// User Registration Page: styled with AeroGlide sky theme tokens,
-// embeds user accounts into the system and redirects to booking.
+// User Registration Page
 // ============================================================
 
+require_once __DIR__ . '/database/function.php';
+require_once __DIR__ . '/database/validation.php';
 require_once __DIR__ . '/auth_helper.php';
 
-$redirect = $_REQUEST['redirect'] ?? 'index.php';
+$redirect = $_REQUEST['redirect'] ?? ag_base_url('index.php');
 $city     = $_REQUEST['city']     ?? '';
 $fare     = $_REQUEST['fare']     ?? '';
 $fareName = $_REQUEST['fareName'] ?? '';
@@ -23,27 +24,33 @@ if (auth_is_logged_in()) {
     exit;
 }
 
-$error    = $_REQUEST['error'] ?? '';
+$error    = $_REQUEST['error'] ?? $_REQUEST['message'] ?? '';
 $name     = $_POST['name']     ?? '';
 $email    = $_POST['email']    ?? '';
 $username = $_POST['username'] ?? '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name     = $_POST['name']     ?? '';
-    $email    = $_POST['email']    ?? '';
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    $valResult = validateSignupInput($_POST);
 
-    $res = auth_register($name, $email, $username, $password);
-    if ($res['success']) {
-        $target = $redirect;
-        if ($city !== '') {
-            $target .= '?city=' . urlencode($city) . '&fare=' . urlencode($fare) . '&fareName=' . urlencode($fareName) . '&desc=' . urlencode($desc) . '&price=' . urlencode($price);
-        }
-        header('Location: ' . $target);
-        exit;
+    if (!empty($valResult['errors'])) {
+        $error = implode(' ', $valResult['errors']);
     } else {
-        $error = $res['message'];
+        $name     = $valResult['data']['name'];
+        $email    = $valResult['data']['email'];
+        $username = $valResult['data']['username'];
+        $password = $valResult['data']['password'];
+
+        $res = auth_register($name, $email, $username, $password);
+        if ($res['success']) {
+            $target = $redirect;
+            if ($city !== '') {
+                $target .= '?city=' . urlencode($city) . '&fare=' . urlencode($fare) . '&fareName=' . urlencode($fareName) . '&desc=' . urlencode($desc) . '&price=' . urlencode($price);
+            }
+            header('Location: ' . $target);
+            exit;
+        } else {
+            $error = $res['message'];
+        }
     }
 }
 ?>
@@ -56,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= ag_base_url('style.css') ?>">
 <style>
   :root{
     --ag-sky-1:#eaf4fe;
@@ -226,11 +233,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="auth-page">
 
 <header class="auth-nav">
-  <a class="nav-brand" href="index.php" aria-label="AeroGlide Home">
+  <a class="nav-brand" href="<?= ag_base_url('index.php') ?>" aria-label="AeroGlide Home">
     <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
     <span class="brand-text">AeroGlide</span>
   </a>
-  <a href="index.php" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Home</a>
+  <a href="<?= ag_base_url('index.php') ?>" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Home</a>
 </header>
 
 <main class="auth-main-wrap">
@@ -247,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     <?php endif; ?>
 
-    <form method="POST" action="signup.php">
+    <form method="POST" action="<?= ag_base_url('signup.php') ?>">
       <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirect, ENT_QUOTES) ?>">
       <input type="hidden" name="city" value="<?= htmlspecialchars($city, ENT_QUOTES) ?>">
       <input type="hidden" name="fare" value="<?= htmlspecialchars($fare, ENT_QUOTES) ?>">
@@ -279,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 
     <div class="auth-footer-text">
-      Already have an account? <a href="login.php?redirect=<?= urlencode($redirect) ?>&city=<?= urlencode($city) ?>&fare=<?= urlencode($fare) ?>&fareName=<?= urlencode($fareName) ?>&desc=<?= urlencode($desc) ?>&price=<?= urlencode($price) ?>">Log in here</a>
+      Already have an account? <a href="<?= ag_base_url('login.php') ?>?redirect=<?= urlencode($redirect) ?>&city=<?= urlencode($city) ?>&fare=<?= urlencode($fare) ?>&fareName=<?= urlencode($fareName) ?>&desc=<?= urlencode($desc) ?>&price=<?= urlencode($price) ?>">Log in here</a>
     </div>
   </div>
 </main>
