@@ -2,6 +2,7 @@
 // ============================================================
 // AeroGlide — checkout.php
 // Reached from destination.php's "Proceed to booking" button.
+<<<<<<< HEAD
 // Step 1 (GET):  review trip, enforce account login, apply promo code.
 // Step 2 (POST): validate form, process coupon discount, & show booking confirmation.
 // ============================================================
@@ -109,6 +110,133 @@ $cardExpiry    = '';
 $cardCvv       = '';
 
 if ($isSubmission && $hasTrip && $isLoggedIn) {
+=======
+// Step 1 (GET):  review the selected flight + hotel + car and
+//                enter traveler / payment details.
+// Step 2 (POST): validate the form and show a booking
+//                confirmation with a reference number.
+// This is a demo checkout — no real payment is processed.
+// ============================================================
+
+session_start();
+
+ $isLoggedIn = isset($_SESSION['user_id']);
+ $username   = $isLoggedIn ? ($_SESSION['username'] ?? 'User') : '';
+
+/**
+ * Same lightweight asset lookup used on destination.php, kept local
+ * to this file so checkout.php works standalone. Only used here for
+ * the nav/footer logo.
+ */
+function asset_index(): array
+{
+    static $files = null;
+    if ($files !== null) {
+        return $files;
+    }
+
+    $files = [];
+    foreach (['asset', 'assets'] as $folder) {
+        $dir = __DIR__ . DIRECTORY_SEPARATOR . $folder;
+        if (!is_dir($dir)) {
+            continue;
+        }
+        foreach (glob($dir . DIRECTORY_SEPARATOR . '*') ?: [] as $path) {
+            if (!is_file($path)) {
+                continue;
+            }
+            $base = basename($path);
+            $stem = pathinfo($base, PATHINFO_FILENAME);
+            $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $stem));
+            $files[] = [
+                'folder' => $folder,
+                'name'   => $base,
+                'norm'   => ' ' . trim($norm) . ' ',
+            ];
+        }
+    }
+    return $files;
+}
+
+function asset_url(array $file): string
+{
+    return $file['folder'] . '/' . rawurlencode($file['name']);
+}
+
+function asset_placeholder(): string
+{
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/></svg>';
+    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
+}
+
+function asset_find(array $keywords): string
+{
+    $files = asset_index();
+    foreach ($files as $f) {
+        $ok = true;
+        foreach ($keywords as $k) {
+            if (strpos($f['norm'], strtolower($k)) === false) {
+                $ok = false;
+                break;
+            }
+        }
+        if ($ok) {
+            return asset_url($f);
+        }
+    }
+    return asset_placeholder();
+}
+
+function peso(float $n): string
+{
+    return '₱' . number_format($n, 0);
+}
+
+/* ------------------------------------------------------------
+   Read what the traveler picked on destination.php. GET carries
+   the initial hand-off; the checkout form re-posts the same
+   values as hidden fields so they survive validation round-trips.
+------------------------------------------------------------ */
+ $tripCity     = isset($_REQUEST['city'])     ? trim($_REQUEST['city'])     : '';
+ $fareName     = isset($_REQUEST['fareName']) ? trim($_REQUEST['fareName']) : '';
+ $fareDesc     = isset($_REQUEST['fareDesc']) ? trim($_REQUEST['fareDesc']) : '';
+ $farePriceRaw = isset($_REQUEST['price'])    ? trim($_REQUEST['price'])    : '';
+ $farePriceNum = (float) preg_replace('/[^0-9.]/', '', $farePriceRaw);
+
+ $hotelName  = isset($_REQUEST['hotelName'])  ? trim($_REQUEST['hotelName'])        : '';
+ $hotelPrice = isset($_REQUEST['hotelPrice']) ? (float) $_REQUEST['hotelPrice']     : 0;
+ $nights     = isset($_REQUEST['nights'])     ? max(1, (int) $_REQUEST['nights'])   : 1;
+
+ $carName  = isset($_REQUEST['carName'])  ? trim($_REQUEST['carName'])      : '';
+ $carPrice = isset($_REQUEST['carPrice']) ? (float) $_REQUEST['carPrice']   : 0;
+ $days     = isset($_REQUEST['days'])     ? max(1, (int) $_REQUEST['days']) : 1;
+
+// A trip is considered valid if it at least has a destination and a flight fare.
+ $hasTrip = ($tripCity !== '' && $farePriceNum > 0);
+
+// Recompute totals server-side rather than trusting a client total.
+ $hotelTotal = $hotelPrice * $nights;
+ $carTotal   = $carPrice * $days;
+ $grandTotal = $farePriceNum + $hotelTotal + $carTotal;
+
+/* ------------------------------------------------------------
+   Handle the traveler / payment form submission.
+------------------------------------------------------------ */
+ $errors        = [];
+ $bookingRef    = null;
+ $isSubmission  = ($_SERVER['REQUEST_METHOD'] === 'POST');
+
+ $travelerName  = '';
+ $travelerEmail = '';
+ $travelerPhone = '';
+ $paymentMethod = 'card';
+ $cardNumber    = '';
+ $cardExpiry    = '';
+ $cardCvv       = '';
+ $promoCode     = '';
+
+if ($isSubmission && $hasTrip) {
+>>>>>>> origin/main
     $travelerName  = trim($_POST['travelerName']  ?? '');
     $travelerEmail = trim($_POST['travelerEmail'] ?? '');
     $travelerPhone = trim($_POST['travelerPhone'] ?? '');
@@ -116,6 +244,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     $cardNumber    = trim($_POST['cardNumber']     ?? '');
     $cardExpiry    = trim($_POST['cardExpiry']     ?? '');
     $cardCvv       = trim($_POST['cardCvv']        ?? '');
+<<<<<<< HEAD
+=======
+    $promoCode     = trim($_POST['promoCode']      ?? '');
+>>>>>>> origin/main
 
     if ($travelerName === '') {
         $errors[] = "Please enter the lead traveler's full name.";
@@ -123,14 +255,20 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     if (!filter_var($travelerEmail, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Please enter a valid email address.';
     }
+<<<<<<< HEAD
     $cleanPhone = preg_replace('/[^0-9+]/', '', $travelerPhone);
     if (strlen($cleanPhone) < 10 || strlen($cleanPhone) > 13) {
         $errors[] = 'Please enter a valid phone number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).';
+=======
+    if (!preg_match('/^[0-9+()\-\s]{7,20}$/', $travelerPhone)) {
+        $errors[] = 'Please enter a valid phone number.';
+>>>>>>> origin/main
     }
     if (!in_array($paymentMethod, ['card', 'gcash', 'bank'], true)) {
         $paymentMethod = 'card';
     }
     if ($paymentMethod === 'card') {
+<<<<<<< HEAD
         $cleanCard = preg_replace('/[^0-9]/', '', $cardNumber);
         if (strlen($cleanCard) !== 16) {
             $errors[] = 'Please enter a valid 16-digit card number.';
@@ -141,10 +279,21 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         $cleanCvv = preg_replace('/[^0-9]/', '', $cardCvv);
         if (strlen($cleanCvv) !== 3) {
             $errors[] = 'Please enter a 3-digit CVV security code.';
+=======
+        if (!preg_match('/^[0-9\s]{12,19}$/', $cardNumber)) {
+            $errors[] = 'Please enter a valid card number.';
+        }
+        if (!preg_match('/^(0[1-9]|1[0-2])\/[0-9]{2}$/', $cardExpiry)) {
+            $errors[] = 'Please enter the expiry as MM/YY.';
+        }
+        if (!preg_match('/^[0-9]{3,4}$/', $cardCvv)) {
+            $errors[] = 'Please enter a valid CVV.';
+>>>>>>> origin/main
         }
     }
 
     if (empty($errors)) {
+<<<<<<< HEAD
         $bookingRef = 'AG-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
 
         // Save booking into user's DB history
@@ -179,6 +328,11 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         if ($discountNum > 0 && $promoCodeUpper !== '') {
             auth_record_user_coupon($currentUser['id'], $promoCodeUpper);
         }
+=======
+        // Demo booking reference — swap this block for a real
+        // payment + persistence flow when wiring this up for real.
+        $bookingRef = 'AG-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
+>>>>>>> origin/main
     }
 }
 ?>
@@ -193,12 +347,22 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
+<<<<<<< HEAD
   :root{
     --ag-sky-1:#eaf4fe;
     --ag-sky-2:#cfe7fb;
     --ag-blue-1:#0d6efd;
     --ag-blue-2:#0a4fa0;
     --ag-ink:#0a1425;
+=======
+  /* ————— Theme tokens (matched to homepage sky/flight look) ————— */
+  :root{
+    --ag-sky-1:#eaf4fe;          /* pale sky */
+    --ag-sky-2:#cfe7fb;          /* horizon glow */
+    --ag-blue-1:#0d6efd;         /* primary blue */
+    --ag-blue-2:#0a4fa0;         /* deep blue */
+    --ag-ink:#0a1425;            /* near-black navy */
+>>>>>>> origin/main
     --ag-muted:#5b6b7f;
     --ag-line:#e3e9f2;
     --ag-card:#ffffff;
@@ -216,6 +380,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     min-height:60vh;
   }
 
+<<<<<<< HEAD
+=======
+  /* ————— Hero: open blue sky like the homepage banner ————— */
+>>>>>>> origin/main
   .checkout-hero{
     position:relative;
     background:linear-gradient(160deg, #d8ecfd 0%, var(--ag-sky-2) 45%, #a9d3f5 100%);
@@ -258,6 +426,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     50%{ transform:translateY(-14px) rotate(-4deg); }
   }
 
+<<<<<<< HEAD
+=======
+  /* ————— Step indicator ————— */
+>>>>>>> origin/main
   .step-bar{
     display:flex; gap:0; max-width:640px; margin:0 auto;
     position:relative; z-index:5;
@@ -279,6 +451,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   .step.is-done .step-num{ background:var(--ag-blue-1); color:#fff; }
   .step.is-done{ color:var(--ag-blue-2); }
 
+<<<<<<< HEAD
+=======
+  /* ————— Layout ————— */
+>>>>>>> origin/main
   .checkout-container{
     max-width:1080px; margin:56px auto 80px; padding:0 24px;
     display:grid; grid-template-columns:1.15fr .85fr; gap:26px; align-items:start;
@@ -303,6 +479,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     color:var(--ag-blue-2);
   }
 
+<<<<<<< HEAD
+=======
+  /* ————— Fields ————— */
+>>>>>>> origin/main
   .field-group{ margin-bottom:18px; }
   .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media (max-width:520px){ .field-row{ grid-template-columns:1fr; } }
@@ -318,6 +498,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     box-shadow:0 0 0 4px rgba(13, 110, 253, .12); background:#fff;
   }
 
+<<<<<<< HEAD
+=======
+  /* ————— Payment method tiles ————— */
+>>>>>>> origin/main
   .pay-methods{ display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
   .pay-method{
     flex:1; min-width:130px; border:1.5px solid var(--ag-line); border-radius:14px;
@@ -342,12 +526,20 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   .card-fields.is-visible{ display:block; animation:ag-fadein .25s ease; }
   @keyframes ag-fadein{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:none; } }
 
+<<<<<<< HEAD
+=======
+  /* ————— Errors ————— */
+>>>>>>> origin/main
   .error-box{
     background:#fdeceb; border:1px solid #f4b8b3; color:#8a1f14;
     border-radius:12px; padding:16px 18px; margin-bottom:22px; font-size:.9rem;
   }
   .error-box ul{ margin:6px 0 0 18px; padding:0; }
 
+<<<<<<< HEAD
+=======
+  /* ————— Summary ————— */
+>>>>>>> origin/main
   .summary-row{
     display:flex; justify-content:space-between; gap:12px; padding:14px 0;
     border-bottom:1px dashed var(--ag-line); font-size:.92rem; align-items:flex-start;
@@ -357,10 +549,13 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   .summary-row .item-name{ font-weight:700; color:var(--ag-ink); display:block; margin-bottom:2px; }
   .summary-row .item-meta{ color:var(--ag-muted); font-size:.82rem; }
   .summary-row .item-price{ font-weight:700; color:var(--ag-blue-2); white-space:nowrap; }
+<<<<<<< HEAD
   .summary-discount-row{ color:#15803d; background:#f0fdf4; padding:10px 12px; border-radius:10px; border:1px solid #bbf7d0; margin-top:8px; }
   .summary-discount-row .item-name{ color:#166534; }
   .summary-discount-row .item-price{ color:#15803d; font-weight:800; }
 
+=======
+>>>>>>> origin/main
   .summary-total-row{
     display:flex; justify-content:space-between; align-items:center;
     padding-top:16px; margin-top:8px; border-top:2px solid var(--ag-ink);
@@ -371,6 +566,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     color:#fff; padding:6px 14px; border-radius:999px; font-size:1rem;
   }
 
+<<<<<<< HEAD
   .promo-box-container{ margin-top:18px; }
   .promo-row{ display:flex; gap:8px; }
   .promo-row input{ flex:1; font-weight:600; }
@@ -383,6 +579,16 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   .promo-status-msg.is-success{ color:#16a34a; }
   .promo-status-msg.is-error{ color:#dc2626; }
 
+=======
+  .promo-row{ display:flex; gap:8px; margin-top:18px; }
+  .promo-row input{ flex:1; }
+  .btn-secondary{
+    border:1px solid var(--ag-line); background:#fff; border-radius:12px; padding:0 18px;
+    font-weight:700; font-size:.85rem; cursor:pointer; color:var(--ag-blue-2);
+  }
+
+  /* ————— Confirm button ————— */
+>>>>>>> origin/main
   .btn-confirm{
     width:100%; margin-top:24px;
     background:linear-gradient(135deg, var(--ag-blue-1), var(--ag-blue-2));
@@ -395,6 +601,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   .btn-confirm:active{ transform:translateY(0); }
   .lock-note{ text-align:center; color:var(--ag-muted); font-size:.78rem; margin-top:12px; }
 
+<<<<<<< HEAD
+=======
+  /* ————— No-trip state ————— */
+>>>>>>> origin/main
   .no-trip-box{ max-width:560px; margin:100px auto; text-align:center; padding:0 24px; }
   .no-trip-box h1{ font-family:'Montserrat',sans-serif; font-weight:800; }
   .no-trip-box p{ color:var(--ag-muted); }
@@ -405,7 +615,13 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     font-weight:700; box-shadow:0 10px 26px rgba(13,110,253,.3);
     transition:transform .15s ease;
   }
+<<<<<<< HEAD
 
+=======
+  .no-trip-box a.btn-primary-link:hover{ transform:translateY(-2px); }
+
+  /* ————— Confirmation state ————— */
+>>>>>>> origin/main
   .confirm-box{ max-width:660px; margin:80px auto; padding:0 24px; text-align:center; }
   .confirm-box h1{ font-family:'Montserrat',sans-serif; font-weight:900; letter-spacing:-.02em; }
   .confirm-badge{
@@ -432,6 +648,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   }
   .confirm-actions .secondary{ background:#fff; color:var(--ag-blue-2); border:1px solid var(--ag-line); }
 
+<<<<<<< HEAD
   /* Restricted Auth Card */
   .auth-lock-card {
     text-align: center;
@@ -452,6 +669,8 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   .auth-lock-btn-primary { background: linear-gradient(135deg, var(--ag-blue-1), var(--ag-blue-2)); color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 14px; font-weight: 800; font-size: 0.95rem; box-shadow: 0 8px 20px rgba(13,110,253,0.25); }
   .auth-lock-btn-secondary { background: #fff; color: var(--ag-blue-2); text-decoration: none; padding: 12px 28px; border-radius: 14px; font-weight: 800; font-size: 0.95rem; border: 1.5px solid var(--ag-line); }
 
+=======
+>>>>>>> origin/main
   @media print{
     .main-nav, .site-footer, .confirm-actions, .step-bar{ display:none !important; }
     .checkout-main{ background:#fff; }
@@ -461,12 +680,45 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 </head>
 <body class="aeroglide-page">
 
+<<<<<<< HEAD
 <?php include __DIR__ . '/includes/navbar.php'; ?>
+=======
+<!-- ============ NAVBAR ============ -->
+<nav class="main-nav">
+  <div class="nav-container">
+    <a class="nav-brand" href="index.php" aria-label="AeroGlide Home">
+      <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
+      <span class="brand-text">AeroGlide</span>
+    </a>
+    <div class="nav-menu">
+      <a href="index.php" class="nav-item">Home</a>
+      <a href="index.php#booking" class="nav-item">Flights</a>
+      <a href="index.php#deals" class="nav-item">Package</a>
+      <a href="index.php#about" class="nav-item">Support</a>
+    </div>
+    <div class="nav-right">
+      <?php if ($isLoggedIn): ?>
+        <span class="nav-user-greeting">Hi, <?= htmlspecialchars($username) ?></span>
+        <a class="nav-auth-btn" href="logout.php" title="Logout"><span>Logout</span></a>
+      <?php else: ?>
+        <a class="nav-auth-btn" href="login.php">
+          <svg class="auth-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Sign up</span>
+        </a>
+      <?php endif; ?>
+    </div>
+  </div>
+</nav>
+>>>>>>> origin/main
 
 <main class="checkout-main">
 
 <?php if (!$hasTrip): ?>
 
+<<<<<<< HEAD
+=======
+  <!-- ============ NO TRIP SELECTED ============ -->
+>>>>>>> origin/main
   <div class="no-trip-box">
     <div class="confirm-badge" style="background:linear-gradient(135deg,#cfe7fb,#a9d3f5); box-shadow:var(--ag-shadow-soft);">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0a4fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
@@ -476,6 +728,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     <a class="btn-primary-link" href="index.php#deals">Browse destinations</a>
   </div>
 
+<<<<<<< HEAD
 <?php elseif (!$isLoggedIn): ?>
 
   <!-- ============ ACCOUNT RESTRICTION NOTICE ============ -->
@@ -653,6 +906,17 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
       </div>
     </div>
 
+=======
+<?php elseif ($bookingRef): ?>
+
+  <!-- ============ BOOKING CONFIRMED ============ -->
+  <div class="confirm-box">
+    <div class="confirm-badge">&#10003;</div>
+    <h1>Booking confirmed!</h1>
+    <p style="color:var(--ag-muted);">Thanks, <?= htmlspecialchars(explode(' ', $travelerName)[0], ENT_QUOTES) ?> — your trip to <strong style="color:var(--ag-ink);"><?= htmlspecialchars($tripCity, ENT_QUOTES) ?></strong> is booked.</p>
+    <div class="confirm-ref">Reference: <?= htmlspecialchars($bookingRef, ENT_QUOTES) ?></div>
+
+>>>>>>> origin/main
     <div class="checkout-card confirm-summary">
       <h2>
         <span class="h2-icon">
@@ -661,17 +925,26 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         Trip summary
       </h2>
       <div class="summary-row">
+<<<<<<< HEAD
         <div><span class="item-name">Flight &mdash; <?= htmlspecialchars($fareName, ENT_QUOTES) ?></span><span class="item-meta"><?= htmlspecialchars($fareDesc, ENT_QUOTES) ?></span></div>
+=======
+        <div><span class="item-name">Flight — <?= htmlspecialchars($fareName, ENT_QUOTES) ?></span><span class="item-meta"><?= htmlspecialchars($fareDesc, ENT_QUOTES) ?></span></div>
+>>>>>>> origin/main
         <span class="item-price"><?= peso($farePriceNum) ?></span>
       </div>
       <?php if ($hotelName !== ''): ?>
       <div class="summary-row">
+<<<<<<< HEAD
         <div><span class="item-name"><?= htmlspecialchars($hotelName, ENT_QUOTES) ?></span><span class="item-meta"><?= $nights ?> night<?= $nights > 1 ? 's' : '' ?> &middot; <?= peso($hotelPrice) ?>/night</span></div>
+=======
+        <div><span class="item-name"><?= htmlspecialchars($hotelName, ENT_QUOTES) ?></span><span class="item-meta"><?= $nights ?> night<?= $nights > 1 ? 's' : '' ?> · <?= peso($hotelPrice) ?>/night</span></div>
+>>>>>>> origin/main
         <span class="item-price"><?= peso($hotelTotal) ?></span>
       </div>
       <?php endif; ?>
       <?php if ($carName !== ''): ?>
       <div class="summary-row">
+<<<<<<< HEAD
         <div><span class="item-name"><?= htmlspecialchars($carName, ENT_QUOTES) ?></span><span class="item-meta"><?= $days ?> day<?= $days > 1 ? 's' : '' ?> &middot; <?= peso($carPrice) ?>/day</span></div>
         <span class="item-price"><?= peso($carTotal) ?></span>
       </div>
@@ -684,23 +957,40 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
       </div>
       <?php endif; ?>
 
+=======
+        <div><span class="item-name"><?= htmlspecialchars($carName, ENT_QUOTES) ?></span><span class="item-meta"><?= $days ?> day<?= $days > 1 ? 's' : '' ?> · <?= peso($carPrice) ?>/day</span></div>
+        <span class="item-price"><?= peso($carTotal) ?></span>
+      </div>
+      <?php endif; ?>
+>>>>>>> origin/main
       <div class="summary-total-row">
         <span>Total paid</span>
         <span class="total-pill"><?= peso($grandTotal) ?></span>
       </div>
     </div>
 
+<<<<<<< HEAD
     <p class="lock-note">A confirmation for <?= htmlspecialchars($travelerEmail, ENT_QUOTES) ?> has been generated. Your booking has been saved to your account!</p>
 
     <div class="confirm-actions">
       <a href="my_bookings.php" class="primary">View My Trips</a>
       <a href="#" class="secondary" onclick="window.print(); return false;">Print ticket</a>
+=======
+    <p class="lock-note">A confirmation for <?= htmlspecialchars($travelerEmail, ENT_QUOTES) ?> has been generated. This is a demo build — no real charge was made.</p>
+
+    <div class="confirm-actions">
+      <a href="#" class="primary" onclick="window.print(); return false;">Print confirmation</a>
+>>>>>>> origin/main
       <a href="index.php" class="secondary">Back to home</a>
     </div>
   </div>
 
 <?php else: ?>
 
+<<<<<<< HEAD
+=======
+  <!-- ============ CHECKOUT HERO — sky banner matching the homepage ============ -->
+>>>>>>> origin/main
   <section class="checkout-hero">
     <svg class="hero-plane" width="88" height="88" viewBox="0 0 24 24" fill="#f4f8fc" stroke="#0a4fa0" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
     <div class="checkout-hero-inner">
@@ -709,10 +999,18 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         Back to <?= htmlspecialchars($tripCity, ENT_QUOTES) ?>
       </a>
       <h1 class="checkout-hero-title">Secure your trip</h1>
+<<<<<<< HEAD
       <p class="checkout-hero-sub">Logged in as <strong><?= htmlspecialchars($travelerName ?: $username, ENT_QUOTES) ?></strong> — review your trip and enter payment details to confirm.</p>
     </div>
   </section>
 
+=======
+      <p class="checkout-hero-sub">You're one step away from <?= htmlspecialchars($tripCity, ENT_QUOTES) ?> — review your trip and enter your details to confirm.</p>
+    </div>
+  </section>
+
+  <!-- ============ STEP INDICATOR ============ -->
+>>>>>>> origin/main
   <div class="step-bar">
     <div class="step is-done">
       <span class="step-num">&#10003;</span><span>Review trip</span>
@@ -727,6 +1025,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 
   <div class="checkout-container">
 
+<<<<<<< HEAD
+=======
+    <!-- ============ TRAVELER + PAYMENT FORM ============ -->
+>>>>>>> origin/main
     <div>
       <form class="checkout-card" method="POST" action="checkout.php" id="checkout-payment-form">
         <?php if (!empty($errors)): ?>
@@ -816,6 +1118,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
           <?php endif; ?>
         </p>
 
+<<<<<<< HEAD
+=======
+        <!-- Carry the selected trip through to the confirmation step -->
+>>>>>>> origin/main
         <input type="hidden" name="city" value="<?= htmlspecialchars($tripCity, ENT_QUOTES) ?>">
         <input type="hidden" name="fareName" value="<?= htmlspecialchars($fareName, ENT_QUOTES) ?>">
         <input type="hidden" name="fareDesc" value="<?= htmlspecialchars($fareDesc, ENT_QUOTES) ?>">
@@ -826,10 +1132,16 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         <input type="hidden" name="carName" value="<?= htmlspecialchars($carName, ENT_QUOTES) ?>">
         <input type="hidden" name="carPrice" value="<?= htmlspecialchars((string) $carPrice, ENT_QUOTES) ?>">
         <input type="hidden" name="days" value="<?= (int) $days ?>">
+<<<<<<< HEAD
         <input type="hidden" name="promoCode" id="hidden-promo-code" value="<?= htmlspecialchars($promoCode, ENT_QUOTES) ?>">
 
         <button type="submit" class="btn-confirm" id="btn-submit-booking">Confirm &amp; pay <span id="btn-pay-total"><?= peso($grandTotal) ?></span></button>
         <p class="lock-note">🔒 256-bit SSL Encrypted Payment &middot; Official AeroGlide Ticket Issuance</p>
+=======
+
+        <button type="submit" class="btn-confirm">Confirm &amp; pay <?= peso($grandTotal) ?></button>
+        <p class="lock-note">🔒 Demo checkout — no real payment is processed.</p>
+>>>>>>> origin/main
       </form>
     </div>
 
@@ -845,6 +1157,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 
         <div class="summary-row">
           <div>
+<<<<<<< HEAD
             <span class="item-name">✈️ Flight &mdash; <?= $mode === 'hotels' ? 'Flight Skipped (Hotels & Cars only)' : htmlspecialchars($fareName, ENT_QUOTES) ?></span>
             <span class="item-meta"><?= $mode === 'hotels' ? 'No airfare included' : htmlspecialchars($fareDesc, ENT_QUOTES) . ' (' . $adults . ' Guest' . ($adults > 1 ? 's' : '') . ' &middot; ' . htmlspecialchars($cabin) . ')' ?></span>
             <?php if ($mode !== 'hotels' && $flightSchedule !== ''): ?>
@@ -852,13 +1165,23 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
             <?php endif; ?>
           </div>
           <span class="item-price"><?= $mode === 'hotels' ? '₱0' : peso($farePriceNum) ?></span>
+=======
+            <span class="item-name">✈️ Flight — <?= htmlspecialchars($fareName, ENT_QUOTES) ?></span>
+            <span class="item-meta"><?= htmlspecialchars($fareDesc, ENT_QUOTES) ?></span>
+          </div>
+          <span class="item-price"><?= peso($farePriceNum) ?></span>
+>>>>>>> origin/main
         </div>
 
         <?php if ($hotelName !== ''): ?>
         <div class="summary-row">
           <div>
             <span class="item-name">🏨 <?= htmlspecialchars($hotelName, ENT_QUOTES) ?></span>
+<<<<<<< HEAD
             <span class="item-meta"><?= $nights ?> night<?= $nights !== 1 ? 's' : '' ?> &middot; <?= peso($hotelPrice) ?>/night</span>
+=======
+            <span class="item-meta"><?= $nights ?> night<?= $nights > 1 ? 's' : '' ?> · <?= peso($hotelPrice) ?>/night</span>
+>>>>>>> origin/main
           </div>
           <span class="item-price"><?= peso($hotelTotal) ?></span>
         </div>
@@ -868,12 +1191,17 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         <div class="summary-row">
           <div>
             <span class="item-name">🚗 <?= htmlspecialchars($carName, ENT_QUOTES) ?></span>
+<<<<<<< HEAD
             <span class="item-meta"><?= $days ?> day<?= $days !== 1 ? 's' : '' ?> &middot; <?= peso($carPrice) ?>/day</span>
+=======
+            <span class="item-meta"><?= $days ?> day<?= $days > 1 ? 's' : '' ?> · <?= peso($carPrice) ?>/day</span>
+>>>>>>> origin/main
           </div>
           <span class="item-price"><?= peso($carTotal) ?></span>
         </div>
         <?php endif; ?>
 
+<<<<<<< HEAD
         <!-- Dynamic Discount Row -->
         <div class="summary-row summary-discount-row" id="discount-row" style="<?= $discountNum > 0 ? '' : 'display:none;' ?>">
           <div>
@@ -891,11 +1219,20 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
           <div class="promo-status-msg" id="promo-status">
             💡 Try codes: <strong>5people2026</strong> (30% OFF), <strong>septdeal2026</strong> (-₱1,500), or <strong>berfly1000</strong> (-₱1,000)
           </div>
+=======
+        <div class="promo-row">
+          <input class="field-input" type="text" placeholder="Promo code" value="<?= htmlspecialchars($promoCode, ENT_QUOTES) ?>" disabled>
+          <button type="button" class="btn-secondary" disabled>Apply</button>
+>>>>>>> origin/main
         </div>
 
         <div class="summary-total-row">
           <span>Total</span>
+<<<<<<< HEAD
           <span class="total-pill" id="total-pill-disp"><?= peso($grandTotal) ?></span>
+=======
+          <span class="total-pill"><?= peso($grandTotal) ?></span>
+>>>>>>> origin/main
         </div>
       </div>
     </div>
@@ -906,11 +1243,42 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 
 </main>
 
+<<<<<<< HEAD
 <?php include __DIR__ . '/includes/footer.php'; ?>
+=======
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="footer-container">
+    <div class="footer-brand-col">
+      <div class="footer-brand-header">
+        <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="footer-brand-logo">
+        <span class="footer-brand-name">A e r o G l i d e</span>
+      </div>
+    </div>
+    <div class="footer-links-grid">
+      <div class="footer-col">
+        <h4 class="footer-col-title">Travel</h4>
+        <ul class="footer-nav-list">
+          <li><a href="index.php#destinations">Asia</a></li>
+          <li><a href="index.php#destinations">Europe</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-col-title">Company</h4>
+        <ul class="footer-nav-list">
+          <li><a href="index.php#about">About Us</a></li>
+          <li><a href="index.php#about">Customer Support</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</footer>
+>>>>>>> origin/main
 
 <script>
 (function () {
   'use strict';
+<<<<<<< HEAD
   const peso = (n) => '₱' + Math.round(n).toLocaleString('en-PH');
   const subTotal = <?= json_encode($subTotal) ?>;
 
@@ -919,6 +1287,13 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   const altNote = document.getElementById('alt-pay-note');
 
   const notes = {
+=======
+  var methods = document.querySelectorAll('#pay-methods .pay-method');
+  var cardFields = document.getElementById('card-fields');
+  var altNote = document.getElementById('alt-pay-note');
+
+  var notes = {
+>>>>>>> origin/main
     card: '',
     gcash: "You'll get a GCash payment prompt after confirming.",
     bank: 'Bank transfer details will be sent to your email after confirming.'
@@ -928,11 +1303,16 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     label.addEventListener('click', function () {
       methods.forEach(function (l) { l.classList.remove('is-active'); });
       label.classList.add('is-active');
+<<<<<<< HEAD
       const method = label.dataset.method;
+=======
+      var method = label.dataset.method;
+>>>>>>> origin/main
       if (cardFields) cardFields.classList.toggle('is-visible', method === 'card');
       if (altNote) altNote.textContent = notes[method] || '';
     });
   });
+<<<<<<< HEAD
 
   /* ================= STRICT INPUT RESTRICTIONS & FORMATTING ================= */
   const cardNumInput = document.getElementById('cardNumber');
@@ -1068,3 +1448,10 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 </script>
 </body>
 </html>
+=======
+})();
+</script>
+
+</body>
+</html>
+>>>>>>> origin/main
