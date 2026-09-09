@@ -1,9 +1,8 @@
 <?php
-// ============================================================
-// AeroGlide — taal-volcano.php
-// Dedicated destination package page for Taal Volcano, Batangas.
-// ============================================================
-
+// Root compatibility wrapper for taal-volcano.php
 $_GET['city'] = $_GET['city'] ?? 'Taal Volcano, Batangas';
-
-require __DIR__ . '/destination.php';
+if (file_exists(__DIR__ . '/destinations/taal-volcano.php')) {
+    require __DIR__ . '/destinations/taal-volcano.php';
+} else {
+    require __DIR__ . '/destination.php';
+}

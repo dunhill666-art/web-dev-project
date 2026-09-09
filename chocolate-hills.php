@@ -1,9 +1,8 @@
 <?php
-// ============================================================
-// AeroGlide — chocolate-hills.php
-// Dedicated destination package page for Chocolate Hills, Bohol.
-// ============================================================
-
+// Root compatibility wrapper for chocolate-hills.php
 $_GET['city'] = $_GET['city'] ?? 'Chocolate Hills, Bohol';
-
-require __DIR__ . '/destination.php';
+if (file_exists(__DIR__ . '/destinations/chocolate-hills.php')) {
+    require __DIR__ . '/destinations/chocolate-hills.php';
+} else {
+    require __DIR__ . '/destination.php';
+}

@@ -1,10 +1,5 @@
 <?php
-// ============================================================
-// AeroGlide — index.php
-// Public homepage: photo hero background, booking, deals,
-// destinations, about, clients + Flight Tracker and
-// "Discover What's Happening" coupon sections.
-// ============================================================
+// main landing page
 
 require_once __DIR__ . '/auth_helper.php';
 
@@ -12,12 +7,13 @@ $isLoggedIn  = auth_is_logged_in();
 $currentUser = auth_get_user();
 $username    = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
-/* ---- Hero background photo (airplane in the sky) ---- */
+// hero background photo
  $heroBgSrc   = asset_find(['hero'], ['plane']);
  $heroBgIsImg = !str_starts_with($heroBgSrc, 'data:image/svg+xml');
 
-/* ---- About photo ---- */
+// about section photo
  $aboutImgSrc = asset_find(['about'], ['banaue']);
+
 $pageTitle = 'AeroGlide — Book Smarter, Travel Further';
 $activeNav = 'home';
 ?>

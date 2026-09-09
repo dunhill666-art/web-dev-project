@@ -1,8 +1,5 @@
 <?php
-// ============================================================
-// AeroGlide — database/function.php
-// Global application helper functions and state management
-// ============================================================
+// global helper functions
 
 require_once __DIR__ . '/config.php';
 
@@ -10,10 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-/**
- * Compute the project base web URL path dynamically.
- * Works regardless of execution directory (root, /Login, /User, /admin, etc.)
- */
+// base url builder
 if (!function_exists('ag_base_url')) {
     function ag_base_url(string $path = ''): string
     {
@@ -21,7 +15,7 @@ if (!function_exists('ag_base_url')) {
         if ($base === null) {
             $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '/project/index.php');
             $dir = str_replace('\\', '/', dirname($script));
-            $dir = preg_replace('#/(Login|User|admin|place|database)$#i', '', $dir);
+            $dir = preg_replace('#/(Login|User|user|destinations|place|admin|database)$#i', '', $dir);
             $base = rtrim($dir, '/');
             if ($base === '') {
                 $base = '/project';
@@ -32,9 +26,7 @@ if (!function_exists('ag_base_url')) {
     }
 }
 
-/**
- * Get current logged in user array or null
- */
+// get logged in user info
 if (!function_exists('auth_get_user')) {
     function auth_get_user(): ?array
     {
@@ -56,7 +48,7 @@ if (!function_exists('auth_get_user')) {
                 return $user;
             }
         } catch (Exception $e) {
-            // Fallback
+            // fallback
         }
 
         return [
@@ -69,9 +61,7 @@ if (!function_exists('auth_get_user')) {
     }
 }
 
-/**
- * Check if user is logged in
- */
+// check if user logged in
 if (!function_exists('auth_is_logged_in')) {
     function auth_is_logged_in(): bool
     {
@@ -79,9 +69,7 @@ if (!function_exists('auth_is_logged_in')) {
     }
 }
 
-/**
- * Check if current user is an administrator
- */
+// check admin role
 if (!function_exists('auth_is_admin')) {
     function auth_is_admin(): bool
     {
@@ -90,9 +78,7 @@ if (!function_exists('auth_is_admin')) {
     }
 }
 
-/**
- * Log in a user into session
- */
+// login user and store session
 if (!function_exists('auth_login_user')) {
     function auth_login_user(array $user): void
     {
@@ -105,14 +91,12 @@ if (!function_exists('auth_login_user')) {
             $stmt = $db->prepare("UPDATE users SET last_login = NOW() WHERE id = :id");
             $stmt->execute([':id' => $user['id']]);
         } catch (Exception $e) {
-            // Ignore timestamp failure
+            // ignore timestamp failure
         }
     }
 }
 
-/**
- * Log out current user
- */
+// logout and clear session
 if (!function_exists('auth_logout')) {
     function auth_logout(): void
     {
@@ -128,9 +112,7 @@ if (!function_exists('auth_logout')) {
     }
 }
 
-/**
- * Record an admin action in admin_logs table
- */
+// log admin action
 if (!function_exists('admin_log')) {
     function admin_log(string $action, ?string $target = null): void
     {
@@ -146,11 +128,12 @@ if (!function_exists('admin_log')) {
                 ':tgt' => $target,
             ]);
         } catch (Exception $e) {
-            // Non-blocking log failure
+            // ignore failure
         }
     }
 }
 
+// asset path helper
 if (!function_exists('asset_find')) {
     function asset_find(array $terms, ?array $fallbackTerms = null): string
     {
@@ -210,9 +193,7 @@ if (!function_exists('asset_find')) {
     }
 }
 
-/**
- * Format monetary amount in Philippine Pesos
- */
+// format peso amount
 if (!function_exists('format_currency')) {
     function format_currency(float $amount): string
     {
@@ -220,9 +201,7 @@ if (!function_exists('format_currency')) {
     }
 }
 
-/**
- * Format datetime display string
- */
+// format date display
 if (!function_exists('format_date')) {
     function format_date(string $datetime): string
     {

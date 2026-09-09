@@ -1,8 +1,6 @@
 <?php
-// ============================================================
-// AeroGlide — help.php
-// Help Center, About Us, Reviews, User Manuals & FAQs Room.
-// ============================================================
+// help center and faq page
+
 
 require_once __DIR__ . '/auth_helper.php';
 
@@ -11,10 +9,10 @@ $currentUser = auth_get_user();
 $username    = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
 $aboutImgSrc = asset_find(['banaue', 'rice'], ['palawan', 'sunset']);
-?>
 $pageTitle = 'Help Center, About Us & User Manual — AeroGlide';
 $activeNav = 'about';
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

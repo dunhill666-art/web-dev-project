@@ -1,8 +1,6 @@
 <?php
-// ============================================================
-// AeroGlide — includes/head.php
-// Reusable HTML head section & stylesheets
-// ============================================================
+// html head and meta tags
+
 require_once __DIR__ . '/../auth_helper.php';
 
 $pageTitle = $pageTitle ?? 'AeroGlide — Book Smarter, Travel Further';

@@ -1,8 +1,6 @@
 <?php
-// ============================================================
-// AeroGlide — includes/footer.php
-// Reusable bottom footer section component
-// ============================================================
+// page footer component
+
 require_once __DIR__ . '/../auth_helper.php';
 
 $isLoggedIn = auth_is_logged_in();

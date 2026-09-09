@@ -1,8 +1,6 @@
 <?php
-// ============================================================
-// AeroGlide — includes/navbar.php
-// Reusable top navigation header bar
-// ============================================================
+// main navigation bar
+
 require_once __DIR__ . '/../auth_helper.php';
 
 $isLoggedIn  = auth_is_logged_in();

@@ -1,10 +1,6 @@
 <?php
-// ============================================================
-// AeroGlide — destination.php
-// Interactive destination package details page showing hotels,
-// car rentals, slideshows, image lightbox, price calculator,
-// and redirection to checkout.
-// ============================================================
+// destination detail page
+
 
 require_once __DIR__ . '/auth_helper.php';
 
@@ -13,9 +9,6 @@ $currentUser = auth_get_user();
 $username    = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
 if (!function_exists('asset_gallery')) {
-    /**
-     * Gather images belonging to a specific hotel or car.
-     */
     function asset_gallery(string $itemName, array $heroFallbackKeywords, int $max = 4): array
     {
         $files  = asset_index();
@@ -27,9 +20,7 @@ if (!function_exists('asset_gallery')) {
         // 1. Direct match on full squashed needle
         if ($needle !== '') {
             foreach ($files as $f) {
-                if (isset($seen[$f['name']])) {
-                    continue;
-                }
+                if (isset($seen[$f['name']])) continue;
                 if (strpos($f['squash'], $needle) !== false) {
                     $matches[] = $f;
                     $seen[$f['name']] = true;
@@ -37,34 +28,62 @@ if (!function_exists('asset_gallery')) {
             }
         }
 
-        // 2. Keyword token fallback for words (e.g. "Fazzio", "Communal", "Bellevue", "Ocean", "Taalisay")
+        // 2. Keyword token fallback for words
         if (empty($matches)) {
-            $words = array_filter(explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))), fn($w) => strlen($w) >= 4);
+            $words = array_filter(explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))), fn($w) => strlen($w) >= 4 && !in_array($w, ['hotel', 'resort', 'inn', 'lodge', 'beach', 'view', 'dive', 'stay', 'town', 'island', 'house', 'park', 'villas', 'haven', 'travelers']));
             foreach ($words as $w) {
                 foreach ($files as $f) {
-                    if (isset($seen[$f['name']])) {
-                        continue;
-                    }
+                    if (isset($seen[$f['name']])) continue;
                     if (strpos($f['squash'], $w) !== false) {
                         $matches[] = $f;
                         $seen[$f['name']] = true;
                     }
                 }
-                if (!empty($matches)) {
-                    break;
-                }
+                if (!empty($matches)) break;
+            }
+        }
+
+        // 3. Category fallback if no specific asset matches
+        if (empty($matches)) {
+            $lowerItem = strtolower($itemName);
+            if (str_contains($lowerItem, 'sedan') || str_contains($lowerItem, 'car')) {
+                return [asset_find(['sedan'])];
+            } elseif (str_contains($lowerItem, 'suv')) {
+                return [asset_find(['suv'])];
+            } elseif (str_contains($lowerItem, 'van')) {
+                return [asset_find(['van'])];
+            } elseif (str_contains($lowerItem, 'scooter') || str_contains($lowerItem, 'motorbike') || str_contains($lowerItem, 'bike')) {
+                return [asset_find(['fazzio'])];
+            } elseif (str_contains($lowerItem, 'boat') || str_contains($lowerItem, 'transfer') || str_contains($lowerItem, 'outrigger')) {
+                return [asset_find(['coron'])];
+            } else {
+                // Hotel fallbacks - pick distinct hotel images by hashing $itemName
+                $hotelPool = [
+                    'asset/Bellevue Resort Bohol.jpg',
+                    'asset/Communal Ranch Lodge.jpg',
+                    'asset/Discovery Shores Boracay.jpg',
+                    'asset/Henann Regency Resort & Spa 1.jpg',
+                    'asset/Ocean Vida Beach & Dive Resort.jpg',
+                    'asset/Shangri-La Boracay Resort & Spa 1.jpg',
+                    'asset/Taalisay Ridge Resort.jpg',
+                    'asset/albay/Harbor View Inn 1.jpg',
+                    'asset/albay/Seaside Garden Hotel 1.jpg',
+                    'asset/coron/coron-soleil-garden-resort.jpg',
+                    'asset/coron/Coron Westown Resort, Palawan, Philippines.jpg',
+                    'asset/siargao/Bravo Beach Resort, Siargao Island _ 2026 Updated Prices, Deals.jpg',
+                    'asset/siargao/Nay Palad Hideaway.jpg',
+                    'asset/siargao/kermit surf.jpg',
+                ];
+                $idx = abs(crc32($itemName)) % count($hotelPool);
+                return [ag_base_url($hotelPool[$idx])];
             }
         }
 
         usort($matches, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
-
-        if (empty($matches)) {
-            return [asset_find($heroFallbackKeywords)];
-        }
-
         return array_map('asset_url', array_slice($matches, 0, $max));
     }
 }
+
 
 /* ------------------------------------------------------------
    Read input parameters (passed via URL query string)

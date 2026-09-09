@@ -1,9 +1,8 @@
 <?php
-// ============================================================
-// AeroGlide — coron.php
-// Dedicated destination package page for Coron, Palawan.
-// ============================================================
-
+// Root compatibility wrapper for coron.php
 $_GET['city'] = $_GET['city'] ?? 'Coron, Palawan';
-
-require __DIR__ . '/destination.php';
+if (file_exists(__DIR__ . '/destinations/coron.php')) {
+    require __DIR__ . '/destinations/coron.php';
+} else {
+    require __DIR__ . '/destination.php';
+}

@@ -1,9 +1,6 @@
 <?php
-// ============================================================
-// AeroGlide — admin/guard.php
-// Include at the top of every admin page.
-// Redirects non-admins back to login.
-// ============================================================
+// admin access check
+
 require_once dirname(__DIR__) . '/auth_helper.php';
 
 if (!auth_is_logged_in() || !auth_is_admin()) {

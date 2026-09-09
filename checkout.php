@@ -1,10 +1,6 @@
 <?php
-// ============================================================
-// AeroGlide — checkout.php
-// Reached from destination.php's "Proceed to booking" button.
-// Step 1 (GET):  review trip, enforce account login, apply promo code.
-// Step 2 (POST): validate form, process coupon discount, & show booking confirmation.
-// ============================================================
+// checkout and payment flow
+
 
 require_once __DIR__ . '/auth_helper.php';
 
@@ -172,7 +168,9 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
             'discountLabel'  => $discountLabel,
             'grandTotal'     => $grandTotal,
             'promoCode'      => $discountNum > 0 ? $promoCodeUpper : '',
+            'paymentMethod'  => $paymentMethod,
         ];
+
 
         auth_add_user_booking($currentUser['id'], $newBookingRecord);
 

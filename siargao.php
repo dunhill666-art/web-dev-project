@@ -1,9 +1,8 @@
 <?php
-// ============================================================
-// AeroGlide — siargao.php
-// Dedicated destination package page for Siargao, Surigao del Norte.
-// ============================================================
-
+// Root compatibility wrapper for siargao.php
 $_GET['city'] = $_GET['city'] ?? 'Siargao, Surigao del Norte';
-
-require __DIR__ . '/destination.php';
+if (file_exists(__DIR__ . '/destinations/siargao.php')) {
+    require __DIR__ . '/destinations/siargao.php';
+} else {
+    require __DIR__ . '/destination.php';
+}
