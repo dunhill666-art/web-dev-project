@@ -1,21 +1,25 @@
 <?php
-// ============================================================
-// AeroGlide — auth_helper.php  (MySQL Edition)
-// All user auth, booking, coupon functions — backed by MySQL.
-// ============================================================
+// user auth and booking helpers
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/database/config.php';
-require_once __DIR__ . '/database/function.php';
-require_once __DIR__ . '/database/validation.php';
+if (file_exists(__DIR__ . '/../database/config.php')) {
+    require_once __DIR__ . '/../database/config.php';
+    require_once __DIR__ . '/../database/function.php';
+    require_once __DIR__ . '/../database/validation.php';
+} elseif (file_exists(__DIR__ . '/database/config.php')) {
+    require_once __DIR__ . '/database/config.php';
+    require_once __DIR__ . '/database/function.php';
+    require_once __DIR__ . '/database/validation.php';
+} else {
+    require_once dirname(__DIR__) . '/database/config.php';
+    require_once dirname(__DIR__) . '/database/function.php';
+    require_once dirname(__DIR__) . '/database/validation.php';
+}
 
-// ============================================================
-// SESSION HELPERS
-// ============================================================
-
+// session helpers
 if (!function_exists('auth_is_logged_in')) {
     function auth_is_logged_in(): bool
     {
@@ -42,7 +46,7 @@ if (!function_exists('auth_get_user')) {
                 return $user;
             }
         } catch (Exception $e) {
-            // Fallback to session fields
+            // session fallback
         }
 
         return [
@@ -63,10 +67,7 @@ if (!function_exists('auth_is_admin')) {
     }
 }
 
-// ============================================================
-// USER LOOKUPS
-// ============================================================
-
+// user lookups
 if (!function_exists('auth_find_user_by_id')) {
     function auth_find_user_by_id(int $id): ?array
     {
@@ -94,10 +95,7 @@ if (!function_exists('auth_find_user_by_email')) {
     }
 }
 
-// ============================================================
-// BOOKINGS
-// ============================================================
-
+// booking functions
 if (!function_exists('auth_get_user_bookings')) {
     function auth_get_user_bookings(mixed $userId): array
     {
@@ -105,47 +103,51 @@ if (!function_exists('auth_get_user_bookings')) {
         $stmt->execute([':uid' => (int)$userId]);
         $rows = $stmt->fetchAll();
 
-        // Normalise keys to camelCase so existing templates still work
+        // format booking keys
         $out = [];
         foreach ($rows as $r) {
             $out[] = [
-                'id'              => $r['id'],
-                'bookingRef'      => $r['booking_ref'],
-                'bookingDate'     => $r['booking_date'],
-                'travelerName'    => $r['traveler_name'],
-                'travelerEmail'   => $r['traveler_email'],
-                'travelerPhone'   => $r['traveler_phone'],
-                'city'            => $r['city'],
-                'mode'            => $r['mode'],
-                'adults'          => (int)$r['adults'],
-                'cabin'           => $r['cabin'],
-                'fareName'        => $r['fare_name'],
-                'fareDesc'        => $r['fare_desc'],
-                'flightSchedule'  => $r['flight_schedule'],
-                'hotelName'       => $r['hotel_name'],
-                'hotelPrice'      => (float)$r['hotel_price'],
-                'nights'          => (int)$r['nights'],
-                'carName'         => $r['car_name'],
-                'carPrice'        => (float)$r['car_price'],
-                'days'            => (int)$r['days'],
-                'subTotal'        => (float)$r['subtotal'],
-                'discountNum'     => (float)$r['discount_num'],
-                'discountLabel'   => $r['discount_label'],
-                'grandTotal'      => (float)$r['grand_total'],
-                'cancellationFee' => (float)($r['cancellation_fee'] ?? 0),
-                'refundAmount'    => (float)($r['refund_amount'] ?? 0),
-                'cancelledAt'     => $r['cancelled_at'] ?? null,
-                'promoCode'       => $r['promo_code'],
-                'paymentMethod'   => $r['payment_method'],
-                'status'          => $r['status'],
+                'id'                      => $r['id'],
+                'bookingRef'              => $r['booking_ref'],
+                'bookingDate'             => $r['booking_date'],
+                'travelerName'            => $r['traveler_name'],
+                'travelerEmail'           => $r['traveler_email'],
+                'travelerPhone'           => $r['traveler_phone'],
+                'city'                    => $r['city'],
+                'mode'                    => $r['mode'],
+                'adults'                  => (int)$r['adults'],
+                'cabin'                   => $r['cabin'],
+                'fareName'                => $r['fare_name'],
+                'fareDesc'                => $r['fare_desc'],
+                'flightSchedule'          => $r['flight_schedule'],
+                'hotelName'               => $r['hotel_name'],
+                'hotelPrice'              => (float)$r['hotel_price'],
+                'nights'                  => (int)$r['nights'],
+                'carName'                 => $r['car_name'],
+                'carPrice'                => (float)$r['car_price'],
+                'days'                    => (int)$r['days'],
+                'subTotal'                => (float)$r['subtotal'],
+                'discountNum'             => (float)$r['discount_num'],
+                'discountLabel'           => $r['discount_label'],
+                'grandTotal'              => (float)$r['grand_total'],
+                'cancellationFee'         => (float)($r['cancellation_fee'] ?? 0),
+                'refundAmount'            => (float)($r['refund_amount'] ?? 0),
+                'cancelledAt'             => $r['cancelled_at'] ?? null,
+                'cancellationReason'      => $r['cancellation_reason'] ?? '',
+                'adminNotes'              => $r['admin_notes'] ?? '',
+                'cancellationRequestedAt' => $r['cancellation_requested_at'] ?? null,
+                'promoCode'               => $r['promo_code'],
+                'paymentMethod'           => $r['payment_method'],
+                'status'                  => $r['status'],
             ];
         }
         return $out;
     }
 }
 
-if (!function_exists('auth_cancel_user_booking')) {
-    function auth_cancel_user_booking(mixed $userId, string $bookingRef): array
+// User Requests Cancellation -> Sets status to PENDING_CANCELLATION
+if (!function_exists('auth_request_cancel_user_booking')) {
+    function auth_request_cancel_user_booking(mixed $userId, string $bookingRef, ?string $reason = null): array
     {
         $db = ag_db();
         $stmt = $db->prepare("SELECT * FROM bookings WHERE user_id = :uid AND booking_ref = :ref LIMIT 1");
@@ -156,46 +158,151 @@ if (!function_exists('auth_cancel_user_booking')) {
             return ['success' => false, 'message' => 'Booking reference not found in your account history.'];
         }
 
-        if (strtolower($booking['status']) === 'cancelled') {
+        $currentStatus = strtolower($booking['status'] ?? 'confirmed');
+        if ($currentStatus === 'cancelled') {
             return ['success' => false, 'message' => 'This reservation has already been cancelled.'];
+        }
+        if ($currentStatus === 'pending_cancellation') {
+            return ['success' => false, 'message' => 'A cancellation request for this trip is already pending admin review.'];
         }
 
         $grandTotal = (float)($booking['grand_total'] ?? 0);
         $cancellationFee = min(500.00, $grandTotal);
         $refundAmount    = max(0.00, $grandTotal - $cancellationFee);
-        $cancelledAt     = date('Y-m-d H:i:s');
 
-        try { $db->exec("ALTER TABLE `bookings` ADD COLUMN `cancellation_fee` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `grand_total`"); } catch (Exception $e) {}
-        try { $db->exec("ALTER TABLE `bookings` ADD COLUMN `refund_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `cancellation_fee`"); } catch (Exception $e) {}
-        try { $db->exec("ALTER TABLE `bookings` ADD COLUMN `cancelled_at` DATETIME NULL DEFAULT NULL AFTER `refund_amount`"); } catch (Exception $e) {}
+        $reqReason = !empty($reason) ? trim($reason) : 'Customer requested trip cancellation via dashboard.';
+
+        $up = $db->prepare("
+            UPDATE bookings 
+            SET status = 'pending_cancellation', 
+                cancellation_reason = :reason, 
+                cancellation_requested_at = NOW()
+            WHERE id = :bid
+        ");
+        $up->execute([
+            ':reason' => $reqReason,
+            ':bid'    => $booking['id']
+        ]);
+
+        if (function_exists('admin_log')) {
+            admin_log("User #{$userId} requested cancellation for booking #{$bookingRef} (Pending Admin Approval)", "booking:{$booking['id']}");
+        }
+
+        return [
+            'success'     => true,
+            'message'     => 'Cancellation request submitted. Your request is now pending admin approval.',
+            'bookingRef'  => $bookingRef,
+            'fee'         => $cancellationFee,
+            'refund'      => $refundAmount,
+            'status'      => 'pending_cancellation'
+        ];
+    }
+}
+
+// Admin Approves Cancellation -> Status CANCELLED + Automated Refund Calculation
+if (!function_exists('auth_admin_approve_cancellation')) {
+    function auth_admin_approve_cancellation(int $adminId, int|string $bookingIdentifier, ?string $adminNotes = null): array
+    {
+        $db = ag_db();
+        if (is_numeric($bookingIdentifier)) {
+            $stmt = $db->prepare("SELECT * FROM bookings WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => (int)$bookingIdentifier]);
+        } else {
+            $stmt = $db->prepare("SELECT * FROM bookings WHERE booking_ref = :ref LIMIT 1");
+            $stmt->execute([':ref' => trim($bookingIdentifier)]);
+        }
+        $booking = $stmt->fetch();
+
+        if (!$booking) {
+            return ['success' => false, 'message' => 'Booking not found.'];
+        }
+
+        $grandTotal      = (float)($booking['grand_total'] ?? 0);
+        $cancellationFee = min(500.00, $grandTotal);
+        $refundAmount    = max(0.00, $grandTotal - $cancellationFee);
+        $cancelledAt     = date('Y-m-d H:i:s');
+        $notes           = !empty($adminNotes) ? trim($adminNotes) : 'Cancellation approved by Admin. Refund processed.';
 
         $up = $db->prepare("
             UPDATE bookings 
             SET status = 'cancelled', 
                 cancellation_fee = :fee, 
                 refund_amount = :refund, 
-                cancelled_at = :cat 
+                cancelled_at = :cat,
+                admin_notes = :notes
             WHERE id = :bid
         ");
         $up->execute([
             ':fee'    => $cancellationFee,
             ':refund' => $refundAmount,
             ':cat'    => $cancelledAt,
+            ':notes'  => $notes,
             ':bid'    => $booking['id']
         ]);
 
         if (function_exists('admin_log')) {
-            admin_log("User ID #{$userId} cancelled booking #{$bookingRef}. Fee: P{$cancellationFee}, Refund: P{$refundAmount}", "booking:{$booking['id']}");
+            admin_log("Admin #{$adminId} approved cancellation for booking #{$booking['booking_ref']}. Fee: P{$cancellationFee}, Refund: P{$refundAmount}", "booking:{$booking['id']}");
         }
 
         return [
             'success'     => true,
-            'message'     => 'Trip cancelled successfully.',
-            'bookingRef'  => $bookingRef,
+            'message'     => 'Cancellation successfully approved. Refund has been recorded.',
+            'bookingRef'  => $booking['booking_ref'],
             'fee'         => $cancellationFee,
             'refund'      => $refundAmount,
             'cancelledAt' => $cancelledAt
         ];
+    }
+}
+
+// Admin Rejects / Resolves Issue -> Status reverts to CONFIRMED with admin note
+if (!function_exists('auth_admin_reject_cancellation')) {
+    function auth_admin_reject_cancellation(int $adminId, int|string $bookingIdentifier, ?string $adminNotes = null): array
+    {
+        $db = ag_db();
+        if (is_numeric($bookingIdentifier)) {
+            $stmt = $db->prepare("SELECT * FROM bookings WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => (int)$bookingIdentifier]);
+        } else {
+            $stmt = $db->prepare("SELECT * FROM bookings WHERE booking_ref = :ref LIMIT 1");
+            $stmt->execute([':ref' => trim($bookingIdentifier)]);
+        }
+        $booking = $stmt->fetch();
+
+        if (!$booking) {
+            return ['success' => false, 'message' => 'Booking not found.'];
+        }
+
+        $notes = !empty($adminNotes) ? trim($adminNotes) : 'Cancellation request rejected by Admin.';
+
+        $up = $db->prepare("
+            UPDATE bookings 
+            SET status = 'confirmed', 
+                admin_notes = :notes
+            WHERE id = :bid
+        ");
+        $up->execute([
+            ':notes'  => $notes,
+            ':bid'    => $booking['id']
+        ]);
+
+        if (function_exists('admin_log')) {
+            admin_log("Admin #{$adminId} rejected cancellation request for booking #{$booking['booking_ref']}. Reason: {$notes}", "booking:{$booking['id']}");
+        }
+
+        return [
+            'success'     => true,
+            'message'     => 'Cancellation request rejected. Booking status has been restored to Confirmed.',
+            'bookingRef'  => $booking['booking_ref']
+        ];
+    }
+}
+
+// Legacy fallback alias for backward compatibility
+if (!function_exists('auth_cancel_user_booking')) {
+    function auth_cancel_user_booking(mixed $userId, string $bookingRef): array
+    {
+        return auth_request_cancel_user_booking($userId, $bookingRef);
     }
 }
 
@@ -245,10 +352,7 @@ if (!function_exists('auth_add_user_booking')) {
     }
 }
 
-// ============================================================
-// COUPON HELPERS
-// ============================================================
-
+// coupon helpers
 if (!function_exists('auth_user_has_claimed_coupon')) {
     function auth_user_has_claimed_coupon(mixed $userId): ?string
     {
@@ -267,10 +371,7 @@ if (!function_exists('auth_record_user_coupon')) {
     }
 }
 
-// ============================================================
-// AUTH ACTIONS
-// ============================================================
-
+// auth actions
 if (!function_exists('auth_login')) {
     function auth_login(string $username, string $password): array
     {
@@ -285,7 +386,7 @@ if (!function_exists('auth_login')) {
             return ['success' => false, 'message' => 'Incorrect password. Please try again.'];
         }
 
-        // Update last login timestamp
+        // update timestamp
         ag_db()->prepare("UPDATE users SET last_login=NOW() WHERE id=:id")->execute([':id' => $user['id']]);
 
         session_regenerate_id(true);
@@ -350,10 +451,7 @@ if (!function_exists('auth_logout')) {
     }
 }
 
-// ============================================================
-// PASSWORD RESET
-// ============================================================
-
+// password reset
 if (!function_exists('auth_forgot_password')) {
     function auth_forgot_password(string $identity): array
     {
@@ -368,7 +466,7 @@ if (!function_exists('auth_forgot_password')) {
         }
 
         $token   = bin2hex(random_bytes(32));
-        $expires = date('Y-m-d H:i:s', time() + 7200); // 2 hours
+        $expires = date('Y-m-d H:i:s', time() + 7200);
 
         $stmt = ag_db()->prepare("INSERT INTO password_tokens (user_id,token,expires_at) VALUES (:uid,:tok,:exp)");
         $stmt->execute([':uid' => $user['id'], ':tok' => $token, ':exp' => $expires]);
@@ -409,10 +507,8 @@ if (!function_exists('auth_reset_password')) {
     }
 }
 
-// ============================================================
-// ASSET FINDER HELPERS
-// ============================================================
-
+// asset finder helpers
+// asset finder helpers
 if (!function_exists('asset_index')) {
     function asset_index(): array
     {
@@ -430,43 +526,73 @@ if (!function_exists('asset_index')) {
                 $stem = pathinfo($entry, PATHINFO_FILENAME);
                 $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $stem));
                 $squash = strtolower(preg_replace('/[^a-z0-9]+/i', '', $stem));
-                $files[] = ['rel' => $rel, 'name' => $entry, 'norm' => ' ' . trim($norm) . ' ', 'squash' => $squash];
+                $files[] = [
+                    'rel'    => $rel,
+                    'name'   => $entry,
+                    'norm'   => ' ' . trim($norm) . ' ',
+                    'squash' => $squash
+                ];
             }
         };
+
+        $rootDir = dirname(__DIR__);
+        if (!is_dir($rootDir . DIRECTORY_SEPARATOR . 'asset') && is_dir(__DIR__ . '/../asset')) {
+            $rootDir = dirname(__DIR__);
+        }
         foreach (['asset', 'assets'] as $folder) {
-            $dir = __DIR__ . DIRECTORY_SEPARATOR . $folder;
+            $dir = $rootDir . DIRECTORY_SEPARATOR . $folder;
             if (is_dir($dir)) $collect($dir, $folder);
         }
+
         return $files;
     }
 }
 
 if (!function_exists('asset_url')) {
-    function asset_url(array $file): string
+    function asset_url(array|string $file): string
     {
-        return implode('/', array_map('rawurlencode', explode('/', $file['rel'])));
+        $rel = is_array($file) ? ($file['rel'] ?? '') : $file;
+        $clean = str_replace('\\', '/', $rel);
+        $clean = ltrim($clean, '/');
+        $parts = explode('/', $clean);
+        $encoded = implode('/', array_map('rawurlencode', $parts));
+        return ag_base_url($encoded);
     }
 }
 
 if (!function_exists('asset_placeholder')) {
     function asset_placeholder(): string
     {
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/></svg>';
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceefe"/><stop offset="1" stop-color="#bcdcf5"/></linearGradient></defs><rect width="900" height="600" fill="url(#g)"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="700" fill="#0284c7">AeroGlide</text></svg>';
         return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
     }
 }
 
 if (!function_exists('asset_find')) {
-    function asset_find(array $keywords): string
+    function asset_find(array $keywords, ?array $fallbackTerms = null): string
     {
         $files = asset_index();
-        foreach ($files as $f) {
-            $ok = true;
-            foreach ($keywords as $k) {
-                if (strpos($f['norm'], strtolower($k)) === false) { $ok = false; break; }
+        foreach ($keywords as $kw) {
+            $kwNorm = strtolower(trim((string)$kw));
+            if ($kwNorm === '') continue;
+            foreach ($files as $f) {
+                if (strpos($f['norm'], ' ' . $kwNorm . ' ') !== false || strpos($f['norm'], $kwNorm) !== false || strpos($f['squash'], $kwNorm) !== false) {
+                    return asset_url($f);
+                }
             }
-            if ($ok) return asset_url($f);
         }
-        return asset_placeholder();
+        if ($fallbackTerms) {
+            foreach ($fallbackTerms as $kw) {
+                $kwNorm = strtolower(trim((string)$kw));
+                if ($kwNorm === '') continue;
+                foreach ($files as $f) {
+                    if (strpos($f['norm'], $kwNorm) !== false || strpos($f['squash'], $kwNorm) !== false) {
+                        return asset_url($f);
+                    }
+                }
+            }
+        }
+        return ag_base_url('asset/logo.png');
     }
 }
+

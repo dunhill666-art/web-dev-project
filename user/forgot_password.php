@@ -1,12 +1,16 @@
 <?php
-// ============================================================
-// AeroGlide — forgot_password.php
-// Password Reset Request Form
-// ============================================================
+// password reset request form
 
-require_once __DIR__ . '/database/function.php';
-require_once __DIR__ . '/database/validation.php';
+
+if (file_exists(__DIR__ . '/../database/function.php')) {
+    require_once __DIR__ . '/../database/function.php';
+    require_once __DIR__ . '/../database/validation.php';
+} else {
+    require_once __DIR__ . '/database/function.php';
+    require_once __DIR__ . '/database/validation.php';
+}
 require_once __DIR__ . '/auth_helper.php';
+
 
 $error   = $_GET['error'] ?? '';
 $success = $_GET['msg']   ?? '';
@@ -18,7 +22,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     } else {
         $res = auth_forgot_password($identity);
         if ($res['success']) {
-            header('Location: ' . ag_base_url('reset_password.php?token=' . urlencode($res['token']) . '&msg=' . urlencode('Account verified for ' . $res['username'] . ' (' . $res['email'] . '). Set your new password below.')));
+            header('Location: ' . ag_base_url('user/reset_password.php?token=' . urlencode($res['token']) . '&msg=' . urlencode('Account verified for ' . $res['username'] . ' (' . $res['email'] . '). Set your new password below.')));
             exit;
         } else {
             $error = $res['message'];
@@ -214,7 +218,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
     <span class="brand-text">AeroGlide</span>
   </a>
-  <a href="<?= ag_base_url('login.php') ?>" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Log In</a>
+  <a href="<?= ag_base_url('user/login.php') ?>" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Log In</a>
 </header>
 
 <main class="auth-main-wrap">
@@ -237,7 +241,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       </div>
     <?php endif; ?>
 
-    <form method="POST" action="<?= ag_base_url('forgot_password.php') ?>">
+    <form method="POST" action="<?= ag_base_url('user/forgot_password.php') ?>">
       <div class="auth-form-group">
         <label class="auth-label" for="identity">Email Address or Username</label>
         <input class="auth-input" type="text" id="identity" name="identity" placeholder="e.g. juan@example.com or juan2026" required autofocus>
@@ -247,7 +251,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     </form>
 
     <div class="auth-footer-text">
-      Remembered your password? <a href="<?= ag_base_url('login.php') ?>">Log in here</a>
+      Remembered your password? <a href="<?= ag_base_url('user/login.php') ?>">Log in here</a>
     </div>
   </div>
 </main>

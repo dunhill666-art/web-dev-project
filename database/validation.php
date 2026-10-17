@@ -1,10 +1,7 @@
 <?php
-// ============================================================
-// AeroGlide — database/validation.php
-// Robust Input Validation & Sanitization Module
-// Follows Professor Bensing's validation structure
-// ============================================================
+// input validation and sanitization
 
+// sanitize text string
 if (!function_exists('val_sanitize_string')) {
     function val_sanitize_string(string $input): string
     {
@@ -12,6 +9,7 @@ if (!function_exists('val_sanitize_string')) {
     }
 }
 
+// check required field
 if (!function_exists('validateRequired')) {
     function validateRequired(mixed $val, string $fieldName): ?string
     {
@@ -22,6 +20,7 @@ if (!function_exists('validateRequired')) {
     }
 }
 
+// validate email format
 if (!function_exists('val_email')) {
     function val_email(string $email): ?string
     {
@@ -36,6 +35,7 @@ if (!function_exists('val_email')) {
     }
 }
 
+// validate username format
 if (!function_exists('val_username')) {
     function val_username(string $username): ?string
     {
@@ -53,6 +53,7 @@ if (!function_exists('val_username')) {
     }
 }
 
+// validate password length
 if (!function_exists('val_password')) {
     function val_password(string $password): ?string
     {
@@ -66,9 +67,7 @@ if (!function_exists('val_password')) {
     }
 }
 
-/**
- * Professor Bensing's exact Login validation structure returning ['errors', 'data']
- */
+// validate login input structure
 if (!function_exists('validateLoginInput')) {
     function validateLoginInput(array $post): array
     {
@@ -88,9 +87,7 @@ if (!function_exists('validateLoginInput')) {
     }
 }
 
-/**
- * Professor Bensing's exact Registration validation structure returning ['errors', 'data']
- */
+// validate signup input structure
 if (!function_exists('validateSignupInput')) {
     function validateSignupInput(array $post): array
     {
@@ -119,6 +116,7 @@ if (!function_exists('validateSignupInput')) {
     }
 }
 
+// validate phone number
 if (!function_exists('val_phone')) {
     function val_phone(string $phone): ?string
     {
@@ -132,6 +130,7 @@ if (!function_exists('val_phone')) {
     }
 }
 
+// validate guest count
 if (!function_exists('val_guest_count')) {
     function val_guest_count(int $count): ?string
     {
@@ -145,6 +144,7 @@ if (!function_exists('val_guest_count')) {
     }
 }
 
+// check promo code validity
 if (!function_exists('val_coupon_eligibility')) {
     function val_coupon_eligibility(string $code, int $guestCount, ?string $userUsedCoupon = null): array
     {

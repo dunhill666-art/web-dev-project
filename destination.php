@@ -1,21 +1,25 @@
 <?php
 // ============================================================
 // AeroGlide — destination.php
-// Interactive destination package details page showing hotels,
-// car rentals, slideshows, image lightbox, price calculator,
-// and redirection to checkout.
+// Destination details, Cebu Pacific-style dynamic flight pricing,
+// 7-day date carousel, hotel stays & car rental selection.
 // ============================================================
 
-require_once __DIR__ . '/auth_helper.php';
+require_once __DIR__ . '/user/auth_helper.php';
+require_once __DIR__ . '/database/flight_helper.php';
 
 $isLoggedIn  = auth_is_logged_in();
 $currentUser = auth_get_user();
 $username    = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
+if (!function_exists('peso')) {
+    function peso(float $n): string
+    {
+        return '₱' . number_format($n, 0);
+    }
+}
+
 if (!function_exists('asset_gallery')) {
-    /**
-     * Gather images belonging to a specific hotel or car.
-     */
     function asset_gallery(string $itemName, array $heroFallbackKeywords, int $max = 4): array
     {
         $files  = asset_index();
@@ -27,41 +31,65 @@ if (!function_exists('asset_gallery')) {
         // 1. Direct match on full squashed needle
         if ($needle !== '') {
             foreach ($files as $f) {
-                if (isset($seen[$f['name']])) {
-                    continue;
-                }
-                if (strpos($f['squash'], $needle) !== false) {
+                if (isset($seen[$f['name']])) continue;
+                if (strpos($f['squash'], $needle) !== false || strpos($needle, $f['squash']) !== false) {
                     $matches[] = $f;
                     $seen[$f['name']] = true;
                 }
             }
         }
 
-        // 2. Keyword token fallback for words (e.g. "Fazzio", "Communal", "Bellevue", "Ocean", "Taalisay")
+        // 2. Keyword token fallback for words
         if (empty($matches)) {
-            $words = array_filter(explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))), fn($w) => strlen($w) >= 4);
+            $words = array_filter(explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))), fn($w) => strlen($w) >= 3 && !in_array($w, ['hotel', 'resort', 'inn', 'lodge', 'beach', 'view', 'dive', 'stay', 'town', 'island', 'house', 'park', 'villas', 'haven', 'travelers', 'rental', 'white', 'background']));
             foreach ($words as $w) {
                 foreach ($files as $f) {
-                    if (isset($seen[$f['name']])) {
-                        continue;
-                    }
-                    if (strpos($f['squash'], $w) !== false) {
+                    if (isset($seen[$f['name']])) continue;
+                    if (strpos($f['squash'], $w) !== false || strpos($f['norm'], ' ' . $w . ' ') !== false) {
                         $matches[] = $f;
                         $seen[$f['name']] = true;
                     }
                 }
-                if (!empty($matches)) {
-                    break;
-                }
+                if (!empty($matches)) break;
+            }
+        }
+
+        // 3. Category fallback if no specific asset matches
+        if (empty($matches)) {
+            $lowerItem = strtolower($itemName);
+            if (str_contains($lowerItem, 'sedan') || str_contains($lowerItem, 'car')) {
+                return [asset_find(['sedan', 'economy sedan'])];
+            } elseif (str_contains($lowerItem, 'suv')) {
+                return [asset_find(['suv', 'mid size suv'])];
+            } elseif (str_contains($lowerItem, 'van')) {
+                return [asset_find(['van', 'tourist van'])];
+            } elseif (str_contains($lowerItem, 'scooter') || str_contains($lowerItem, 'motorbike') || str_contains($lowerItem, 'bike') || str_contains($lowerItem, 'fazzio')) {
+                return [asset_find(['fazzio', 'mio'])];
+            } elseif (str_contains($lowerItem, 'boat') || str_contains($lowerItem, 'transfer') || str_contains($lowerItem, 'outrigger')) {
+                return [asset_find(['coron'])];
+            } else {
+                $hotelPool = [
+                    'asset/Bellevue Resort Bohol.jpg',
+                    'asset/Communal Ranch Lodge.jpg',
+                    'asset/Discovery Shores Boracay.jpg',
+                    'asset/Henann Regency Resort & Spa 1.jpg',
+                    'asset/Ocean Vida Beach & Dive Resort.jpg',
+                    'asset/Shangri-La Boracay Resort & Spa 1.jpg',
+                    'asset/Taalisay Ridge Resort.jpg',
+                    'asset/albay/Harbor View Inn 1.jpg',
+                    'asset/albay/Seaside Garden Hotel 1.jpg',
+                    'asset/coron/coron-soleil-garden-resort.jpg',
+                    'asset/coron/Coron Westown Resort, Palawan, Philippines.jpg',
+                    'asset/siargao/Bravo Beach Resort, Siargao Island _ 2026 Updated Prices, Deals.jpg',
+                    'asset/siargao/Nay Palad Hideaway.jpg',
+                    'asset/siargao/kermit surf.jpg',
+                ];
+                $idx = abs(crc32($itemName)) % count($hotelPool);
+                return [asset_url($hotelPool[$idx])];
             }
         }
 
         usort($matches, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
-
-        if (empty($matches)) {
-            return [asset_find($heroFallbackKeywords)];
-        }
-
         return array_map('asset_url', array_slice($matches, 0, $max));
     }
 }
@@ -73,11 +101,15 @@ $mode   = strtolower(trim($_GET['mode'] ?? 'packages'));
 $adults = max(1, (int) ($_GET['adults'] ?? 1));
 $cabin  = trim($_GET['cabin'] ?? 'Economy');
 
-$city      = isset($_GET['city'])     ? trim($_GET['city'])     : 'Mayon Volcano, Albay';
-$fareValue = isset($_GET['fare'])     ? trim($_GET['fare'])     : 'smart';
-$fareName  = isset($_GET['fareName']) ? trim($_GET['fareName']) : 'Smart Saver';
-$fareDesc  = isset($_GET['desc'])     ? trim($_GET['desc'])     : 'Flight + checked baggage';
-$farePriceRaw = isset($_GET['price']) ? trim($_GET['price'])    : '₱4,999';
+$city       = isset($_GET['city'])        ? trim($_GET['city'])        : 'Mayon Volcano, Albay';
+$origin     = isset($_GET['origin'])      ? strtoupper(trim($_GET['origin'])) : 'MNL';
+$departDate = isset($_GET['departDate'])  ? trim($_GET['departDate'])  : (isset($_GET['date']) ? trim($_GET['date']) : date('Y-m-d'));
+$returnDate = isset($_GET['returnDate'])  ? trim($_GET['returnDate'])  : '';
+
+$fareValue  = isset($_GET['fare'])        ? trim($_GET['fare'])        : 'smart';
+$fareName   = isset($_GET['fareName'])    ? trim($_GET['fareName'])    : 'Smart Saver';
+$fareDesc   = isset($_GET['desc'])        ? trim($_GET['desc'])        : 'Flight + checked baggage';
+$farePriceRaw = isset($_GET['price'])     ? trim($_GET['price'])       : '₱4,999';
 
 $basePrice = (float) preg_replace('/[^0-9.]/', '', $farePriceRaw);
 if ($basePrice <= 0) {
@@ -112,7 +144,7 @@ $catalog = [
     'albay' => [
         'label'   => 'Mayon Volcano, Albay',
         'asset'   => ['albay', 'mayon'],
-        'blurb'   => 'Handpicked stays and rides for your trip.',
+        'blurb'   => 'Handpicked stays and rides for your trip to the world-famous perfect cone.',
         'hotels'  => [
             ['name' => 'Seaside Garden Hotel',   'tier' => '4-star comfort', 'rating' => 4.5, 'price' => 5200],
             ['name' => 'Harbor View Inn',        'tier' => '3-star cozy',    'rating' => 4.2, 'price' => 3400],
@@ -260,30 +292,746 @@ if ($destination['label'] === null) {
 
 $heroImage = asset_find($destination['asset']);
 
-if (!function_exists('peso')) {
-    function peso(float $n): string
-    {
-        return '₱' . number_format($n, 0);
+// Fetch Cebu Pacific style dynamic flights & 7-day carousel data
+$flightSearchResults = flight_search_results($destination['label'], $origin, $departDate);
+$routeInfo = $flightSearchResults['route'];
+$carouselDays = $flightSearchResults['carousel'];
+$availableFlights = $flightSearchResults['flights'];
+
+// Curate flight price to match lowest available flight card if in flights mode and no override
+if ($mode === 'flights' && (!isset($_GET['price']) || $basePrice === 4999.0)) {
+    if (!empty($availableFlights)) {
+        $basePrice = (float)$availableFlights[0]['base_price'];
+    } elseif (!empty($routeInfo['base_rate'])) {
+        $basePrice = (float)$routeInfo['base_rate'];
     }
+    $farePriceNum = round($basePrice * $cabinMult * $adults);
+    $farePriceRaw = '₱' . number_format($farePriceNum);
 }
-$pageTitle = htmlspecialchars($destination['label'], ENT_QUOTES) . ' — AeroGlide';
+
+$pageTitle = htmlspecialchars($destination['label'], ENT_QUOTES) . ' — AeroGlide Flights & Packages';
 $activeNav = 'deals';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <?php include __DIR__ . '/includes/head.php'; ?>
+<style>
+/* ============================================================
+   DESTINATION PAGE & FLIGHT SELECTION INTERFACE (CEBU PACIFIC STYLE)
+   ============================================================ */
+.destination-main {
+  padding-bottom: 120px;
+}
+
+/* Top Search Summary Strip */
+.cp-search-summary-strip {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1.1rem 2rem;
+  box-shadow: 0 2px 8px rgba(10, 20, 35, 0.04);
+}
+.cp-summary-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+.cp-summary-info-group {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+.cp-summary-col {
+  display: flex;
+  flex-direction: column;
+}
+.cp-summary-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+.cp-summary-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+.cp-summary-sub {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+.cp-btn-edit-search {
+  background: #ffffff;
+  color: #0284c7;
+  border: 1.5px solid #0284c7;
+  padding: 0.55rem 1.4rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cp-btn-edit-search:hover {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+/* Stepper Progress Bar */
+.cp-stepper-bar {
+  background: #ffe600;
+  padding: 1.1rem 1.5rem;
+  box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.04);
+}
+.cp-stepper-container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+.cp-step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  cursor: default;
+}
+.cp-step-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(10, 20, 35, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  color: #0f172a;
+  margin-bottom: 6px;
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+}
+.cp-step-item.is-active .cp-step-icon-wrap {
+  background: #0f172a;
+  color: #ffe600;
+  border-color: #0f172a;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
+  transform: scale(1.1);
+}
+.cp-step-item.is-done .cp-step-icon-wrap {
+  background: #16a34a;
+  color: #fff;
+}
+.cp-step-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+.cp-step-item.is-active .cp-step-label {
+  font-weight: 900;
+  color: #0f172a;
+}
+.cp-step-track {
+  position: absolute;
+  top: 19px;
+  left: 40px;
+  right: 40px;
+  height: 2px;
+  background: rgba(10, 20, 35, 0.18);
+  z-index: 1;
+}
+
+/* Destination Hero Box */
+.dest-hero {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  padding: 4rem 2rem 5rem;
+  color: #ffffff;
+}
+.dest-hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.dest-back-link {
+  display: inline-block;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+.dest-back-link:hover { opacity: 1; text-decoration: underline; }
+.dest-hero-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  margin: 0 0 0.5rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.dest-hero-blurb {
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 0 1.5rem;
+  opacity: 0.95;
+  line-height: 1.5;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+.dest-hero-box {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  padding: 1.25rem 1.6rem;
+  max-width: 440px;
+  box-shadow: 0 16px 36px rgba(10, 20, 35, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.dest-box-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dest-box-tag {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #0d6efd;
+  background: #eef5ff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+.dest-box-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0a1425;
+  margin: 4px 0 2px;
+}
+.dest-box-price {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #0d6efd;
+  font-family: 'Montserrat', sans-serif;
+}
+.dest-box-guests-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.85rem;
+  border-top: 1px dashed #cbd5e1;
+}
+.dest-box-guests-info {
+  display: flex;
+  flex-direction: column;
+}
+.dest-box-guests-info strong {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0a1425;
+}
+.dest-box-guests-info span {
+  font-size: 0.78rem;
+  color: #5b6b7f;
+}
+.dest-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cnt-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 1.1rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cnt-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+.cnt-val {
+  font-weight: 800;
+  font-size: 1rem;
+  min-width: 24px;
+  text-align: center;
+  color: #0f172a;
+}
+
+/* Main Container */
+.dest-content-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+.dest-section {
+  margin-bottom: 3rem;
+}
+
+/* Route Header */
+.cp-route-header {
+  margin-bottom: 1.5rem;
+}
+.cp-route-eyebrow {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 4px;
+  display: block;
+}
+.cp-route-title {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+.cp-route-plane-icon {
+  color: #0284c7;
+  font-size: 1.4rem;
+}
+
+/* 7-Day Horizontal Date Carousel */
+.cp-date-carousel-wrap {
+  display: flex;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 4px 14px rgba(10, 20, 35, 0.05);
+}
+.cp-carousel-arrow {
+  background: #ffffff;
+  border: none;
+  border-right: 1px solid #cbd5e1;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0284c7;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+.cp-carousel-arrow.next {
+  border-right: none;
+  border-left: 1px solid #cbd5e1;
+}
+.cp-carousel-arrow:hover {
+  background: #f0f9ff;
+  color: #0369a1;
+}
+.cp-carousel-cards {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+}
+@media (max-width: 900px) {
+  .cp-carousel-cards { grid-template-columns: repeat(4, 1fr); }
+  .cp-carousel-card:nth-child(n+5) { display: none; }
+}
+@media (max-width: 540px) {
+  .cp-carousel-cards { grid-template-columns: repeat(3, 1fr); }
+  .cp-carousel-card:nth-child(n+4) { display: none; }
+}
+.cp-carousel-card {
+  padding: 1rem 0.6rem;
+  text-align: center;
+  border-right: 1px solid #e2e8f0;
+  cursor: pointer;
+  background: #ffffff;
+  transition: background 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+}
+.cp-carousel-card:last-child {
+  border-right: none;
+}
+.cp-carousel-card:hover:not(.is-active) {
+  background: #f8fafc;
+}
+.cp-card-date {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+.cp-card-price {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+.cp-card-price.no-flights {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+/* Active Card Highlight */
+.cp-carousel-card.is-active {
+  background: #ffe600 !important;
+  border-color: #ffd200 !important;
+}
+.cp-carousel-card.is-active .cp-card-date {
+  color: #0f172a;
+  font-weight: 800;
+}
+.cp-carousel-card.is-active .cp-card-price {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+/* Filter Bar */
+.cp-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem 0;
+}
+.cp-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cp-filter-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #475569;
+}
+.cp-select-pill {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.5rem 1.8rem 0.5rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230284c7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.cp-select-pill:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+/* Flight List & Cards */
+.cp-flights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.cp-flight-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.35rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.cp-flight-card:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.08);
+}
+.cp-flight-card.is-selected {
+  border-color: #0284c7;
+  background: #f8fcff;
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.12);
+}
+.cp-flight-airline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+.cp-airline-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.cp-airline-info {
+  display: flex;
+  flex-direction: column;
+}
+.cp-airline-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+.cp-flight-equipment {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+.cp-flight-timeline {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex: 1;
+  min-width: 280px;
+  justify-content: center;
+}
+.cp-time-col {
+  text-align: center;
+}
+.cp-time-text {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: block;
+}
+.cp-port-text {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #64748b;
+}
+.cp-duration-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 140px;
+}
+.cp-dur-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.cp-flight-line {
+  width: 100%;
+  height: 2px;
+  background: #cbd5e1;
+  position: relative;
+  border-radius: 2px;
+}
+.cp-flight-line::after {
+  content: '✈';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  color: #0284c7;
+  background: #ffffff;
+  padding: 0 4px;
+}
+.cp-badge-nonstop {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0284c7;
+  background: #f0f9ff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+.cp-flight-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 140px;
+}
+.cp-flight-fare {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+.cp-flight-fare-sub {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+.cp-btn-flight-select {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  padding: 0.6rem 1.6rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.cp-btn-flight-select:hover {
+  background: #0369a1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+}
+.cp-flight-card.is-selected .cp-btn-flight-select {
+  background: #0f172a;
+}
+.cp-empty-state-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 4rem 2rem;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(10, 20, 35, 0.04);
+  margin: 1.5rem 0;
+}
+.cp-empty-plane-graphic {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cp-empty-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.6rem;
+}
+.cp-empty-text {
+  font-size: 0.92rem;
+  color: #64748b;
+  max-width: 520px;
+  margin: 0 auto 1.5rem;
+  line-height: 1.6;
+}
+.cp-operator-footnote {
+  margin-top: 2rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #64748b;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.cp-operator-list {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.cp-operator-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  color: #334155;
+}
+.cp-operator-item span { color: #eab308; }
+</style>
 </head>
 <body class="aeroglide-page">
 
 <?php include __DIR__ . '/includes/navbar.php'; ?>
+
+<!-- ============ CEBU PACIFIC-STYLE TOP SEARCH SUMMARY STRIP ============ -->
+<section class="cp-search-summary-strip">
+  <div class="cp-summary-wrap">
+    <div class="cp-summary-info-group">
+      <div class="cp-summary-col">
+        <span class="cp-summary-label">Departing Flight</span>
+        <strong class="cp-summary-val"><?= htmlspecialchars($routeInfo['origin_name'], ENT_QUOTES) ?> To <?= htmlspecialchars($routeInfo['label'], ENT_QUOTES) ?></strong>
+        <span class="cp-summary-sub"><?= date('d M Y', strtotime($departDate)) ?></span>
+      </div>
+
+      <?php if (!empty($returnDate)): ?>
+      <div class="cp-summary-col">
+        <span class="cp-summary-label">Returning Flight</span>
+        <strong class="cp-summary-val"><?= htmlspecialchars($routeInfo['label'], ENT_QUOTES) ?> To <?= htmlspecialchars($routeInfo['origin_name'], ENT_QUOTES) ?></strong>
+        <span class="cp-summary-sub"><?= date('d M Y', strtotime($returnDate)) ?></span>
+      </div>
+      <?php endif; ?>
+
+      <div class="cp-summary-col">
+        <span class="cp-summary-label">Guests</span>
+        <strong class="cp-summary-val"><?= $adults ?> <?= $adults > 1 ? 'Adults' : 'Adult' ?> &middot; <?= htmlspecialchars($cabin, ENT_QUOTES) ?></strong>
+        <span class="cp-summary-sub"><?= ucfirst($mode) ?> Mode</span>
+      </div>
+    </div>
+
+    <a href="<?= ag_base_url('index.php#booking') ?>" class="cp-btn-edit-search">Edit Search</a>
+  </div>
+</section>
+
+<!-- ============ CEBU PACIFIC-STYLE STEP PROGRESS BAR ============ -->
+<div class="cp-stepper-bar">
+  <div class="cp-stepper-container">
+    <div class="cp-step-track"></div>
+    <div class="cp-step-item is-active">
+      <div class="cp-step-icon-wrap">✈</div>
+      <span class="cp-step-label">Select Flight</span>
+    </div>
+    <div class="cp-step-item">
+      <div class="cp-step-icon-wrap">👤</div>
+      <span class="cp-step-label">Guest Details</span>
+    </div>
+    <div class="cp-step-item">
+      <div class="cp-step-icon-wrap">🧳</div>
+      <span class="cp-step-label">Add ons</span>
+    </div>
+    <div class="cp-step-item">
+      <div class="cp-step-icon-wrap">💳</div>
+      <span class="cp-step-label">Payment</span>
+    </div>
+    <div class="cp-step-item">
+      <div class="cp-step-icon-wrap">✓</div>
+      <span class="cp-step-label">Confirmation</span>
+    </div>
+  </div>
+</div>
 
 <main class="destination-main">
 
 <!-- ============ DESTINATION HERO ============ -->
 <section class="dest-hero" style="background-image: linear-gradient(180deg, rgba(10,20,35,.15), rgba(10,20,35,.75)), url('<?= htmlspecialchars($heroImage, ENT_QUOTES) ?>');">
   <div class="dest-hero-inner">
-    <a href="index.php#deals" class="dest-back-link">&larr; Back to Deals</a>
+    <a href="<?= ag_base_url('index.php#deals') ?>" class="dest-back-link">&larr; Back to Deals</a>
     <h1 class="dest-hero-title"><?= htmlspecialchars($destination['label'], ENT_QUOTES) ?></h1>
     <p class="dest-hero-blurb"><?= htmlspecialchars($destination['blurb'], ENT_QUOTES) ?></p>
 
@@ -311,139 +1059,160 @@ $activeNav = 'deals';
 
 <div class="dest-content-container">
 
-<!-- ============ FLIGHT SCHEDULES ============ -->
+<!-- ============ CEBU PACIFIC-STYLE FLIGHT RESULTS & DATE CAROUSEL ============ -->
 <?php if ($mode !== 'hotels'): ?>
 <section class="dest-section" id="section-flights">
-  <div class="dest-section-header">
-    <h2 class="section-main-title">Available Flight Schedules</h2>
-    <p class="section-tagline">Choose your preferred flight schedule to <?= htmlspecialchars($destination['label'], ENT_QUOTES) ?>.</p>
+  
+  <div class="cp-route-header">
+    <span class="cp-route-eyebrow">Select your departing flight</span>
+    <h2 class="cp-route-title">
+      <?= htmlspecialchars($routeInfo['origin_name'], ENT_QUOTES) ?> 
+      <span class="cp-route-plane-icon">✈</span> 
+      <?= htmlspecialchars($routeInfo['label'], ENT_QUOTES) ?>
+    </h2>
   </div>
 
-  <div class="flight-schedule-list" id="flight-schedule-grid">
-    <div class="flight-sched-card is-selected" tabindex="0" role="button" data-schedule="Philippines AirAsia AG-204 (03:55 AM MNL T2 &rarr; 05:20 AM)">
-      <div class="sched-airline-col">
-        <span class="sched-airline-logo">✈️</span>
-        <div>
-          <strong class="sched-airline-name">Philippines AirAsia</strong>
-          <span class="sched-flight-no">Flight AG-204 &middot; Airbus A320</span>
-        </div>
-      </div>
+  <!-- 7-Day Horizontal Date Carousel (Cebu Pacific Style) -->
+  <div class="cp-date-carousel-wrap">
+    <button type="button" class="cp-carousel-arrow prev" id="btn-carousel-prev" aria-label="Previous date range">&#10094;</button>
+    <div class="cp-carousel-cards" id="cp-carousel-cards-container">
+      <?php foreach ($carouselDays as $cDay): ?>
+        <a href="javascript:void(0)" 
+           class="cp-carousel-card<?= $cDay['is_selected'] ? ' is-active' : '' ?>"
+           data-date="<?= htmlspecialchars($cDay['date'], ENT_QUOTES) ?>">
+          <span class="cp-card-date"><?= htmlspecialchars($cDay['label'], ENT_QUOTES) ?></span>
+          <span class="cp-card-price<?= $cDay['has_flights'] ? '' : ' no-flights' ?>">
+            <?= htmlspecialchars($cDay['price_label'], ENT_QUOTES) ?>
+          </span>
+        </a>
+      <?php endforeach; ?>
+    </div>
+    <button type="button" class="cp-carousel-arrow next" id="btn-carousel-next" aria-label="Next date range">&#10095;</button>
+  </div>
 
-      <div class="sched-route-col">
-        <div class="sched-time-box">
-          <span class="sched-time">03:55 AM</span>
-          <span class="sched-ap">MNL T2</span>
-        </div>
-        <div class="sched-duration-box">
-          <span class="sched-dur-text">1h 25m</span>
-          <div class="sched-line"></div>
-          <span class="sched-badge">Nonstop</span>
-        </div>
-        <div class="sched-time-box">
-          <span class="sched-time">05:20 AM</span>
-          <span class="sched-ap"><?= htmlspecialchars(explode(',', $destination['label'])[0], ENT_QUOTES) ?></span>
-        </div>
-      </div>
+  <!-- Filter & Sort Toolbar -->
+  <div class="cp-filter-bar">
+    <div class="cp-filter-group">
+      <span class="cp-filter-label">Filter by:</span>
+      <select class="cp-select-pill" id="filter-flight-time" aria-label="Filter by departure time">
+        <option value="">Time of flight</option>
+        <option value="morning">Morning (00:00 - 11:59)</option>
+        <option value="afternoon">Afternoon (12:00 - 17:59)</option>
+        <option value="evening">Evening (18:00 - 23:59)</option>
+      </select>
 
-      <div class="sched-select-col">
-        <span class="sched-tag">Included</span>
-        <button type="button" class="btn-sched-select">Selected</button>
-      </div>
+      <select class="cp-select-pill" id="filter-flight-stops" aria-label="Filter by stops">
+        <option value="all">Stops</option>
+        <option value="Nonstop">Nonstop only</option>
+        <option value="1 Stop">1 Stop</option>
+      </select>
+
+      <select class="cp-select-pill" id="filter-flight-price" aria-label="Filter by price">
+        <option value="">Price</option>
+        <option value="under_3000">Under ₱3,000</option>
+        <option value="3000_6000">₱3,000 - ₱6,000</option>
+        <option value="above_6000">Above ₱6,000</option>
+      </select>
     </div>
 
-    <div class="flight-sched-card" tabindex="0" role="button" data-schedule="Philippines AirAsia AG-418 (05:55 AM MNL T2 &rarr; 07:20 AM)">
-      <div class="sched-airline-col">
-        <span class="sched-airline-logo">✈️</span>
-        <div>
-          <strong class="sched-airline-name">Philippines AirAsia</strong>
-          <span class="sched-flight-no">Flight AG-418 &middot; Airbus A320</span>
-        </div>
-      </div>
-
-      <div class="sched-route-col">
-        <div class="sched-time-box">
-          <span class="sched-time">05:55 AM</span>
-          <span class="sched-ap">MNL T2</span>
-        </div>
-        <div class="sched-duration-box">
-          <span class="sched-dur-text">1h 25m</span>
-          <div class="sched-line"></div>
-          <span class="sched-badge">Nonstop</span>
-        </div>
-        <div class="sched-time-box">
-          <span class="sched-time">07:20 AM</span>
-          <span class="sched-ap"><?= htmlspecialchars(explode(',', $destination['label'])[0], ENT_QUOTES) ?></span>
-        </div>
-      </div>
-
-      <div class="sched-select-col">
-        <span class="sched-tag">Included</span>
-        <button type="button" class="btn-sched-select">Select</button>
-      </div>
-    </div>
-
-    <div class="flight-sched-card" tabindex="0" role="button" data-schedule="Cebu Pacific AG-514 (11:40 AM MNL T3 &rarr; 01:00 PM)">
-      <div class="sched-airline-col">
-        <span class="sched-airline-logo">✈️</span>
-        <div>
-          <strong class="sched-airline-name">Cebu Pacific</strong>
-          <span class="sched-flight-no">Flight AG-514 &middot; Airbus A321neo</span>
-        </div>
-      </div>
-
-      <div class="sched-route-col">
-        <div class="sched-time-box">
-          <span class="sched-time">11:40 AM</span>
-          <span class="sched-ap">MNL T3</span>
-        </div>
-        <div class="sched-duration-box">
-          <span class="sched-dur-text">1h 20m</span>
-          <div class="sched-line"></div>
-          <span class="sched-badge">Nonstop</span>
-        </div>
-        <div class="sched-time-box">
-          <span class="sched-time">01:00 PM</span>
-          <span class="sched-ap"><?= htmlspecialchars(explode(',', $destination['label'])[0], ENT_QUOTES) ?></span>
-        </div>
-      </div>
-
-      <div class="sched-select-col">
-        <span class="sched-tag">Included</span>
-        <button type="button" class="btn-sched-select">Select</button>
-      </div>
-    </div>
-
-    <div class="flight-sched-card" tabindex="0" role="button" data-schedule="Philippine Airlines AG-788 (05:45 PM MNL T2 &rarr; 07:10 PM)">
-      <div class="sched-airline-col">
-        <span class="sched-airline-logo">✈️</span>
-        <div>
-          <strong class="sched-airline-name">Philippine Airlines</strong>
-          <span class="sched-flight-no">Flight AG-788 &middot; Boeing 737</span>
-        </div>
-      </div>
-
-      <div class="sched-route-col">
-        <div class="sched-time-box">
-          <span class="sched-time">05:45 PM</span>
-          <span class="sched-ap">MNL T2</span>
-        </div>
-        <div class="sched-duration-box">
-          <span class="sched-dur-text">1h 25m</span>
-          <div class="sched-line"></div>
-          <span class="sched-badge">Nonstop</span>
-        </div>
-        <div class="sched-time-box">
-          <span class="sched-time">07:10 PM</span>
-          <span class="sched-ap"><?= htmlspecialchars(explode(',', $destination['label'])[0], ENT_QUOTES) ?></span>
-        </div>
-      </div>
-
-      <div class="sched-select-col">
-        <span class="sched-tag">Included</span>
-        <button type="button" class="btn-sched-select">Select</button>
-      </div>
+    <div class="cp-filter-group">
+      <span class="cp-filter-label">Sort by:</span>
+      <select class="cp-select-pill" id="filter-flight-sort" aria-label="Sort flights">
+        <option value="earliest">Earliest Departure</option>
+        <option value="cheapest">Lowest Price</option>
+        <option value="fastest">Shortest Duration</option>
+      </select>
     </div>
   </div>
+
+  <!-- Flight Cards List & Empty State Container -->
+  <div class="cp-flights-list" id="flight-schedule-grid">
+    <?php if (!empty($availableFlights)): ?>
+      <?php foreach ($availableFlights as $fIdx => $flight): 
+        $isSelected = ($fIdx === 0);
+        $airlineLogo = '✈️';
+        if (stripos($flight['airline'], 'Cebu') !== false) $airlineLogo = '🟡';
+        elseif (stripos($flight['airline'], 'Philippine Airlines') !== false) $airlineLogo = '🔵';
+        elseif (stripos($flight['airline'], 'AirAsia') !== false) $airlineLogo = '🔴';
+      ?>
+      <div class="cp-flight-card<?= $isSelected ? ' is-selected' : '' ?>" 
+           tabindex="0" role="button" 
+           data-id="<?= $flight['id'] ?>"
+           data-airline="<?= htmlspecialchars($flight['airline'], ENT_QUOTES) ?>"
+           data-flight-no="<?= htmlspecialchars($flight['flight_number'], ENT_QUOTES) ?>"
+           data-departure="<?= htmlspecialchars($flight['departure_time'], ENT_QUOTES) ?>"
+           data-price="<?= (float) $flight['base_price'] ?>"
+           data-schedule="<?= htmlspecialchars($flight['airline'] . ' ' . $flight['flight_number'] . ' (' . $flight['departure_time'] . ' ' . $flight['origin_code'] . ' → ' . $flight['arrival_time'] . ' ' . $flight['dest_code'] . ')', ENT_QUOTES) ?>">
+        
+        <div class="cp-flight-airline">
+          <div class="cp-airline-badge"><?= $airlineLogo ?></div>
+          <div class="cp-airline-info">
+            <strong class="cp-airline-name"><?= htmlspecialchars($flight['airline'], ENT_QUOTES) ?></strong>
+            <span class="cp-flight-equipment">Flight <?= htmlspecialchars($flight['flight_number'], ENT_QUOTES) ?> &middot; <?= htmlspecialchars($flight['aircraft'], ENT_QUOTES) ?></span>
+          </div>
+        </div>
+
+        <div class="cp-flight-timeline">
+          <div class="cp-time-col">
+            <span class="cp-time-text"><?= htmlspecialchars($flight['departure_time'], ENT_QUOTES) ?></span>
+            <span class="cp-port-text"><?= htmlspecialchars($flight['origin_code'], ENT_QUOTES) ?></span>
+          </div>
+
+          <div class="cp-duration-col">
+            <span class="cp-dur-label"><?= htmlspecialchars($flight['duration'], ENT_QUOTES) ?></span>
+            <div class="cp-flight-line"></div>
+            <span class="cp-badge-nonstop"><?= htmlspecialchars($flight['stops'], ENT_QUOTES) ?></span>
+          </div>
+
+          <div class="cp-time-col">
+            <span class="cp-time-text"><?= htmlspecialchars($flight['arrival_time'], ENT_QUOTES) ?></span>
+            <span class="cp-port-text"><?= htmlspecialchars($flight['dest_code'], ENT_QUOTES) ?></span>
+          </div>
+        </div>
+
+        <div class="cp-flight-action">
+          <span class="cp-flight-fare"><?= htmlspecialchars($flight['price_formatted'], ENT_QUOTES) ?></span>
+          <span class="cp-flight-fare-sub">Included with package</span>
+          <button type="button" class="cp-btn-flight-select"><?= $isSelected ? 'Selected' : 'Select' ?></button>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <!-- Cebu Pacific Style Empty State (Screenshot 4) -->
+      <div class="cp-empty-state-card" id="cp-empty-state">
+        <div class="cp-empty-plane-graphic">
+          <svg width="120" height="120" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="80" fill="#f0f9ff"/>
+            <path d="M40 130 C60 110, 100 110, 120 130" stroke="#bae6fd" stroke-width="4" stroke-linecap="round"/>
+            <path d="M90 70 C110 50, 150 50, 170 70" stroke="#bae6fd" stroke-width="4" stroke-linecap="round"/>
+            <g transform="translate(45, 60) rotate(-5)">
+              <path d="M15 45 L50 45 L75 20 L88 20 L72 45 L105 45 L115 32 L125 32 L120 48 L125 50 L120 52 L125 68 L115 68 L105 55 L72 55 L88 80 L75 80 L50 55 L15 55 C5 55 0 50 15 45 Z" fill="#38bdf8"/>
+              <path d="M15 48 L120 48 L125 50 L120 52 L15 52 Z" fill="#ffd200"/>
+              <circle cx="35" cy="50" r="2.5" fill="#ffffff"/>
+              <circle cx="45" cy="50" r="2.5" fill="#ffffff"/>
+              <circle cx="55" cy="50" r="2.5" fill="#ffffff"/>
+            </g>
+          </svg>
+        </div>
+        <h3 class="cp-empty-title">No flights available</h3>
+        <p class="cp-empty-text">Flights for this day are either sold out or unavailable. Please choose another date or try editing your search details.</p>
+        <button type="button" class="cp-btn-edit-search" id="btn-empty-change-date">Choose Another Date</button>
+      </div>
+    <?php endif; ?>
+  </div>
+
+  <!-- Flight Operator Footnote (Cebu Pacific Style) -->
+  <div class="cp-operator-footnote">
+    <div class="cp-operator-list">
+      <span>Flight operated by:</span>
+      <span class="cp-operator-item"><span>✈</span> Cebu Pacific</span>
+      <span class="cp-operator-item"><span>✈</span> Cebgo</span>
+      <span class="cp-operator-item"><span>✈</span> Philippine Airlines</span>
+      <span class="cp-operator-item"><span>✈</span> Philippines AirAsia</span>
+    </div>
+    <span>Fares are subject to government approval.</span>
+  </div>
+
 </section>
 <?php endif; ?>
 
@@ -468,7 +1237,10 @@ $activeNav = 'deals';
       <!-- Image Slideshow Container -->
       <div class="card-slideshow-container<?= $hasMultiple ? '' : ' is-single' ?>">
         <?php foreach ($hotelImages as $imgIdx => $imgSrc): ?>
-          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" alt="<?= htmlspecialchars($hotel['name'], ENT_QUOTES) ?> photo <?= $imgIdx + 1 ?>">
+          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" 
+               class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" 
+               alt="<?= htmlspecialchars($hotel['name'], ENT_QUOTES) ?> photo <?= $imgIdx + 1 ?>"
+               onerror="this.onerror=null; this.src='<?= ag_base_url('asset/logo.png') ?>';">
         <?php endforeach; ?>
         <?php if ($hasMultiple): ?>
         <button type="button" class="slide-arrow prev-arrow" aria-label="Previous image">&#10094;</button>
@@ -526,7 +1298,10 @@ $activeNav = 'deals';
       <!-- Image Slideshow Container -->
       <div class="card-slideshow-container<?= $hasMultiple ? '' : ' is-single' ?>">
         <?php foreach ($carImages as $imgIdx => $imgSrc): ?>
-          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" alt="<?= htmlspecialchars($car['name'], ENT_QUOTES) ?> photo <?= $imgIdx + 1 ?>">
+          <img src="<?= htmlspecialchars($imgSrc, ENT_QUOTES) ?>" 
+               class="slide-img<?= $imgIdx === 0 ? ' active' : '' ?>" 
+               alt="<?= htmlspecialchars($car['name'], ENT_QUOTES) ?> photo <?= $imgIdx + 1 ?>"
+               onerror="this.onerror=null; this.src='<?= ag_base_url('asset/logo.png') ?>';">
         <?php endforeach; ?>
         <?php if ($hasMultiple): ?>
         <button type="button" class="slide-arrow prev-arrow" aria-label="Previous image">&#10094;</button>
@@ -600,21 +1375,24 @@ $activeNav = 'deals';
 </div>
 
 <!-- Hidden hand-off form: carries choices to checkout.php -->
-<form id="checkout-form" action="checkout.php" method="GET" style="display:none">
+<form id="checkout-form" action="<?= ag_base_url('checkout.php') ?>" method="GET" style="display:none">
   <input type="hidden" name="mode"           value="<?= htmlspecialchars($mode, ENT_QUOTES) ?>">
   <input type="hidden" name="adults"         value="<?= htmlspecialchars($adults, ENT_QUOTES) ?>">
   <input type="hidden" name="cabin"          value="<?= htmlspecialchars($cabin, ENT_QUOTES) ?>">
   <input type="hidden" name="city"           value="<?= htmlspecialchars($destination['label'], ENT_QUOTES) ?>">
+  <input type="hidden" name="origin"         value="<?= htmlspecialchars($origin, ENT_QUOTES) ?>">
+  <input type="hidden" name="departDate"     value="<?= htmlspecialchars($departDate, ENT_QUOTES) ?>">
+  <input type="hidden" name="returnDate"     value="<?= htmlspecialchars($returnDate, ENT_QUOTES) ?>">
   <input type="hidden" name="fareName"       value="<?= htmlspecialchars($fareName, ENT_QUOTES) ?>">
   <input type="hidden" name="fareDesc"       value="<?= htmlspecialchars($fareDesc, ENT_QUOTES) ?>">
   <input type="hidden" name="price"          value="<?= htmlspecialchars($farePriceRaw, ENT_QUOTES) ?>">
-  <input type="hidden" name="flightSchedule" value="">
-  <input type="hidden" name="hotelName"      value="">
-  <input type="hidden" name="hotelPrice"     value="">
-  <input type="hidden" name="nights"         value="">
-  <input type="hidden" name="carName"        value="">
-  <input type="hidden" name="carPrice"       value="">
-  <input type="hidden" name="days"           value="">
+  <input type="hidden" name="flightSchedule" value="<?= !empty($availableFlights) ? htmlspecialchars($availableFlights[0]['airline'] . ' ' . $availableFlights[0]['flight_number'] . ' (' . $availableFlights[0]['departure_time'] . ' ' . $availableFlights[0]['origin_code'] . ' → ' . $availableFlights[0]['arrival_time'] . ' ' . $availableFlights[0]['dest_code'] . ')', ENT_QUOTES) : 'Standard Flight' ?>">
+  <input type="hidden" name="hotelName"      value="<?= htmlspecialchars($destination['hotels'][0]['name'] ?? '', ENT_QUOTES) ?>">
+  <input type="hidden" name="hotelPrice"     value="<?= (float)($destination['hotels'][0]['price'] ?? 0) ?>">
+  <input type="hidden" name="nights"         value="<?= $defaultNights ?>">
+  <input type="hidden" name="carName"        value="<?= htmlspecialchars($destination['cars'][0]['name'] ?? '', ENT_QUOTES) ?>">
+  <input type="hidden" name="carPrice"       value="<?= (float)($destination['cars'][0]['price'] ?? 0) ?>">
+  <input type="hidden" name="days"           value="<?= $defaultDays ?>">
 </form>
 
 <script>
@@ -624,9 +1402,14 @@ $activeNav = 'deals';
   const $$ = (s, c = document) => [...c.querySelectorAll(s)];
 
   const peso = (n) => '₱' + Math.round(n).toLocaleString('en-PH');
-  const basePerPerson = <?= json_encode(round($basePrice * $cabinMult)) ?>;
+  const cabinMult     = <?= json_encode($cabinMult) ?>;
+  let basePerPerson   = <?= json_encode(round($basePrice * $cabinMult)) ?>;
   const isHotelMode   = <?= json_encode($mode === 'hotels') ?>;
   const fareNameStr   = <?= json_encode($fareName) ?>;
+  const currentCity   = <?= json_encode($destination['label']) ?>;
+  const currentOrigin = <?= json_encode($origin) ?>;
+  const baseUrl       = <?= json_encode(ag_base_url()) ?>;
+  let currentDate     = <?= json_encode($departDate) ?>;
   let currentAdults   = <?= json_encode($adults) ?>;
 
   let nights = <?= json_encode($defaultNights) ?>;
@@ -664,20 +1447,224 @@ $activeNav = 'deals';
   $('#dest-guest-dec')?.addEventListener('click', () => updateTravelers(currentAdults - 1));
   $('#dest-guest-inc')?.addEventListener('click', () => updateTravelers(currentAdults + 1));
 
-  // Flight schedule selector
-  $$('.flight-sched-card').forEach(card => {
-    card.addEventListener('click', () => {
-      $$('.flight-sched-card').forEach(c => {
-        c.classList.remove('is-selected');
-        const btn = c.querySelector('.btn-sched-select');
-        if (btn) btn.textContent = 'Select';
+  // ==========================================================
+  // CEBU PACIFIC-STYLE DATE CAROUSEL & FLIGHT ASYNC LOADER
+  // ==========================================================
+  const carouselContainer = $('#cp-carousel-cards-container');
+  const flightGrid = $('#flight-schedule-grid');
+  const timeFilter = $('#filter-flight-time');
+  const stopsFilter = $('#filter-flight-stops');
+  const priceFilter = $('#filter-flight-price');
+  const sortFilter = $('#filter-flight-sort');
+
+  function bindFlightCards() {
+    $$('.cp-flight-card').forEach(card => {
+      card.addEventListener('click', () => {
+        $$('.cp-flight-card').forEach(c => {
+          c.classList.remove('is-selected');
+          const btn = c.querySelector('.cp-btn-flight-select');
+          if (btn) btn.textContent = 'Select';
+        });
+        card.classList.add('is-selected');
+        const btn = card.querySelector('.cp-btn-flight-select');
+        if (btn) btn.textContent = 'Selected';
+
+        const sched = card.dataset.schedule;
+        const cardPrice = parseFloat(card.dataset.price);
+        const form = $('#checkout-form');
+        if (form && sched) {
+          form.querySelector('[name="flightSchedule"]').value = sched;
+        }
+        if (!isHotelMode && cardPrice && !isNaN(cardPrice)) {
+          basePerPerson = Math.round(cardPrice * cabinMult);
+          updateTravelers(currentAdults);
+        }
       });
-      card.classList.add('is-selected');
-      const btn = card.querySelector('.btn-sched-select');
-      if (btn) btn.textContent = 'Selected';
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+      });
     });
+  }
+  bindFlightCards();
+
+  async function loadFlightsForDate(dateStr) {
+    currentDate = dateStr;
+    const timeVal = timeFilter?.value || '';
+    const stopsVal = stopsFilter?.value || 'all';
+    const priceVal = priceFilter?.value || '';
+    const sortVal = sortFilter?.value || 'earliest';
+
+    // Update URL query string without reloading page
+    const url = new URL(window.location.href);
+    url.searchParams.set('departDate', dateStr);
+    url.searchParams.set('date', dateStr);
+    window.history.replaceState({}, '', url.toString());
+
+    // Update checkout form hidden date
+    const form = $('#checkout-form');
+    if (form) {
+      form.querySelector('[name="departDate"]').value = dateStr;
+    }
+
+    try {
+      const apiEndpoint = `${baseUrl}/api/flights.php?destination=${encodeURIComponent(currentCity)}&origin=${encodeURIComponent(currentOrigin)}&date=${encodeURIComponent(dateStr)}&time=${encodeURIComponent(timeVal)}&stops=${encodeURIComponent(stopsVal)}&price_range=${encodeURIComponent(priceVal)}&sort=${encodeURIComponent(sortVal)}`;
+      const res = await fetch(apiEndpoint);
+      const data = await res.json();
+
+      if (!data.success) return;
+
+      // 1. Render Carousel
+      if (carouselContainer && data.carousel) {
+        carouselContainer.innerHTML = data.carousel.map(c => `
+          <a href="javascript:void(0)" 
+             class="cp-carousel-card${c.is_selected ? ' is-active' : ''}"
+             data-date="${c.date}">
+            <span class="cp-card-date">${c.label}</span>
+            <span class="cp-card-price${c.has_flights ? '' : ' no-flights'}">
+              ${c.price_label}
+            </span>
+          </a>
+        `).join('');
+        bindCarouselClicks();
+      }
+
+      // 2. Render Flight Cards or Empty State
+      if (flightGrid) {
+        if (data.flights && data.flights.length > 0) {
+          flightGrid.innerHTML = data.flights.map((f, idx) => {
+            const isSel = (idx === 0);
+            let logo = '✈️';
+            if (f.airline.includes('Cebu')) logo = '🟡';
+            else if (f.airline.includes('Philippine Airlines')) logo = '🔵';
+            else if (f.airline.includes('AirAsia')) logo = '🔴';
+
+            return `
+              <div class="cp-flight-card${isSel ? ' is-selected' : ''}" 
+                   tabindex="0" role="button" 
+                   data-id="${f.id}"
+                   data-airline="${f.airline}"
+                   data-flight-no="${f.flight_number}"
+                   data-departure="${f.departure_time}"
+                   data-price="${f.base_price}"
+                   data-schedule="${f.airline} ${f.flight_number} (${f.departure_time} ${f.origin_code} → ${f.arrival_time} ${f.dest_code})">
+                <div class="cp-flight-airline">
+                  <div class="cp-airline-badge">${logo}</div>
+                  <div class="cp-airline-info">
+                    <strong class="cp-airline-name">${f.airline}</strong>
+                    <span class="cp-flight-equipment">Flight ${f.flight_number} &middot; ${f.aircraft}</span>
+                  </div>
+                </div>
+                <div class="cp-flight-timeline">
+                  <div class="cp-time-col">
+                    <span class="cp-time-text">${f.departure_time}</span>
+                    <span class="cp-port-text">${f.origin_code}</span>
+                  </div>
+                  <div class="cp-duration-col">
+                    <span class="cp-dur-label">${f.duration}</span>
+                    <div class="cp-flight-line"></div>
+                    <span class="cp-badge-nonstop">${f.stops}</span>
+                  </div>
+                  <div class="cp-time-col">
+                    <span class="cp-time-text">${f.arrival_time}</span>
+                    <span class="cp-port-text">${f.dest_code}</span>
+                  </div>
+                </div>
+                <div class="cp-flight-action">
+                  <span class="cp-flight-fare">${f.price_formatted}</span>
+                  <span class="cp-flight-fare-sub">Included with package</span>
+                  <button type="button" class="cp-btn-flight-select">${isSel ? 'Selected' : 'Select'}</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+          bindFlightCards();
+
+          if (data.flights[0]) {
+            const f0 = data.flights[0];
+            if (form) {
+              form.querySelector('[name="flightSchedule"]').value = `${f0.airline} ${f0.flight_number} (${f0.departure_time} ${f0.origin_code} → ${f0.arrival_time} ${f0.dest_code})`;
+            }
+            if (!isHotelMode && f0.base_price) {
+              basePerPerson = Math.round(parseFloat(f0.base_price) * cabinMult);
+              updateTravelers(currentAdults);
+            }
+          }
+        } else {
+          // Empty State
+          flightGrid.innerHTML = `
+            <div class="cp-empty-state-card" id="cp-empty-state">
+              <div class="cp-empty-plane-graphic">
+                <svg width="120" height="120" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="100" cy="100" r="80" fill="#f0f9ff"/>
+                  <path d="M40 130 C60 110, 100 110, 120 130" stroke="#bae6fd" stroke-width="4" stroke-linecap="round"/>
+                  <path d="M90 70 C110 50, 150 50, 170 70" stroke="#bae6fd" stroke-width="4" stroke-linecap="round"/>
+                  <g transform="translate(45, 60) rotate(-5)">
+                    <path d="M15 45 L50 45 L75 20 L88 20 L72 45 L105 45 L115 32 L125 32 L120 48 L125 50 L120 52 L125 68 L115 68 L105 55 L72 55 L88 80 L75 80 L50 55 L15 55 C5 55 0 50 15 45 Z" fill="#38bdf8"/>
+                    <path d="M15 48 L120 48 L125 50 L120 52 L15 52 Z" fill="#ffd200"/>
+                    <circle cx="35" cy="50" r="2.5" fill="#ffffff"/>
+                    <circle cx="45" cy="50" r="2.5" fill="#ffffff"/>
+                    <circle cx="55" cy="50" r="2.5" fill="#ffffff"/>
+                  </g>
+                </svg>
+              </div>
+              <h3 class="cp-empty-title">No flights available</h3>
+              <p class="cp-empty-text">Flights for this day are either sold out or unavailable. Please choose another date or try editing your search details.</p>
+              <button type="button" class="cp-btn-edit-search" id="btn-empty-change-date">Choose Another Date</button>
+            </div>
+          `;
+          $('#btn-empty-change-date')?.addEventListener('click', () => {
+            const nextAvail = $$('.cp-carousel-card').find(c => !c.querySelector('.no-flights'));
+            if (nextAvail) {
+              nextAvail.click();
+            } else {
+              window.location.href = `${baseUrl}/index.php#booking`;
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching flights:', err);
+    }
+  }
+
+  function bindCarouselClicks() {
+    $$('.cp-carousel-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const d = card.dataset.date;
+        if (d) loadFlightsForDate(d);
+      });
+    });
+  }
+  bindCarouselClicks();
+
+  $('#btn-carousel-prev')?.addEventListener('click', () => {
+    const cur = new Date(currentDate);
+    cur.setDate(cur.getDate() - 3);
+    const dStr = cur.toISOString().split('T')[0];
+    loadFlightsForDate(dStr);
   });
 
+  $('#btn-carousel-next')?.addEventListener('click', () => {
+    const cur = new Date(currentDate);
+    cur.setDate(cur.getDate() + 3);
+    const dStr = cur.toISOString().split('T')[0];
+    loadFlightsForDate(dStr);
+  });
+
+  [timeFilter, stopsFilter, priceFilter, sortFilter].forEach(el => {
+    el?.addEventListener('change', () => loadFlightsForDate(currentDate));
+  });
+
+  $('#btn-empty-change-date')?.addEventListener('click', () => {
+    const nextAvail = $$('.cp-carousel-card').find(c => !c.querySelector('.no-flights'));
+    if (nextAvail) {
+      nextAvail.click();
+    } else {
+      window.location.href = `${baseUrl}/index.php#booking`;
+    }
+  });
+
+  // Hotel and Car selection handlers
   function selectCard(card) {
     const grid = card.closest('.option-grid');
     $$('.option-card', grid).forEach(c => {
@@ -742,11 +1729,13 @@ $activeNav = 'deals';
     const form = $('#checkout-form');
     if (!form) return;
 
-    const schedCard = $('.flight-sched-card.is-selected');
+    const schedCard = $('.cp-flight-card.is-selected');
     const hotelCard = $('#hotel-grid .option-card.is-selected');
     const carCard   = $('#car-grid .option-card.is-selected');
 
-    form.querySelector('[name="flightSchedule"]').value = schedCard ? schedCard.dataset.schedule : 'Standard Schedule';
+    if (schedCard) {
+      form.querySelector('[name="flightSchedule"]').value = schedCard.dataset.schedule || 'Standard Schedule';
+    }
     form.querySelector('[name="hotelName"]').value  = hotelCard ? hotelCard.dataset.name : '';
     form.querySelector('[name="hotelPrice"]').value = hotelPrice;
     form.querySelector('[name="nights"]').value     = nights;
@@ -776,20 +1765,19 @@ $activeNav = 'deals';
     lightbox.classList.add('is-active');
   }
 
-  lightboxClose.addEventListener('click', () => lightbox.classList.remove('is-active'));
-  lightbox.addEventListener('click', (e) => { if(e.target === lightbox) lightbox.classList.remove('is-active'); });
+  lightboxClose?.addEventListener('click', () => lightbox.classList.remove('is-active'));
+  lightbox?.addEventListener('click', (e) => { if(e.target === lightbox) lightbox.classList.remove('is-active'); });
 
-  lightboxPrev.addEventListener('click', () => {
+  lightboxPrev?.addEventListener('click', () => {
     currentLightboxIndex = (currentLightboxIndex - 1 + currentLightboxImages.length) % currentLightboxImages.length;
     lightboxImg.src = currentLightboxImages[currentLightboxIndex];
   });
 
-  lightboxNext.addEventListener('click', () => {
+  lightboxNext?.addEventListener('click', () => {
     currentLightboxIndex = (currentLightboxIndex + 1) % currentLightboxImages.length;
     lightboxImg.src = currentLightboxImages[currentLightboxIndex];
   });
 
-  // Initialize Card Slideshows & Auto-advance
   $$('.option-card').forEach(card => {
     const images = JSON.parse(card.dataset.images || '[]');
     if (images.length === 0) return;

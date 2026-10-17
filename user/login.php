@@ -1,14 +1,20 @@
 <?php
-// ============================================================
-// AeroGlide — signup.php
-// User Registration Page
-// ============================================================
+// user login page
 
-require_once __DIR__ . '/database/function.php';
-require_once __DIR__ . '/database/validation.php';
+
+if (file_exists(__DIR__ . '/../database/function.php')) {
+    require_once __DIR__ . '/../database/function.php';
+    require_once __DIR__ . '/../database/validation.php';
+} else {
+    require_once __DIR__ . '/database/function.php';
+    require_once __DIR__ . '/database/validation.php';
+}
 require_once __DIR__ . '/auth_helper.php';
 
+
 $redirect = $_REQUEST['redirect'] ?? ag_base_url('index.php');
+$msg      = $_REQUEST['msg']      ?? '';
+$error    = $_REQUEST['error']    ?? $_REQUEST['message'] ?? '';
 $city     = $_REQUEST['city']     ?? '';
 $fare     = $_REQUEST['fare']     ?? '';
 $fareName = $_REQUEST['fareName'] ?? '';
@@ -24,23 +30,20 @@ if (auth_is_logged_in()) {
     exit;
 }
 
-$error    = $_REQUEST['error'] ?? $_REQUEST['message'] ?? '';
-$name     = $_POST['name']     ?? '';
-$email    = $_POST['email']    ?? '';
-$username = $_POST['username'] ?? '';
+if ($msg === 'login_required' && $error === '') {
+    $error = 'An AeroGlide account is required to book a trip. Please log in or sign up below.';
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
-    $valResult = validateSignupInput($_POST);
+    $valResult = validateLoginInput($_POST);
 
     if (!empty($valResult['errors'])) {
         $error = implode(' ', $valResult['errors']);
     } else {
-        $name     = $valResult['data']['name'];
-        $email    = $valResult['data']['email'];
         $username = $valResult['data']['username'];
         $password = $valResult['data']['password'];
 
-        $res = auth_register($name, $email, $username, $password);
+        $res = auth_login($username, $password);
         if ($res['success']) {
             $target = $redirect;
             if ($city !== '') {
@@ -59,7 +62,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign Up — AeroGlide</title>
+<title>Log In — AeroGlide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -108,7 +111,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
   .auth-card {
     width: 100%;
-    max-width: 460px;
+    max-width: 440px;
     background: #ffffff;
     border-radius: 24px;
     padding: 2.5rem 2.25rem;
@@ -158,15 +161,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     border: 1px solid #f4b8b3;
   }
 
+  .auth-alert-info {
+    background: #eef5ff;
+    color: var(--ag-blue-2);
+    border: 1px solid #bcd8f3;
+  }
+
   .auth-form-group {
-    margin-bottom: 1.1rem;
+    margin-bottom: 1.25rem;
   }
 
   .auth-label {
     display: block;
     font-size: 0.82rem;
     font-weight: 700;
-    margin-bottom: 0.45rem;
+    margin-bottom: 0.5rem;
     color: var(--ag-ink);
     letter-spacing: 0.02em;
   }
@@ -193,7 +202,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
   .btn-auth-submit {
     width: 100%;
-    margin-top: 1.2rem;
+    margin-top: 1rem;
     padding: 0.95rem;
     background: linear-gradient(135deg, var(--ag-blue-1), var(--ag-blue-2));
     color: #fff;
@@ -228,6 +237,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   .auth-footer-text a:hover {
     text-decoration: underline;
   }
+
+  .demo-account-hint {
+    background: #f4f8fd;
+    border: 1px dashed #c0d8f0;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    font-size: 0.8rem;
+    color: var(--ag-muted);
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+
+  .demo-account-hint code {
+    background: #e1eefb;
+    color: var(--ag-blue-2);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: 700;
+  }
 </style>
 </head>
 <body class="auth-page">
@@ -244,8 +272,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   <div class="auth-card">
     <div class="auth-header">
       <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="auth-brand-logo">
-      <h1 class="auth-title">Create an Account</h1>
-      <p class="auth-subtitle">Join AeroGlide to book trips, hotels &amp; rentals</p>
+      <h1 class="auth-title">Welcome Back</h1>
+      <p class="auth-subtitle">Log in to book your next flight &amp; hotel getaway</p>
     </div>
 
     <?php if ($error !== ''): ?>
@@ -254,7 +282,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       </div>
     <?php endif; ?>
 
-    <form method="POST" action="<?= ag_base_url('signup.php') ?>">
+    <?php if ($msg !== '' && $msg !== 'login_required'): ?>
+      <div class="auth-alert auth-alert-info">
+        <?= htmlspecialchars($msg, ENT_QUOTES) ?>
+      </div>
+    <?php endif; ?>
+
+    <form method="POST" action="<?= ag_base_url('user/login.php') ?>">
       <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirect, ENT_QUOTES) ?>">
       <input type="hidden" name="city" value="<?= htmlspecialchars($city, ENT_QUOTES) ?>">
       <input type="hidden" name="fare" value="<?= htmlspecialchars($fare, ENT_QUOTES) ?>">
@@ -263,31 +297,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       <input type="hidden" name="price" value="<?= htmlspecialchars($price, ENT_QUOTES) ?>">
 
       <div class="auth-form-group">
-        <label class="auth-label" for="name">Full Name</label>
-        <input class="auth-input" type="text" id="name" name="name" placeholder="Juan Dela Cruz" value="<?= htmlspecialchars($name, ENT_QUOTES) ?>" required autofocus>
+        <label class="auth-label" for="username">Username or Email</label>
+        <input class="auth-input" type="text" id="username" name="username" placeholder="e.g. juan@example.com or juan2026" required autofocus>
       </div>
 
       <div class="auth-form-group">
-        <label class="auth-label" for="email">Email Address</label>
-        <input class="auth-input" type="email" id="email" name="email" placeholder="juan@example.com" value="<?= htmlspecialchars($email, ENT_QUOTES) ?>" required>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+          <label class="auth-label" for="password" style="margin-bottom:0;">Password</label>
+          <a href="<?= ag_base_url('user/forgot_password.php') ?>" style="font-size:0.8rem; color:var(--ag-blue-1); font-weight:600; text-decoration:none;">Forgot password?</a>
+        </div>
+        <input class="auth-input" type="password" id="password" name="password" placeholder="••••••••" required>
       </div>
 
-      <div class="auth-form-group">
-        <label class="auth-label" for="username">Username</label>
-        <input class="auth-input" type="text" id="username" name="username" placeholder="juan2026" value="<?= htmlspecialchars($username, ENT_QUOTES) ?>" required>
-      </div>
-
-      <div class="auth-form-group">
-        <label class="auth-label" for="password">Password</label>
-        <input class="auth-input" type="password" id="password" name="password" placeholder="At least 6 characters" required>
-      </div>
-
-      <button type="submit" class="btn-auth-submit">Create My Account</button>
+      <button type="submit" class="btn-auth-submit">Log In to AeroGlide</button>
     </form>
 
     <div class="auth-footer-text">
-      Already have an account? <a href="<?= ag_base_url('login.php') ?>?redirect=<?= urlencode($redirect) ?>&city=<?= urlencode($city) ?>&fare=<?= urlencode($fare) ?>&fareName=<?= urlencode($fareName) ?>&desc=<?= urlencode($desc) ?>&price=<?= urlencode($price) ?>">Log in here</a>
+      Don't have an account yet? <a href="<?= ag_base_url('user/signup.php') ?>?redirect=<?= urlencode($redirect) ?>&city=<?= urlencode($city) ?>&fare=<?= urlencode($fare) ?>&fareName=<?= urlencode($fareName) ?>&desc=<?= urlencode($desc) ?>&price=<?= urlencode($price) ?>">Sign up here</a>
     </div>
+
   </div>
 </main>
 

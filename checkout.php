@@ -1,12 +1,8 @@
 <?php
-// ============================================================
-// AeroGlide — checkout.php
-// Reached from destination.php's "Proceed to booking" button.
-// Step 1 (GET):  review trip, enforce account login, apply promo code.
-// Step 2 (POST): validate form, process coupon discount, & show booking confirmation.
-// ============================================================
+// checkout and payment flow
 
-require_once __DIR__ . '/auth_helper.php';
+
+require_once __DIR__ . '/user/auth_helper.php';
 
 $isLoggedIn = auth_is_logged_in();
 $currentUser = auth_get_user();
@@ -172,7 +168,9 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
             'discountLabel'  => $discountLabel,
             'grandTotal'     => $grandTotal,
             'promoCode'      => $discountNum > 0 ? $promoCodeUpper : '',
+            'paymentMethod'  => $paymentMethod,
         ];
+
 
         auth_add_user_booking($currentUser['id'], $newBookingRecord);
 
@@ -496,7 +494,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 
     <?php
       $authParams = http_build_query([
-        'redirect'   => 'checkout.php',
+        'redirect'   => ag_base_url('checkout.php'),
         'msg'        => 'login_required',
         'city'       => $tripCity,
         'fareName'   => $fareName,
@@ -512,8 +510,8 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
       ]);
     ?>
     <div class="auth-lock-btns">
-      <a href="login.php?<?= $authParams ?>" class="auth-lock-btn-primary">Log In to Account</a>
-      <a href="signup.php?<?= $authParams ?>" class="auth-lock-btn-secondary">Sign Up Free</a>
+      <a href="<?= ag_base_url('user/login.php') ?>?<?= $authParams ?>" class="auth-lock-btn-primary">Log In to Account</a>
+      <a href="<?= ag_base_url('user/signup.php') ?>?<?= $authParams ?>" class="auth-lock-btn-secondary">Sign Up Free</a>
     </div>
   </div>
 
@@ -693,9 +691,9 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     <p class="lock-note">A confirmation for <?= htmlspecialchars($travelerEmail, ENT_QUOTES) ?> has been generated. Your booking has been saved to your account!</p>
 
     <div class="confirm-actions">
-      <a href="my_bookings.php" class="primary">View My Trips</a>
+      <a href="<?= ag_base_url('user/my_bookings.php') ?>" class="primary">View My Trips</a>
       <a href="#" class="secondary" onclick="window.print(); return false;">Print ticket</a>
-      <a href="index.php" class="secondary">Back to home</a>
+      <a href="<?= ag_base_url('index.php') ?>" class="secondary">Back to home</a>
     </div>
   </div>
 

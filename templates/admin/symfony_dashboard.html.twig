@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Symfony Dashboard — AeroGlide Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+<style>
+.sf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #000000;
+  color: #ffffff;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.sf-pill {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.live-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: pulse-live 2s infinite;
+}
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+.mode-list{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:.9rem;}
+.mode-row{display:flex;align-items:center;gap:.75rem;}
+.mode-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;}
+.mode-bar-wrap{flex:1;height:7px;background:#f1f5f9;border-radius:99px;overflow:hidden;}
+.mode-bar{height:100%;border-radius:99px;transition:width 0.6s ease;}
+.badge-pending_cancellation {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+  font-weight: 800 !important;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:1.5rem;}
+@media(max-width:1080px){.grid-3{grid-template-columns:1fr;}}
+.chart-bar-h{display:flex;flex-direction:column;gap:.75rem;padding:1.25rem 1.5rem;}
+.bar-row{display:flex;align-items:center;gap:.75rem;}
+.bar-label{width:140px;font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.bar-track{flex:1;height:8px;background:#f1f5f9;border-radius:99px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--teal));transition:width 0.6s ease;}
+.bar-val{font-size:.78rem;font-weight:700;color:var(--muted);white-space:nowrap;}
+.monthly-chart{padding:1.4rem 1.5rem;}
+.monthly-bars{display:flex;align-items:flex-end;gap:8px;height:120px;border-bottom:2px solid #f1f5f9;margin-bottom:.5rem;}
+.m-bar{flex:1;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--blue),var(--teal));cursor:default;transition:opacity .2s, transform .2s;min-width:18px;}
+.m-bar:hover{opacity:.85;transform:scaleY(1.04);}
+.monthly-labels{display:flex;gap:8px;}
+.m-label{flex:1;font-size:.68rem;color:var(--muted);text-align:center;min-width:18px;}
+.airline-card{padding:1rem 1.25rem;background:#f8fafc;border:1px solid var(--line);border-radius:12px;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center;}
+.airline-code{font-weight:800;color:var(--blue);font-size:.78rem;background:#e0f2fe;padding:2px 6px;border-radius:4px;margin-right:6px;}
+.refresh-btn {
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.refresh-btn:hover {
+  background: #f8fafc;
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.sync-spinning {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a href="{{ ag_base_url('index.php') }}" class="sidebar-brand" style="text-decoration:none;color:inherit;" title="Return to Homepage">
+    <img src="{{ asset_find(['logo']) }}" alt="Logo">
+    <div>
+      <span class="brand-text">AeroGlide</span>
+      <span class="brand-badge">ADMIN</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a href="index.php" class="nav-link"><span class="nav-icon">📊</span> Standard Dashboard</a>
+    <a href="symfony_dashboard.php" class="nav-link active"><span class="nav-icon">⚡</span> Symfony Dashboard</a>
+    <a href="bookings.php" class="nav-link"><span class="nav-icon">🎫</span> All Bookings</a>
+    <a href="users.php" class="nav-link"><span class="nav-icon">👥</span> Users</a>
+
+    <div class="nav-section-label" style="margin-top:.75rem;">Reports</div>
+    <a href="revenue.php" class="nav-link"><span class="nav-icon">💰</span> Revenue</a>
+    <a href="logs.php" class="nav-link"><span class="nav-icon">📋</span> Activity Logs</a>
+
+    <div class="nav-section-label" style="margin-top:.75rem;">Site</div>
+    <a href="{{ ag_base_url('index.php') }}" class="nav-link"><span class="nav-icon">🌐</span> View Website</a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <div class="admin-avatar">{{ admin.name|slice(0, 1)|upper }}</div>
+      <div>
+        <div class="admin-name">{{ admin.name }}</div>
+        <div class="admin-role">Administrator</div>
+      </div>
+    </div>
+    <a href="{{ ag_base_url('user/logout.php') }}">Sign Out</a>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="topbar-title">Symfony Admin Intelligence</div>
+      <span class="sf-pill"><span class="live-indicator"></span> Realtime Engine</span>
+    </div>
+    <div class="topbar-right">
+      <button id="btnRefresh" class="refresh-btn" onclick="refreshDashboardData()">
+        <span id="refreshIcon">🔄</span> Refresh Data
+      </button>
+      <span style="font-size:.82rem;color:var(--muted);">📅 {{ "now"|date("l, F j, Y") }}</span>
+      <a href="bookings.php" class="topbar-btn btn-primary">Manage Bookings</a>
+    </div>
+  </header>
+
+  <div class="content">
+    <!-- PAGE HEADER -->
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <h1 class="page-title">Welcome back, {{ admin.name }}.</h1>
+          <span class="sf-badge">⚡ SYMFONY POWERED</span>
+        </div>
+        <p class="page-subtitle">Unified administrative metrics & operational intelligence from the live database.</p>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);background:#ffffff;padding:6px 14px;border-radius:8px;border:1px solid var(--line);">
+        Last sync: <strong id="lblSyncTime">{{ generated_at|format_date }}</strong>
+      </div>
+    </div>
+
+    <!-- PENDING CANCELLATIONS ALERT BANNER (IF ANY) -->
+    {% if summary.pending_cancellations > 0 %}
+      <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:14px; padding:1.1rem 1.4rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 4px 14px rgba(217,119,6,0.08);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:1.8rem; line-height:1;">⚠️</span>
+          <div>
+            <div style="font-weight:800; color:#92400e; font-size:1rem;">Action Required: {{ summary.pending_cancellations }} Cancellation Request(s) Awaiting Review</div>
+            <div style="font-size:0.85rem; color:#b45309;">Review traveler refund requests, authorize ₱500 fee deductions, and void itineraries.</div>
+          </div>
+        </div>
+        <a href="bookings.php?status=pending_cancellation" style="background:#d97706; color:#ffffff; padding:8px 18px; border-radius:10px; font-size:0.88rem; font-weight:800; text-decoration:none;">
+          Process Cancellations &rarr;
+        </a>
+      </div>
+    {% endif %}
+
+    <!-- 4 TOP STAT CARDS -->
+    <div class="stats-grid">
+      <div class="stat-card green">
+        <div class="stat-icon green">💰</div>
+        <div class="stat-value" id="valTotalRevenue">{{ summary.total_revenue|peso_int }}</div>
+        <div class="stat-label">Confirmed Revenue</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">Avg. booking: {{ summary.avg_booking_value|peso_int }}</div>
+      </div>
+
+      <div class="stat-card blue">
+        <div class="stat-icon blue">🎫</div>
+        <div class="stat-value" id="valTotalBookings">{{ summary.total_bookings }}</div>
+        <div class="stat-label">Total Reservations</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">{{ summary.confirmed_bookings }} confirmed · {{ summary.cancelled_bookings }} cancelled</div>
+      </div>
+
+      <div class="stat-card purple">
+        <div class="stat-icon purple">👥</div>
+        <div class="stat-value" id="valTotalUsers">{{ summary.total_users }}</div>
+        <div class="stat-label">Traveler Accounts</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">+{{ summary.new_users_month }} signups this month</div>
+      </div>
+
+      <div class="stat-card yellow">
+        <div class="stat-icon yellow">✈️</div>
+        <div class="stat-value" id="valTotalFlights">{{ summary.total_flights }}</div>
+        <div class="stat-label">Dynamic Flights</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">{{ summary.total_seats_available|number_format }} open seats · {{ summary.unique_routes }} routes</div>
+      </div>
+    </div>
+
+    <!-- ROW 1: Mode Breakdown + Top Destinations -->
+    <div class="grid-2">
+      <!-- Mode Breakdown -->
+      <div class="section-card">
+        <div class="section-head">
+          <span class="section-head-title">Booking Mode Share</span>
+          <span style="font-size:.78rem;color:var(--muted);">Category Volume</span>
+        </div>
+        <div class="mode-list">
+          {% if modes is empty %}
+            <div class="empty-state"><div class="empty-state-icon">📭</div><p>No bookings yet.</p></div>
+          {% else %}
+            {% for m in modes %}
+              <div class="mode-row">
+                <div class="mode-icon" style="background: {{ m.color }}22;">{{ m.icon }}</div>
+                <div style="flex:1;">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:.85rem;font-weight:700;">{{ m.label }}</span>
+                    <span style="font-size:.82rem;color:var(--muted);">{{ m.count }} ({{ m.percentage }}%)</span>
+                  </div>
+                  <div class="mode-bar-wrap">
+                    <div class="mode-bar" style="width: {{ m.percentage }}%; background: {{ m.color }};"></div>
+                  </div>
+                  <div style="font-size:.75rem;color:var(--muted);margin-top:3px;">{{ m.revenue|peso_int }} revenue</div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Top Destinations by Revenue -->
+      <div class="section-card">
+        <div class="section-head">
+          <span class="section-head-title">Top Philippine Destinations</span>
+          <a href="revenue.php">Full Revenue Report</a>
+        </div>
+        <div class="chart-bar-h">
+          {% if top_destinations is empty %}
+            <div class="empty-state"><p>No destination bookings recorded yet.</p></div>
+          {% else %}
+            {% for d in top_destinations %}
+              <div class="bar-row">
+                <div class="bar-label" title="{{ d.city }}">{{ d.city }} <span style="font-weight:500;color:var(--muted);font-size:.75rem;">({{ d.count }})</span></div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width: {{ d.percentage }}%;"></div>
+                </div>
+                <div class="bar-val">{{ d.revenue|peso_int }}</div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: Monthly Revenue Visualizer + Airline Fleet Distribution -->
+    <div class="grid-2">
+      <!-- Monthly Revenue Visualizer -->
+      <div class="section-card">
+        <div class="section-head">
+          <span class="section-head-title">Monthly Revenue Performance</span>
+          <span style="font-size:.78rem;color:var(--muted);">Last 12 Months</span>
+        </div>
+        {% if monthly_trend is empty %}
+          <div class="empty-state"><div class="empty-state-icon">📊</div><p>No monthly trends available.</p></div>
+        {% else %}
+          <div class="monthly-chart">
+            <div class="monthly-bars">
+              {% for m in monthly_trend %}
+                <div class="m-bar" style="height: {{ m.bar_height_pct }}%;" title="{{ m.month }}: {{ m.confirmed_revenue|peso_int }} ({{ m.booking_count }} bookings)"></div>
+              {% endfor %}
+            </div>
+            <div class="monthly-labels">
+              {% for m in monthly_trend %}
+                <div class="m-label">{{ m.short_label }}</div>
+              {% endfor %}
+            </div>
+            <div style="margin-top:1.25rem;display:flex;flex-direction:column;gap:.4rem;">
+              {% for m in monthly_trend|slice(-3) %}
+                <div style="display:flex;justify-content:space-between;font-size:.82rem;">
+                  <span style="color:var(--muted);font-weight:600;">{{ m.month }}</span>
+                  <span style="font-weight:700;">{{ m.confirmed_revenue|peso_int }} <span style="color:var(--muted);font-weight:500;">({{ m.booking_count }} bookings)</span></span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Airline Fleet Partner Analytics -->
+      <div class="section-card">
+        <div class="section-head">
+          <span class="section-head-title">Airline Partner Fleet Analytics</span>
+          <span style="font-size:.78rem;color:var(--muted);">Live Schedules</span>
+        </div>
+        <div style="padding:1.25rem 1.5rem;">
+          {% if airline_stats is empty %}
+            <div class="empty-state"><p>No flight schedules in database.</p></div>
+          {% else %}
+            {% for a in airline_stats %}
+              <div class="airline-card">
+                <div>
+                  <div style="display:flex;align-items:center;margin-bottom:2px;">
+                    <span class="airline-code">{{ a.airline_code }}</span>
+                    <strong style="font-size:.88rem;">{{ a.airline }}</strong>
+                  </div>
+                  <div style="font-size:.74rem;color:var(--muted);">
+                    {{ a.flight_count|number_format }} daily flights · {{ a.total_seats|number_format }} seat capacity
+                  </div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-weight:800;font-size:.9rem;color:var(--green);">₱{{ a.avg_base_price|number_format(0) }}</div>
+                  <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;">Avg Base Fare</div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Recent Live Bookings Table -->
+    <div class="section-card">
+      <div class="section-head">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="section-head-title">Live Reservation Stream</span>
+          <span class="badge badge-user">{{ summary.total_bookings }} Records</span>
+        </div>
+        <a href="bookings.php">View All Bookings &rarr;</a>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Booking Ref</th>
+              <th>Traveler</th>
+              <th>Destination</th>
+              <th>Mode</th>
+              <th>Fare / Cabin</th>
+              <th>Grand Total</th>
+              <th>Booking Date</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tblRecentBookings">
+            {% if recent_bookings is empty %}
+              <tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">🎫</div><p>No bookings registered in database.</p></div></td></tr>
+            {% else %}
+              {% for b in recent_bookings %}
+                <tr>
+                  <td>
+                    <a href="booking_detail.php?id={{ b.id }}" style="text-decoration:none;">
+                      <code style="font-size:.78rem;background:#f1f5f9;padding:3px 7px;border-radius:6px;color:var(--blue);font-weight:700;">{{ b.bookingRef }}</code>
+                    </a>
+                  </td>
+                  <td>
+                    <div style="font-weight:700;font-size:.83rem;">{{ b.travelerName }}</div>
+                    <div style="font-size:.72rem;color:var(--muted);">@{{ b.username ?? 'user' }}</div>
+                  </td>
+                  <td style="font-weight:600;">{{ b.city }}</td>
+                  <td><span class="badge badge-{{ b.mode }}">{{ b.mode|capitalize }}</span></td>
+                  <td style="font-size:.78rem;color:var(--muted);">
+                    <div style="font-weight:600;color:var(--ink);">{{ b.cabin }}</div>
+                    <div>{{ b.fareName ?? 'Standard' }}</div>
+                  </td>
+                  <td style="font-weight:800;color:var(--green);">{{ b.grandTotal|peso_int }}</td>
+                  <td style="color:var(--muted);font-size:.78rem;">{{ b.bookingDate|format_date_short }}</td>
+                  <td>
+                    {% if b.isPendingCancellation %}
+                      <span class="badge-pending_cancellation">⏳ Pending Cancel</span>
+                    {% elseif b.isCancelled %}
+                      <span class="badge badge-cancelled">❌ Cancelled</span>
+                    {% else %}
+                      <span class="badge badge-confirmed">✅ Confirmed</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <a href="booking_detail.php?id={{ b.id }}" class="action-btn" style="background:#f1f5f9;color:var(--ink);text-decoration:none;display:inline-block;">View</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ROW 4: Live Admin Audit Log + Recent Registered Users -->
+    <div class="grid-2">
+      <!-- Activity Logs -->
+      <div class="section-card">
+        <div class="section-head">
+          <span class="section-head-title">Administrative Audit Stream</span>
+          <a href="logs.php">All Logs</a>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Admin</th><th>Action</th><th>Target</th><th>Timestamp</th></tr>
+            </thead>
+            <tbody>
+              {% if recent_logs is empty %}
+                <tr><td colspan="4"><div class="empty-state"><p>No administrative activity recorded.</p></div></td></tr>
+              {% else %}
+                {% for l in recent_logs %}
+                  <tr>
+                    <td>
+                      <span style="font-weight:700;font-size:.8rem;">{{ l.adminName ?? 'Admin' }}</span>
+                    </td>
+                    <td style="font-weight:600;font-size:.8rem;">{{ l.action }}</td>
+                    <td>
+                      {% if l.target %}
+                        <code style="font-size:.74rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{ l.target }}</code>
+                      {% else %}
+                        <span style="color:var(--muted);font-size:.75rem;">—</span>
+                      {% endif %}
+                    </td>
+                    <td style="font-size:.75rem;color:var(--muted);">{{ l.createdAt|format_date }}</td>
+                  </tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recent User Accounts -->
+      <div class="section-card">
+        <div class="section-head">
+          <span class="section-head-title">Recent Traveler Registrations</span>
+          <a href="users.php">All Users</a>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Traveler</th><th>Joined</th><th>Role</th></tr>
+            </thead>
+            <tbody>
+              {% if recent_users is empty %}
+                <tr><td colspan="3"><div class="empty-state"><p>No registered travelers.</p></div></td></tr>
+              {% else %}
+                {% for u in recent_users %}
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <div class="user-avatar-sm">{{ u.name|slice(0, 1)|upper }}</div>
+                        <div>
+                          <div style="font-weight:700;font-size:.83rem;">{{ u.name }}</div>
+                          <div style="font-size:.72rem;color:var(--muted);">@{{ u.username }} · {{ u.email }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style="color:var(--muted);font-size:.78rem;">{{ u.createdAt|format_date_short }}</td>
+                    <td><span class="badge badge-{{ u.role }}">{{ u.role|capitalize }}</span></td>
+                  </tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Real-time asynchronous refresh handler powered by Symfony JsonResponse endpoint
+function refreshDashboardData() {
+  const btn = document.getElementById('btnRefresh');
+  const icon = document.getElementById('refreshIcon');
+  if (icon) icon.classList.add('sync-spinning');
+  if (btn) btn.disabled = true;
+
+  fetch('symfony_dashboard.php?action=api_stats', {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data && data.status === 'success') {
+      const summary = data.data.summary;
+      if (document.getElementById('valTotalRevenue')) {
+        document.getElementById('valTotalRevenue').textContent = '₱' + Math.round(summary.total_revenue).toLocaleString();
+      }
+      if (document.getElementById('valTotalBookings')) {
+        document.getElementById('valTotalBookings').textContent = summary.total_bookings;
+      }
+      if (document.getElementById('valTotalUsers')) {
+        document.getElementById('valTotalUsers').textContent = summary.total_users;
+      }
+      if (document.getElementById('valTotalFlights')) {
+        document.getElementById('valTotalFlights').textContent = summary.total_flights;
+      }
+      if (document.getElementById('lblSyncTime')) {
+        document.getElementById('lblSyncTime').textContent = data.data.generated_at;
+      }
+    }
+  })
+  .catch(err => console.error('Dashboard refresh error:', err))
+  .finally(() => {
+    setTimeout(() => {
+      if (icon) icon.classList.remove('sync-spinning');
+      if (btn) btn.disabled = false;
+    }, 400);
+  });
+}
+</script>
+
+</body>
+</html>

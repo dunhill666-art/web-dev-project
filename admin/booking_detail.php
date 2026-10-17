@@ -16,13 +16,31 @@ $b = $stmt->fetch();
 if (!$b) { header('Location: bookings.php'); exit; }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ns = in_array($_POST['status'] ?? '',['confirmed','pending','cancelled']) ? $_POST['status'] : $b['status'];
-    $db->prepare("UPDATE bookings SET status=:s WHERE id=:id")->execute([':s'=>$ns,':id'=>$id]);
-    admin_log("Updated booking #{$id} status to {$ns}","booking:{$id}");
-    header("Location: booking_detail.php?id={$id}&saved=1"); exit;
+    if (isset($_POST['action']) && $_POST['action'] === 'approve_cancellation') {
+        $notes = trim($_POST['admin_notes'] ?? 'Cancellation approved by Admin. Refund processed.');
+        $res = auth_admin_approve_cancellation((int)$_SESSION['user_id'], $id, $notes);
+        header("Location: booking_detail.php?id={$id}&saved=1&msg=" . urlencode($res['message']));
+        exit;
+    }
+
+    if (isset($_POST['action']) && $_POST['action'] === 'reject_cancellation') {
+        $notes = trim($_POST['admin_notes'] ?? 'Cancellation request rejected by Admin.');
+        $res = auth_admin_reject_cancellation((int)$_SESSION['user_id'], $id, $notes);
+        header("Location: booking_detail.php?id={$id}&saved=1&msg=" . urlencode($res['message']));
+        exit;
+    }
+
+    $ns = in_array($_POST['status'] ?? '', ['confirmed', 'pending', 'cancelled', 'pending_cancellation']) ? $_POST['status'] : $b['status'];
+    $db->prepare("UPDATE bookings SET status=:s WHERE id=:id")->execute([':s'=>$ns, ':id'=>$id]);
+    admin_log("Updated booking #{$id} status to {$ns}", "booking:{$id}");
+    header("Location: booking_detail.php?id={$id}&saved=1"); 
+    exit;
 }
 
 admin_log("Viewed booking #{$id} detail","booking:{$id}");
+$bStatus = strtolower($b['status'] ?? 'confirmed');
+$isPendingCancel = ($bStatus === 'pending_cancellation');
+$isCancelled = ($bStatus === 'cancelled');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -50,6 +68,16 @@ admin_log("Viewed booking #{$id} detail","booking:{$id}");
 .status-save{width:100%;padding:.75rem;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:inherit;font-weight:800;font-size:.9rem;cursor:pointer;}
 .status-save:hover{background:var(--blue2);}
 .user-detail-card{background:#f8fafc;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1rem;}
+.badge-pending_cancellation {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+  font-weight: 800 !important;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  display: inline-block;
+}
 </style>
 </head>
 <body>
@@ -67,7 +95,68 @@ admin_log("Viewed booking #{$id} detail","booking:{$id}");
 
   <div class="content">
     <?php if (isset($_GET['saved'])): ?>
-      <div class="alert-success">✅ Booking status updated successfully.</div>
+      <div class="alert-success">✅ <?= htmlspecialchars($_GET['msg'] ?? 'Booking status updated successfully.', ENT_QUOTES) ?></div>
+    <?php endif; ?>
+
+    <!-- PENDING CANCELLATION ACTION PANEL -->
+    <?php if ($isPendingCancel): 
+      $fee = min(500, $b['grand_total']);
+      $refAmt = max(0, $b['grand_total'] - $fee);
+    ?>
+      <div style="background:#fffbeb; border:2px solid #fde68a; border-radius:18px; padding:1.5rem 1.75rem; margin-bottom:1.75rem; box-shadow:0 8px 24px rgba(217,119,6,0.12);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <span style="font-size:2rem; line-height:1;">⚠️</span>
+          <div>
+            <h2 style="font-family:'Montserrat',sans-serif; font-size:1.25rem; font-weight:800; color:#92400e; margin:0 0 4px;">
+              Cancellation Request Awaiting Administrator Approval
+            </h2>
+            <p style="margin:0; font-size:0.88rem; color:#b45309;">
+              Requested on <strong><?= !empty($b['cancellation_requested_at']) ? date('F j, Y g:i A', strtotime($b['cancellation_requested_at'])) : 'Recent' ?></strong>
+            </p>
+          </div>
+        </div>
+
+        <div style="background:#ffffff; border:1px solid #fef08a; border-radius:12px; padding:14px 16px; margin-bottom:16px;">
+          <div style="font-size:0.8rem; font-weight:800; color:#854d0e; text-transform:uppercase; margin-bottom:4px;">Customer's Reason:</div>
+          <div style="font-size:0.95rem; color:#0f172a; font-weight:600;"><?= htmlspecialchars($b['cancellation_reason'] ?: 'Customer initiated cancellation via dashboard.') ?></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; background:#ffffff; border:1px solid #fef08a; border-radius:12px; padding:14px 16px; margin-bottom:18px; font-size:0.9rem;">
+          <div><span style="color:#64748b; font-size:0.8rem; display:block;">Total Paid:</span><strong>₱<?= number_format($b['grand_total'], 2) ?></strong></div>
+          <div><span style="color:#64748b; font-size:0.8rem; display:block;">Cancellation Fee:</span><strong style="color:#dc2626;">- ₱<?= number_format($fee, 2) ?></strong></div>
+          <div><span style="color:#64748b; font-size:0.8rem; display:block;">Refund Credited:</span><strong style="color:#16a34a; font-size:1.1rem;">₱<?= number_format($refAmt, 2) ?></strong></div>
+          <div><span style="color:#64748b; font-size:0.8rem; display:block;">Action:</span><strong>Void Boarding Pass</strong></div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <!-- Approve Form -->
+          <form method="POST" style="display:inline;" onsubmit="return confirm('Approve cancellation and authorize refund of ₱<?= number_format($refAmt, 2) ?>?');">
+            <input type="hidden" name="action" value="approve_cancellation">
+            <button type="submit" style="background:#10b981; color:#fff; border:none; padding:10px 22px; border-radius:10px; font-weight:800; font-size:0.92rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+              ✓ Approve Cancellation &amp; Process Refund
+            </button>
+          </form>
+
+          <!-- Reject Button toggling rejection section -->
+          <button type="button" onclick="document.getElementById('reject-form-box').style.display='block'; this.style.display='none';" style="background:#ef4444; color:#fff; border:none; padding:10px 22px; border-radius:10px; font-weight:800; font-size:0.92rem; cursor:pointer;">
+            ✕ Reject / Resolve Request
+          </button>
+        </div>
+
+        <div id="reject-form-box" style="display:none; margin-top:16px; background:#fff1f2; border:1px solid #fecdd3; border-radius:12px; padding:16px;">
+          <form method="POST">
+            <input type="hidden" name="action" value="reject_cancellation">
+            <label style="display:block; font-size:0.85rem; font-weight:800; color:#9f1239; margin-bottom:6px;">
+              Reason for Rejection / Resolution Note (displayed to traveler):
+            </label>
+            <textarea name="admin_notes" rows="2" required placeholder="e.g., Non-refundable promotion policy or flight departs in under 2 hours..." style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding:8px 12px; font-family:inherit; font-size:0.88rem; outline:none; margin-bottom:12px; resize:none;"></textarea>
+            <button type="submit" style="background:#dc2626; color:#fff; border:none; padding:8px 18px; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer;">
+              Confirm Rejection &amp; Restore Confirmed Status
+            </button>
+          </form>
+        </div>
+      </div>
     <?php endif; ?>
 
     <div class="detail-grid">
@@ -132,7 +221,7 @@ admin_log("Viewed booking #{$id} detail","booking:{$id}");
           </div>
         </div>
 
-        <!-- Pricing -->
+        <!-- Pricing & Cancellation History -->
         <div class="section-card">
           <div class="section-head"><span class="section-head-title">Pricing Breakdown</span></div>
           <div class="detail-section">
@@ -150,6 +239,24 @@ admin_log("Viewed booking #{$id} detail","booking:{$id}");
               <span class="detail-key" style="color:var(--ink);">Grand Total</span>
               <span class="detail-val" style="font-size:1.1rem;font-weight:900;color:var(--green);">₱<?= number_format($b['grand_total'], 2) ?></span>
             </div>
+
+            <?php if ($isCancelled): ?>
+              <div style="margin-top:14px; padding-top:14px; border-top:1.5px dashed #fca5a5; background:#fff1f2; border-radius:10px; padding:12px 14px;">
+                <div style="font-weight:800; color:#9f1239; font-size:0.82rem; text-transform:uppercase; margin-bottom:6px;">Cancellation &amp; Refund Breakdown</div>
+                <div class="detail-row"><span class="detail-key">Cancellation Fee</span><span class="detail-val" style="color:#dc2626;">- ₱<?= number_format($b['cancellation_fee'], 2) ?></span></div>
+                <div class="detail-row"><span class="detail-key">Refund Credited</span><span class="detail-val" style="color:#16a34a; font-weight:800;">₱<?= number_format($b['refund_amount'], 2) ?></span></div>
+                <div class="detail-row"><span class="detail-key">Cancelled At</span><span class="detail-val"><?= date('M j, Y g:i A', strtotime($b['cancelled_at'])) ?></span></div>
+                <?php if (!empty($b['admin_notes'])): ?>
+                <div class="detail-row"><span class="detail-key">Admin Notes</span><span class="detail-val"><?= htmlspecialchars($b['admin_notes']) ?></span></div>
+                <?php endif; ?>
+              </div>
+            <?php endif; ?>
+
+            <?php if (!empty($b['admin_notes']) && !$isCancelled): ?>
+              <div style="margin-top:14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 14px; font-size:0.85rem; color:#1e40af;">
+                <strong>Admin Resolution Note:</strong> <?= htmlspecialchars($b['admin_notes']) ?>
+              </div>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -161,12 +268,17 @@ admin_log("Viewed booking #{$id} detail","booking:{$id}");
           <div class="section-head"><span class="section-head-title">Booking Status</span></div>
           <div style="padding:1.2rem 1.4rem;">
             <div style="margin-bottom:1rem;">
-              <span class="badge badge-<?= $b['status'] ?>" style="font-size:.9rem;padding:5px 14px;"><?= ucfirst($b['status']) ?></span>
+              <?php if ($isPendingCancel): ?>
+                <span class="badge-pending_cancellation">⏳ Pending Cancellation</span>
+              <?php else: ?>
+                <span class="badge badge-<?= $b['status'] ?>" style="font-size:.9rem;padding:5px 14px;"><?= ucfirst($b['status']) ?></span>
+              <?php endif; ?>
             </div>
             <form method="POST" class="status-form">
               <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.06em;">Change Status</label>
               <select name="status">
                 <option value="confirmed" <?= $b['status']==='confirmed'?'selected':'' ?>>Confirmed</option>
+                <option value="pending_cancellation" <?= $b['status']==='pending_cancellation'?'selected':'' ?>>Pending Cancellation</option>
                 <option value="pending"   <?= $b['status']==='pending'  ?'selected':'' ?>>Pending</option>
                 <option value="cancelled" <?= $b['status']==='cancelled'?'selected':'' ?>>Cancelled</option>
               </select>

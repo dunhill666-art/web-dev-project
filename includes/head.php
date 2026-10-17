@@ -1,9 +1,7 @@
 <?php
-// ============================================================
-// AeroGlide — includes/head.php
-// Reusable HTML head section & stylesheets
-// ============================================================
-require_once __DIR__ . '/../auth_helper.php';
+// html head and meta tags
+
+require_once __DIR__ . '/../user/auth_helper.php';
 
 $pageTitle = $pageTitle ?? 'AeroGlide — Book Smarter, Travel Further';
 ?>
@@ -13,4 +11,4 @@ $pageTitle = $pageTitle ?? 'AeroGlide — Book Smarter, Travel Further';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?= ag_base_url('style.css') ?>">
+<link rel="stylesheet" href="<?= ag_base_url('style.css') ?>?v=<?= file_exists(__DIR__ . '/../style.css') ? filemtime(__DIR__ . '/../style.css') : time() ?>">

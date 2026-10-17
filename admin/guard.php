@@ -1,13 +1,10 @@
 <?php
-// ============================================================
-// AeroGlide — admin/guard.php
-// Include at the top of every admin page.
-// Redirects non-admins back to login.
-// ============================================================
-require_once dirname(__DIR__) . '/auth_helper.php';
+// admin access check
+
+require_once dirname(__DIR__) . '/user/auth_helper.php';
 
 if (!auth_is_logged_in() || !auth_is_admin()) {
-    header('Location: ../login.php?error=' . urlencode('Admin access only. Please log in with an administrator account.'));
+    header('Location: ' . ag_base_url('user/login.php?error=' . urlencode('Admin access only. Please log in with an administrator account.')));
     exit;
 }
 

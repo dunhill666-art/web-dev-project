@@ -7,4 +7,9 @@
 
 $_GET['city'] = $_GET['city'] ?? 'Mayon Volcano, Albay';
 
-require __DIR__ . '/destination.php';
+if (file_exists(__DIR__ . '/../destination.php')) {
+    require __DIR__ . '/../destination.php';
+} else {
+    require __DIR__ . '/destination.php';
+}
+

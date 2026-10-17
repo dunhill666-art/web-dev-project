@@ -1,0 +1,16 @@
+{
+    "name": "aeroglide/aeroglide",
+    "description": "AeroGlide Booking Platform with Symfony Dashboard Integration",
+    "type": "project",
+    "require": {
+        "php": ">=8.1",
+        "twig/twig": "^3.30",
+        "symfony/yaml": "^7.4",
+        "symfony/http-foundation": "^8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    }
+}

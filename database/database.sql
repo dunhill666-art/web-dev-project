@@ -7,10 +7,6 @@
 CREATE DATABASE IF NOT EXISTS `aeroglide` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `aeroglide`;
 
--- --------------------------------------------------------
--- Table structure for `users`
--- --------------------------------------------------------
-
 CREATE TABLE IF NOT EXISTS `users` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `username` VARCHAR(60) NOT NULL UNIQUE,
@@ -23,10 +19,6 @@ CREATE TABLE IF NOT EXISTS `users` (
   `last_login` DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
--- Table structure for `password_tokens`
--- --------------------------------------------------------
-
 CREATE TABLE IF NOT EXISTS `password_tokens` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `user_id` INT NOT NULL,
@@ -35,10 +27,6 @@ CREATE TABLE IF NOT EXISTS `password_tokens` (
   `used` TINYINT(1) NOT NULL DEFAULT 0,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for `bookings`
--- --------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS `bookings` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -65,17 +53,19 @@ CREATE TABLE IF NOT EXISTS `bookings` (
   `discount_num` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   `discount_label` VARCHAR(80) NULL,
   `grand_total` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `cancellation_fee` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `refund_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `cancelled_at` DATETIME NULL DEFAULT NULL,
   `promo_code` VARCHAR(30) NULL,
   `payment_method` VARCHAR(30) NULL,
-  `status` ENUM('confirmed','pending','cancelled') NOT NULL DEFAULT 'confirmed',
+  `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'confirmed',
+  `cancellation_reason` VARCHAR(255) NULL,
+  `admin_notes` TEXT NULL,
+  `cancellation_requested_at` DATETIME NULL,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   INDEX `idx_user_id` (`user_id`),
   INDEX `idx_booking_date` (`booking_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
--- Table structure for `admin_logs`
--- --------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS `admin_logs` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,17 +76,28 @@ CREATE TABLE IF NOT EXISTS `admin_logs` (
   FOREIGN KEY (`admin_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
--- Seed Data
--- Default Admin: admin / admin2026!
--- Default User:  demo / password123
--- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `flights` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `flight_number` VARCHAR(30) NOT NULL,
+  `airline` VARCHAR(80) NOT NULL,
+  `airline_code` VARCHAR(10) NOT NULL,
+  `aircraft` VARCHAR(60) NOT NULL,
+  `origin_code` VARCHAR(10) NOT NULL,
+  `origin_name` VARCHAR(100) NOT NULL,
+  `dest_code` VARCHAR(10) NOT NULL,
+  `dest_name` VARCHAR(120) NOT NULL,
+  `departure_time` TIME NOT NULL,
+  `arrival_time` TIME NOT NULL,
+  `duration` VARCHAR(30) NOT NULL,
+  `flight_date` DATE NOT NULL,
+  `base_price` DECIMAL(10,2) NOT NULL,
+  `stops` VARCHAR(30) NOT NULL DEFAULT 'Nonstop',
+  `seats_available` INT NOT NULL DEFAULT 45,
+  `cabin` VARCHAR(40) NOT NULL DEFAULT 'Economy',
+  `status` ENUM('available','sold_out','cancelled') NOT NULL DEFAULT 'available',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_route_date` (`origin_code`, `dest_code`, `flight_date`),
+  INDEX `idx_dest_date`  (`dest_code`, `flight_date`),
+  INDEX `idx_flight_date`(`flight_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`) VALUES
-(1, 'admin', 'AeroGlide Admin', 'admin@aeroglide.com', '$2y$10$wT5fK9nC5Q4X1.0G2Gk1u.R9kU4o2lW7h5y3m8X1.0G2Gk1u.R9kU', 'admin'),
-(2, 'demo', 'Juan Dela Cruz', 'juan@aeroglide.com', '$2y$10$E9s0P.gV7K8mJ1X2L3M4N.O5P6Q7R8S9T0U1V2W3X4Y5Z6A7B8C9D', 'user')
-ON DUPLICATE KEY UPDATE `id`=`id`;
-
-INSERT INTO `bookings` (`id`, `user_id`, `booking_ref`, `booking_date`, `traveler_name`, `traveler_email`, `traveler_phone`, `city`, `mode`, `adults`, `cabin`, `fare_name`, `fare_desc`, `flight_schedule`, `hotel_name`, `hotel_price`, `nights`, `car_name`, `car_price`, `days`, `subtotal`, `discount_num`, `discount_label`, `grand_total`, `promo_code`, `payment_method`, `status`) VALUES
-(1, 2, 'AG-68463677', NOW(), 'Juan Dela Cruz', 'juan@aeroglide.com', '09171234567', 'Coron, Palawan', 'packages', 1, 'Economy', 'Smart Saver', 'Flight + checked baggage', 'Philippines AirAsia AG-204 (03:55 AM MNL T2 -> 05:25 AM USU)', 'Coron Westown Resort', 4500.00, 3, 'Toyota Wigo (Compact)', 1800.00, 3, 18900.00, 2000.00, '5PEOPLE2026 Promo', 16900.00, '5PEOPLE2026', 'GCash', 'confirmed')
-ON DUPLICATE KEY UPDATE `id`=`id`;

@@ -1,8 +1,5 @@
 <?php
-// ============================================================
-// AeroGlide — database/function.php
-// Global application helper functions and state management
-// ============================================================
+// global helper functions
 
 require_once __DIR__ . '/config.php';
 
@@ -10,31 +7,27 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-/**
- * Compute the project base web URL path dynamically.
- * Works regardless of execution directory (root, /Login, /User, /admin, etc.)
- */
+// base url builder
 if (!function_exists('ag_base_url')) {
     function ag_base_url(string $path = ''): string
     {
         static $base = null;
         if ($base === null) {
-            $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '/project/index.php');
+            $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '/index.php');
             $dir = str_replace('\\', '/', dirname($script));
-            $dir = preg_replace('#/(Login|User|admin|place|database)$#i', '', $dir);
-            $base = rtrim($dir, '/');
-            if ($base === '') {
-                $base = '/project';
+            $dir = preg_replace('#/(Login|User|user|destinations|place|admin|database|api)$#i', '', $dir);
+            $base = rtrim($dir, '/\\');
+            if ($base === '.' || $base === '/') {
+                $base = '';
             }
         }
-        $path = ltrim($path, '/');
-        return $base . ($path !== '' ? '/' . $path : '');
+        $path = ltrim($path, '/\\');
+        return ($base !== '' ? $base : '') . '/' . $path;
     }
 }
 
-/**
- * Get current logged in user array or null
- */
+
+// get logged in user info
 if (!function_exists('auth_get_user')) {
     function auth_get_user(): ?array
     {
@@ -56,7 +49,7 @@ if (!function_exists('auth_get_user')) {
                 return $user;
             }
         } catch (Exception $e) {
-            // Fallback
+            // fallback
         }
 
         return [
@@ -69,9 +62,7 @@ if (!function_exists('auth_get_user')) {
     }
 }
 
-/**
- * Check if user is logged in
- */
+// check if user logged in
 if (!function_exists('auth_is_logged_in')) {
     function auth_is_logged_in(): bool
     {
@@ -79,9 +70,7 @@ if (!function_exists('auth_is_logged_in')) {
     }
 }
 
-/**
- * Check if current user is an administrator
- */
+// check admin role
 if (!function_exists('auth_is_admin')) {
     function auth_is_admin(): bool
     {
@@ -90,9 +79,7 @@ if (!function_exists('auth_is_admin')) {
     }
 }
 
-/**
- * Log in a user into session
- */
+// login user and store session
 if (!function_exists('auth_login_user')) {
     function auth_login_user(array $user): void
     {
@@ -105,14 +92,12 @@ if (!function_exists('auth_login_user')) {
             $stmt = $db->prepare("UPDATE users SET last_login = NOW() WHERE id = :id");
             $stmt->execute([':id' => $user['id']]);
         } catch (Exception $e) {
-            // Ignore timestamp failure
+            // ignore timestamp failure
         }
     }
 }
 
-/**
- * Log out current user
- */
+// logout and clear session
 if (!function_exists('auth_logout')) {
     function auth_logout(): void
     {
@@ -128,9 +113,7 @@ if (!function_exists('auth_logout')) {
     }
 }
 
-/**
- * Record an admin action in admin_logs table
- */
+// log admin action
 if (!function_exists('admin_log')) {
     function admin_log(string $action, ?string $target = null): void
     {
@@ -146,73 +129,44 @@ if (!function_exists('admin_log')) {
                 ':tgt' => $target,
             ]);
         } catch (Exception $e) {
-            // Non-blocking log failure
+            // ignore failure
         }
     }
 }
 
+// asset path helper
 if (!function_exists('asset_find')) {
     function asset_find(array $terms, ?array $fallbackTerms = null): string
     {
-        static $files = null;
-        if ($files === null) {
-            $files = [];
-            $collect = function (string $dir, string $relPrefix) use (&$collect, &$files): void {
-                $entries = @scandir($dir);
-                if (!$entries) return;
-                foreach ($entries as $entry) {
-                    if ($entry === '.' || $entry === '..') continue;
-                    $full = $dir . '/' . $entry;
-                    $rel  = $relPrefix === '' ? $entry : $relPrefix . '/' . $entry;
-                    if (is_dir($full)) {
-                        $collect($full, $rel);
-                    } else if (is_file($full)) {
-                        $stem = pathinfo($entry, PATHINFO_FILENAME);
-                        $norm = strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $stem));
-                        $files[] = [
-                            'rel'  => $rel,
-                            'name' => $entry,
-                            'norm' => ' ' . trim($norm) . ' ',
-                        ];
-                    }
-                }
-            };
-            $rootDir = dirname(__DIR__);
-            foreach (['asset', 'assets'] as $folder) {
-                if (is_dir($rootDir . '/' . $folder)) {
-                    $collect($rootDir . '/' . $folder, $folder);
-                }
-            }
-        }
-
-        $search = function (array $kwList) use ($files): ?string {
-            foreach ($kwList as $kw) {
+        if (function_exists('asset_index')) {
+            $files = asset_index();
+            foreach ($terms as $kw) {
                 $kwNorm = strtolower(trim((string)$kw));
                 if ($kwNorm === '') continue;
                 foreach ($files as $f) {
-                    if (str_contains($f['norm'], $kwNorm) || str_contains(strtolower($f['name']), $kwNorm)) {
-                        $encodedRel = implode('/', array_map('rawurlencode', explode('/', $f['rel'])));
-                        return ag_base_url($encodedRel);
+                    if (strpos($f['norm'], ' ' . $kwNorm . ' ') !== false || strpos($f['norm'], $kwNorm) !== false || strpos($f['squash'], $kwNorm) !== false) {
+                        return asset_url($f);
                     }
                 }
             }
-            return null;
-        };
-
-        if ($found = $search($terms)) {
-            return $found;
+            if ($fallbackTerms) {
+                foreach ($fallbackTerms as $kw) {
+                    $kwNorm = strtolower(trim((string)$kw));
+                    if ($kwNorm === '') continue;
+                    foreach ($files as $f) {
+                        if (strpos($f['norm'], $kwNorm) !== false || strpos($f['squash'], $kwNorm) !== false) {
+                            return asset_url($f);
+                        }
+                    }
+                }
+            }
         }
-        if ($fallbackTerms && ($found = $search($fallbackTerms))) {
-            return $found;
-        }
-
         return ag_base_url('asset/logo.png');
     }
 }
 
-/**
- * Format monetary amount in Philippine Pesos
- */
+
+// format peso amount
 if (!function_exists('format_currency')) {
     function format_currency(float $amount): string
     {
@@ -220,9 +174,7 @@ if (!function_exists('format_currency')) {
     }
 }
 
-/**
- * Format datetime display string
- */
+// format date display
 if (!function_exists('format_date')) {
     function format_date(string $datetime): string
     {

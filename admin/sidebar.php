@@ -1,5 +1,5 @@
 <?php
-require_once dirname(__DIR__) . '/auth_helper.php';
+require_once dirname(__DIR__) . '/user/auth_helper.php';
 
 // Shared sidebar for all admin pages
 $admin = auth_get_user() ?? ['name' => 'Admin'];
@@ -21,6 +21,7 @@ $nav = function($file, $icon, $label) use ($currentPage) {
   <nav class="sidebar-nav">
     <div class="nav-section-label">Overview</div>
     <?php $nav('index.php', '📊', 'Dashboard'); ?>
+    <?php $nav('symfony_dashboard.php', '⚡', 'Symfony Analytics'); ?>
     <?php $nav('bookings.php', '🎫', 'All Bookings'); ?>
     <?php $nav('users.php', '👥', 'Users'); ?>
 
@@ -40,6 +41,6 @@ $nav = function($file, $icon, $label) use ($currentPage) {
         <div class="admin-role">Administrator</div>
       </div>
     </div>
-    <a href="<?= ag_base_url('logout.php') ?>">Sign Out</a>
+    <a href="<?= ag_base_url('user/logout.php') ?>">Sign Out</a>
   </div>
 </aside>

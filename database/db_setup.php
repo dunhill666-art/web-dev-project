@@ -90,16 +90,23 @@ try {
             `cancelled_at`    DATETIME NULL DEFAULT NULL,
             `promo_code`      VARCHAR(30)  NULL,
             `payment_method`  VARCHAR(30)  NULL,
-            `status`          ENUM('confirmed','pending','cancelled') NOT NULL DEFAULT 'confirmed',
+            `status`          ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'confirmed',
+            `cancellation_reason` VARCHAR(255) NULL,
+            `admin_notes`     TEXT NULL,
+            `cancellation_requested_at` DATETIME NULL,
             FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
             INDEX `idx_user_id` (`user_id`),
             INDEX `idx_booking_date` (`booking_date`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
 
+    try { $pdo->exec("ALTER TABLE `bookings` MODIFY COLUMN `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'confirmed'"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `cancellation_fee` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `grand_total`"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `refund_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `cancellation_fee`"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `cancelled_at` DATETIME NULL DEFAULT NULL AFTER `refund_amount`"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `cancellation_reason` VARCHAR(255) NULL AFTER `status`"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `admin_notes` TEXT NULL AFTER `cancellation_reason`"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `cancellation_requested_at` DATETIME NULL AFTER `admin_notes`"); } catch (Exception $e) {}
 
     $log[] = "✅ Table <strong>bookings</strong> ready.";
 
@@ -115,6 +122,48 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
     $log[] = "✅ Table <strong>admin_logs</strong> ready.";
+
+    // 6. FLIGHTS table & Initial Dynamic Seed
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS `flights` (
+            `id`              INT AUTO_INCREMENT PRIMARY KEY,
+            `flight_number`   VARCHAR(30)  NOT NULL,
+            `airline`         VARCHAR(80)  NOT NULL,
+            `airline_code`    VARCHAR(10)  NOT NULL,
+            `aircraft`        VARCHAR(60)  NOT NULL,
+            `origin_code`     VARCHAR(10)  NOT NULL,
+            `origin_name`     VARCHAR(100) NOT NULL,
+            `dest_code`       VARCHAR(10)  NOT NULL,
+            `dest_name`       VARCHAR(120) NOT NULL,
+            `departure_time`  TIME         NOT NULL,
+            `arrival_time`    TIME         NOT NULL,
+            `duration`        VARCHAR(30)  NOT NULL,
+            `flight_date`     DATE         NOT NULL,
+            `base_price`      DECIMAL(10,2)NOT NULL,
+            `stops`           VARCHAR(30)  NOT NULL DEFAULT 'Nonstop',
+            `seats_available` INT          NOT NULL DEFAULT 45,
+            `cabin`           VARCHAR(40)  NOT NULL DEFAULT 'Economy',
+            `status`          ENUM('available','sold_out','cancelled') NOT NULL DEFAULT 'available',
+            `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX `idx_route_date` (`origin_code`, `dest_code`, `flight_date`),
+            INDEX `idx_dest_date`  (`dest_code`, `flight_date`),
+            INDEX `idx_flight_date`(`flight_date`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+    $log[] = "✅ Table <strong>flights</strong> ready.";
+
+    if (file_exists(__DIR__ . '/flight_helper.php')) {
+        require_once __DIR__ . '/flight_helper.php';
+        $destsToSeed = ['albay', 'boracay', 'coron', 'siargao', 'bukidnon', 'chocolate', 'malapascua', 'taal', 'kaohsiung', 'dumaguete'];
+        $todayStr = date('Y-m-01');
+        $endStr   = date('Y-m-d', strtotime('+3 months'));
+        foreach ($destsToSeed as $dKey) {
+            $rInfo = flight_resolve_route($dKey, 'MNL');
+            flight_seed_dates_if_needed($pdo, $rInfo, $todayStr, $endStr);
+        }
+        $log[] = "✅ Seeded dynamic Cebu Pacific-style daily flights and pricing across all destination routes.";
+    }
+
 
     // 6. Seed admin account
     $adminPass = password_hash('admin2026!', PASSWORD_BCRYPT);
@@ -137,7 +186,7 @@ try {
     $log[] = "✅ Traveler account seeded — username: <strong>demo</strong> / password: <strong>password123</strong>";
 
     // 8. Migrate existing bookings from users_db.json if present
-    $jsonPath = __DIR__ . '/users_db.json';
+    $jsonPath = file_exists(__DIR__ . '/users_db.json') ? (__DIR__ . '/users_db.json') : (dirname(__DIR__) . '/users_db.json');
     if (file_exists($jsonPath)) {
         $jsonData = json_decode(file_get_contents($jsonPath), true);
         $migrated = 0;
@@ -259,9 +308,9 @@ try {
       <?php endforeach; ?>
     <?php endif; ?>
     <div class="links">
-      <a href="index.php" class="btn btn-blue">Go to Homepage</a>
-      <a href="admin/index.php" class="btn btn-blue">Open Admin Panel</a>
-      <a href="login.php" class="btn btn-gray">Login Page</a>
+      <a href="../index.php" class="btn btn-blue">Go to Homepage</a>
+      <a href="../admin/index.php" class="btn btn-blue">Open Admin Panel</a>
+      <a href="../user/login.php" class="btn btn-gray">Login Page</a>
     </div>
   </div>
 </div>

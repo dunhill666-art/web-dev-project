@@ -1,9 +1,7 @@
 <?php
-// ============================================================
-// AeroGlide — includes/footer.php
-// Reusable bottom footer section component
-// ============================================================
-require_once __DIR__ . '/../auth_helper.php';
+// page footer component
+
+require_once __DIR__ . '/../user/auth_helper.php';
 
 $isLoggedIn = auth_is_logged_in();
 ?>
@@ -29,12 +27,12 @@ $isLoggedIn = auth_is_logged_in();
       <div>
         <h3 class="footer-col-title">Philippines Destinations</h3>
         <ul class="footer-nav-list">
-          <li><a href="<?= ag_base_url('boracay.php') ?>">Boracay, Aklan</a></li>
-          <li><a href="<?= ag_base_url('coron.php') ?>">Coron, Palawan</a></li>
-          <li><a href="<?= ag_base_url('siargao.php') ?>">Siargao, Surigao</a></li>
-          <li><a href="<?= ag_base_url('albay.php') ?>">Mayon Volcano, Albay</a></li>
-          <li><a href="<?= ag_base_url('chocolate-hills.php') ?>">Chocolate Hills, Bohol</a></li>
-          <li><a href="<?= ag_base_url('taal-volcano.php') ?>">Taal Volcano, Batangas</a></li>
+          <li><a href="<?= ag_base_url('destinations/boracay.php') ?>">Boracay, Aklan</a></li>
+          <li><a href="<?= ag_base_url('destinations/coron.php') ?>">Coron, Palawan</a></li>
+          <li><a href="<?= ag_base_url('destinations/siargao.php') ?>">Siargao, Surigao</a></li>
+          <li><a href="<?= ag_base_url('destinations/albay.php') ?>">Mayon Volcano, Albay</a></li>
+          <li><a href="<?= ag_base_url('destinations/chocolate-hills.php') ?>">Chocolate Hills, Bohol</a></li>
+          <li><a href="<?= ag_base_url('destinations/taal-volcano.php') ?>">Taal Volcano, Batangas</a></li>
         </ul>
       </div>
       <div>
@@ -54,11 +52,11 @@ $isLoggedIn = auth_is_logged_in();
           <li><a href="<?= ag_base_url('help.php#faq') ?>">Frequently Asked Questions</a></li>
           <li><a href="<?= ag_base_url('help.php') ?>">Help Center Room</a></li>
           <?php if ($isLoggedIn): ?>
-            <li><a href="<?= ag_base_url('my_bookings.php') ?>">My Booked Trips</a></li>
+            <li><a href="<?= ag_base_url('user/my_bookings.php') ?>">My Booked Trips</a></li>
           <?php else: ?>
-            <li><a href="<?= ag_base_url('login.php') ?>">Log In / Sign Up</a></li>
+            <li><a href="<?= ag_base_url('user/login.php') ?>">Log In / Sign Up</a></li>
           <?php endif; ?>
-          <li><a href="<?= ag_base_url('forgot_password.php') ?>">Reset Password</a></li>
+          <li><a href="<?= ag_base_url('user/forgot_password.php') ?>">Reset Password</a></li>
         </ul>
       </div>
     </div>

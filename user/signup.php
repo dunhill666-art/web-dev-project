@@ -1,32 +1,56 @@
 <?php
-// ============================================================
-// AeroGlide — reset_password.php
-// Password Reset Confirmation Form & Handler
-// ============================================================
+// user signup page
 
-require_once __DIR__ . '/database/function.php';
-require_once __DIR__ . '/database/validation.php';
+
+if (file_exists(__DIR__ . '/../database/function.php')) {
+    require_once __DIR__ . '/../database/function.php';
+    require_once __DIR__ . '/../database/validation.php';
+} else {
+    require_once __DIR__ . '/database/function.php';
+    require_once __DIR__ . '/database/validation.php';
+}
 require_once __DIR__ . '/auth_helper.php';
 
-$token   = $_REQUEST['token'] ?? '';
-$error   = $_GET['error'] ?? '';
-$success = $_GET['msg']   ?? '';
+
+$redirect = $_REQUEST['redirect'] ?? ag_base_url('index.php');
+$city     = $_REQUEST['city']     ?? '';
+$fare     = $_REQUEST['fare']     ?? '';
+$fareName = $_REQUEST['fareName'] ?? '';
+$desc     = $_REQUEST['desc']     ?? '';
+$price    = $_REQUEST['price']    ?? '';
+
+if (auth_is_logged_in()) {
+    $target = $redirect;
+    if ($city !== '') {
+        $target .= '?city=' . urlencode($city) . '&fare=' . urlencode($fare) . '&fareName=' . urlencode($fareName) . '&desc=' . urlencode($desc) . '&price=' . urlencode($price);
+    }
+    header('Location: ' . $target);
+    exit;
+}
+
+$error    = $_REQUEST['error'] ?? $_REQUEST['message'] ?? '';
+$name     = $_POST['name']     ?? '';
+$email    = $_POST['email']    ?? '';
+$username = $_POST['username'] ?? '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
-    $token       = $_POST['token'] ?? '';
-    $newPassword = $_POST['password'] ?? '';
-    $confirm     = $_POST['confirm_password'] ?? '';
+    $valResult = validateSignupInput($_POST);
 
-    $passErr = val_password($newPassword);
-
-    if ($newPassword !== $confirm) {
-        $error = 'Passwords do not match. Please verify and re-type.';
-    } elseif ($passErr) {
-        $error = $passErr;
+    if (!empty($valResult['errors'])) {
+        $error = implode(' ', $valResult['errors']);
     } else {
-        $res = auth_reset_password($token, $newPassword);
+        $name     = $valResult['data']['name'];
+        $email    = $valResult['data']['email'];
+        $username = $valResult['data']['username'];
+        $password = $valResult['data']['password'];
+
+        $res = auth_register($name, $email, $username, $password);
         if ($res['success']) {
-            header('Location: ' . ag_base_url('login.php?msg=' . urlencode('Password updated successfully! You can now log in.')));
+            $target = $redirect;
+            if ($city !== '') {
+                $target .= '?city=' . urlencode($city) . '&fare=' . urlencode($fare) . '&fareName=' . urlencode($fareName) . '&desc=' . urlencode($desc) . '&price=' . urlencode($price);
+            }
+            header('Location: ' . $target);
             exit;
         } else {
             $error = $res['message'];
@@ -39,7 +63,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Set New Password — AeroGlide</title>
+<title>Sign Up — AeroGlide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -88,12 +112,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
   .auth-card {
     width: 100%;
-    max-width: 440px;
+    max-width: 460px;
     background: #ffffff;
     border-radius: 24px;
     padding: 2.5rem 2.25rem;
     box-shadow: var(--ag-shadow);
     border: 1px solid rgba(255, 255, 255, 0.8);
+    position: relative;
   }
 
   .auth-header {
@@ -120,7 +145,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   .auth-subtitle {
     font-size: 0.9rem;
     color: var(--ag-muted);
-    line-height: 1.4;
   }
 
   .auth-alert {
@@ -138,22 +162,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     border: 1px solid #f4b8b3;
   }
 
-  .auth-alert-info {
-    background: #eef5ff;
-    color: var(--ag-blue-2);
-    border: 1px solid #bcd8f3;
-  }
-
   .auth-form-group {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.1rem;
   }
 
   .auth-label {
     display: block;
     font-size: 0.82rem;
     font-weight: 700;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.45rem;
     color: var(--ag-ink);
+    letter-spacing: 0.02em;
   }
 
   .auth-input {
@@ -178,7 +197,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
   .btn-auth-submit {
     width: 100%;
-    margin-top: 1rem;
+    margin-top: 1.2rem;
     padding: 0.95rem;
     background: linear-gradient(135deg, var(--ag-blue-1), var(--ag-blue-2));
     color: #fff;
@@ -209,6 +228,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     font-weight: 700;
     text-decoration: none;
   }
+
+  .auth-footer-text a:hover {
+    text-decoration: underline;
+  }
 </style>
 </head>
 <body class="auth-page">
@@ -218,15 +241,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="brand-logo-img">
     <span class="brand-text">AeroGlide</span>
   </a>
-  <a href="<?= ag_base_url('login.php') ?>" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Log In</a>
+  <a href="<?= ag_base_url('index.php') ?>" style="color: var(--ag-blue-2); text-decoration:none; font-weight:700; font-size:0.9rem;">&larr; Back to Home</a>
 </header>
 
 <main class="auth-main-wrap">
   <div class="auth-card">
     <div class="auth-header">
       <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="AeroGlide Logo" class="auth-brand-logo">
-      <h1 class="auth-title">Create New Password</h1>
-      <p class="auth-subtitle">Enter your new account password below.</p>
+      <h1 class="auth-title">Create an Account</h1>
+      <p class="auth-subtitle">Join AeroGlide to book trips, hotels &amp; rentals</p>
     </div>
 
     <?php if ($error !== ''): ?>
@@ -235,30 +258,39 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       </div>
     <?php endif; ?>
 
-    <?php if ($success !== ''): ?>
-      <div class="auth-alert auth-alert-info">
-        <?= htmlspecialchars($success, ENT_QUOTES) ?>
-      </div>
-    <?php endif; ?>
-
-    <form method="POST" action="<?= ag_base_url('reset_password.php') ?>">
-      <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
-
-      <div class="auth-form-group">
-        <label class="auth-label" for="password">New Password</label>
-        <input class="auth-input" type="password" id="password" name="password" placeholder="At least 6 characters" required autofocus>
-      </div>
+    <form method="POST" action="<?= ag_base_url('user/signup.php') ?>">
+      <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirect, ENT_QUOTES) ?>">
+      <input type="hidden" name="city" value="<?= htmlspecialchars($city, ENT_QUOTES) ?>">
+      <input type="hidden" name="fare" value="<?= htmlspecialchars($fare, ENT_QUOTES) ?>">
+      <input type="hidden" name="fareName" value="<?= htmlspecialchars($fareName, ENT_QUOTES) ?>">
+      <input type="hidden" name="desc" value="<?= htmlspecialchars($desc, ENT_QUOTES) ?>">
+      <input type="hidden" name="price" value="<?= htmlspecialchars($price, ENT_QUOTES) ?>">
 
       <div class="auth-form-group">
-        <label class="auth-label" for="confirm_password">Confirm New Password</label>
-        <input class="auth-input" type="password" id="confirm_password" name="confirm_password" placeholder="Re-type new password" required>
+        <label class="auth-label" for="name">Full Name</label>
+        <input class="auth-input" type="text" id="name" name="name" placeholder="Juan Dela Cruz" value="<?= htmlspecialchars($name, ENT_QUOTES) ?>" required autofocus>
       </div>
 
-      <button type="submit" class="btn-auth-submit">Update Password &amp; Continue</button>
+      <div class="auth-form-group">
+        <label class="auth-label" for="email">Email Address</label>
+        <input class="auth-input" type="email" id="email" name="email" placeholder="juan@example.com" value="<?= htmlspecialchars($email, ENT_QUOTES) ?>" required>
+      </div>
+
+      <div class="auth-form-group">
+        <label class="auth-label" for="username">Username</label>
+        <input class="auth-input" type="text" id="username" name="username" placeholder="juan2026" value="<?= htmlspecialchars($username, ENT_QUOTES) ?>" required>
+      </div>
+
+      <div class="auth-form-group">
+        <label class="auth-label" for="password">Password</label>
+        <input class="auth-input" type="password" id="password" name="password" placeholder="At least 6 characters" required>
+      </div>
+
+      <button type="submit" class="btn-auth-submit">Create My Account</button>
     </form>
 
     <div class="auth-footer-text">
-      <a href="<?= ag_base_url('login.php') ?>">Return to Log In</a>
+      Already have an account? <a href="<?= ag_base_url('user/login.php') ?>?redirect=<?= urlencode($redirect) ?>&city=<?= urlencode($city) ?>&fare=<?= urlencode($fare) ?>&fareName=<?= urlencode($fareName) ?>&desc=<?= urlencode($desc) ?>&price=<?= urlencode($price) ?>">Log in here</a>
     </div>
   </div>
 </main>

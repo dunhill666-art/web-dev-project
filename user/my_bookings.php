@@ -1,16 +1,25 @@
 <?php
-// ============================================================
-// AeroGlide — my_bookings.php
-// User Dashboard & My Trips area with Flight Cancellation Flow
-// ============================================================
+// user dashboard and trip history
 
-require_once __DIR__ . '/database/function.php';
-require_once __DIR__ . '/database/validation.php';
-require_once __DIR__ . '/database/success.php';
+
+if (file_exists(__DIR__ . '/../database/function.php')) {
+    require_once __DIR__ . '/../database/function.php';
+    require_once __DIR__ . '/../database/validation.php';
+    if (file_exists(__DIR__ . '/../database/success.php')) {
+        require_once __DIR__ . '/../database/success.php';
+    }
+} else {
+    require_once __DIR__ . '/database/function.php';
+    require_once __DIR__ . '/database/validation.php';
+    if (file_exists(__DIR__ . '/database/success.php')) {
+        require_once __DIR__ . '/database/success.php';
+    }
+}
 require_once __DIR__ . '/auth_helper.php';
 
+
 if (!auth_is_logged_in()) {
-    header('Location: ' . ag_base_url('login.php?redirect=my_bookings.php&msg=login_required'));
+    header('Location: ' . ag_base_url('user/login.php?redirect=' . urlencode(ag_base_url('user/my_bookings.php')) . '&msg=login_required'));
     exit;
 }
 
@@ -344,8 +353,12 @@ $usedCoupon   = auth_user_has_claimed_coupon($userId);
 <body class="aeroglide-page">
 
 <?php
-$activeNav = 'trips';
-include __DIR__ . '/includes/navbar.php';
+if (file_exists(__DIR__ . '/includes/navbar.php')) {
+    include __DIR__ . '/includes/navbar.php';
+} else {
+    include __DIR__ . '/../includes/navbar.php';
+}
+
 ?>
 
 <main class="user-dash-wrap">
@@ -361,8 +374,21 @@ include __DIR__ . '/includes/navbar.php';
     </div>
   </div>
 
-  <!-- CANCELLATION NOTIFICATION BANNER -->
-  <?php if (($_GET['msg'] ?? '') === 'cancelled'): 
+  <!-- CANCELLATION NOTIFICATION BANNERS -->
+  <?php if (($_GET['msg'] ?? '') === 'pending_cancellation'): 
+    $cRef    = htmlspecialchars($_GET['ref'] ?? 'Your booking', ENT_QUOTES);
+    $cRefund = htmlspecialchars($_GET['refund'] ?? '4,500', ENT_QUOTES);
+  ?>
+    <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:18px; padding:1.25rem 1.5rem; margin-bottom:24px; display:flex; align-items:center; gap:16px; box-shadow:0 6px 20px rgba(217,119,6,0.12);">
+      <div style="font-size:2.2rem; line-height:1;">⏳</div>
+      <div>
+        <h3 style="font-family:'Montserrat',sans-serif; font-weight:800; font-size:1.1rem; color:#92400e; margin:0 0 4px;">Cancellation Request Submitted (Pending Admin Approval)</h3>
+        <p style="margin:0; font-size:0.9rem; color:#b45309; line-height:1.4;">
+          Your cancellation request for reservation <strong><?= $cRef ?></strong> has been sent to the administrator team for verification. Once approved, an estimated refund of <strong>₱<?= $cRefund ?></strong> (after standard ₱500 cancellation fee) will be credited to your original payment method.
+        </p>
+      </div>
+    </div>
+  <?php elseif (($_GET['msg'] ?? '') === 'cancelled'): 
     $cRef    = htmlspecialchars($_GET['ref'] ?? 'Your booking', ENT_QUOTES);
     $cRefund = htmlspecialchars($_GET['refund'] ?? '4,500', ENT_QUOTES);
   ?>
@@ -371,7 +397,7 @@ include __DIR__ . '/includes/navbar.php';
       <div>
         <h3 style="font-family:'Montserrat',sans-serif; font-weight:800; font-size:1.1rem; color:#065f46; margin:0 0 4px;">Trip Cancelled Successfully</h3>
         <p style="margin:0; font-size:0.9rem; color:#047857; line-height:1.4;">
-          Reservation <strong><?= $cRef ?></strong> has been updated to <strong>CANCELLED</strong>. An estimated refund of <strong>₱<?= $cRefund ?></strong> (after ₱500 cancellation fee) will be credited to your original payment method.
+          Reservation <strong><?= $cRef ?></strong> has been updated to <strong>CANCELLED</strong>. An estimated refund of <strong>₱<?= $cRefund ?></strong> (after ₱500 cancellation fee) has been authorized for credit back to your original payment method.
         </p>
       </div>
     </div>
@@ -409,7 +435,9 @@ include __DIR__ . '/includes/navbar.php';
       $bCar        = $b['carName'] ?? '';
       $bTotal      = $b['grandTotal'] ?? $b['subTotal'] ?? 4999;
       $bCoupon     = $b['discountLabel'] ?? '';
-      $isCancelled = (strtolower($b['status'] ?? '') === 'cancelled');
+      $rawStatus   = strtolower(trim($b['status'] ?? 'confirmed'));
+      $isCancelled = ($rawStatus === 'cancelled');
+      $isPending   = ($rawStatus === 'pending_cancellation');
     ?>
 
     <?php if ($isCancelled): ?>
@@ -454,11 +482,100 @@ include __DIR__ . '/includes/navbar.php';
             <div><span style="color:#64748b; font-size:0.8rem; display:block;">Refund Credited:</span> <strong style="color:#16a34a; font-size:1.05rem;">₱<?= number_format($cRefundVal) ?></strong></div>
             <div><span style="color:#64748b; font-size:0.8rem; display:block;">Refund Destination:</span> <strong>Original Payment Method</strong></div>
           </div>
+          <?php if (!empty($b['adminNotes'])): ?>
+            <div style="margin-top:10px; font-size:0.82rem; color:#9f1239; background:rgba(255,255,255,0.75); padding:6px 10px; border-radius:6px;">
+              <strong>Admin Note:</strong> <?= htmlspecialchars($b['adminNotes'], ENT_QUOTES) ?>
+            </div>
+          <?php endif; ?>
         </div>
 
         <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px; border-top:1px solid #e2e8f0;">
           <span style="font-size:0.85rem; color:#64748b; font-weight:600;">Cancelled on <?= $cDate ?></span>
           <span style="font-size:0.88rem; font-weight:800; color:#9f1239; background:#ffe4e6; padding:8px 16px; border-radius:10px;">❌ Ticket Void / Flight Cancelled</span>
+        </div>
+      </div>
+
+    <?php elseif ($isPending): ?>
+      <!-- PENDING CANCELLATION BOOKING CARD -->
+      <div class="trip-history-card" style="background:#fffdfa; border:1.5px solid #fde68a; box-shadow:0 8px 24px rgba(217,119,6,0.08);">
+        <div class="th-top-row">
+          <span class="th-ref-badge" style="background:#fef3c7; color:#92400e; font-weight:800;">Ref: <?= htmlspecialchars($bRef, ENT_QUOTES) ?></span>
+          <span style="font-size:0.85rem; color:#92400e; font-weight:800; background:#fef3c7; border:1px solid #fde68a; padding:4px 14px; border-radius:999px;">
+            ⏳ Cancellation Pending Admin Approval
+          </span>
+        </div>
+
+        <h2 class="th-city-title">
+          <span>📍</span> <?= htmlspecialchars($bCity, ENT_QUOTES) ?>
+          <span style="font-size:0.75rem; font-weight:800; color:#b45309; background:#fef3c7; padding:3px 10px; border-radius:8px; margin-left:8px;">UNDER ADMIN REVIEW</span>
+        </h2>
+
+        <div class="th-details-grid">
+          <div class="th-detail-box">
+            <span class="th-detail-label">Fare &amp; Cabin Class</span>
+            <span class="th-detail-val"><?= htmlspecialchars($bFare, ENT_QUOTES) ?> &middot; <?= htmlspecialchars($bCabin, ENT_QUOTES) ?> (<?= $bAdults ?> Guest<?= $bAdults > 1 ? 's' : '' ?>)</span>
+          </div>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Flight Schedule</span>
+            <span class="th-detail-val" style="color:#0d6efd;"><?= htmlspecialchars($bSched, ENT_QUOTES) ?></span>
+          </div>
+          <?php if ($bHotel !== ''): ?>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Hotel Accommodation</span>
+            <span class="th-detail-val">🏨 <?= htmlspecialchars($bHotel, ENT_QUOTES) ?> (<?= $b['nights'] ?? 1 ?> nights)</span>
+          </div>
+          <?php endif; ?>
+          <?php if ($bCar !== ''): ?>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Car Rental Service</span>
+            <span class="th-detail-val">🚗 <?= htmlspecialchars($bCar, ENT_QUOTES) ?> (<?= $b['days'] ?? 1 ?> days)</span>
+          </div>
+          <?php endif; ?>
+        </div>
+
+        <!-- PENDING STATUS ALERT BOX -->
+        <?php 
+          $reqDate = !empty($b['cancellationRequestedAt']) ? date('M d, Y g:i A', strtotime($b['cancellationRequestedAt'])) : date('M d, Y');
+          $estFee = min(500, $bTotal);
+          $estRefund = max(0, $bTotal - $estFee);
+        ?>
+        <div style="background:#fefce8; border:1px solid #fef08a; border-radius:14px; padding:16px 20px; margin-bottom:16px;">
+          <div style="font-size:0.85rem; font-weight:800; color:#854d0e; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <span>⏱️</span> Cancellation Request Submitted &mdash; <?= $reqDate ?>
+          </div>
+          <p style="margin:0 0 10px; font-size:0.88rem; color:#713f12; line-height:1.45;">
+            Your cancellation request is currently awaiting authorization by our administration team. Once approved, a refund of <strong>₱<?= number_format($estRefund) ?></strong> (after standard ₱500 cancellation fee) will be credited to your payment account.
+          </p>
+          <?php if (!empty($b['cancellationReason'])): ?>
+            <div style="font-size:0.82rem; color:#854d0e; background:rgba(255,255,255,0.8); padding:6px 12px; border-radius:8px;">
+              <strong>Reason Provided:</strong> <?= htmlspecialchars($b['cancellationReason'], ENT_QUOTES) ?>
+            </div>
+          <?php endif; ?>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px; border-top:1px solid #f1f5f9; flex-wrap:wrap; gap:16px;">
+          <div>
+            <span style="font-size:0.8rem; color:#5b6b7f; display:block;">Grand Total Paid</span>
+            <strong style="font-size:1.3rem; color:#0a1425; font-family:'Montserrat',sans-serif;">₱<?= number_format($bTotal) ?></strong>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="btn-view-ticket" data-ticket='<?= json_encode([
+              'ref'     => $bRef,
+              'name'    => $b['travelerName'] ?? $currentUser['name'],
+              'city'    => $bCity,
+              'sched'   => $bSched,
+              'cabin'   => $bCabin,
+              'fare'    => $bFare,
+              'date'    => date('M d, Y', strtotime('+3 days')),
+            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
+              <span>🎟️</span> View Boarding Pass
+            </button>
+
+            <button type="button" class="btn-cancel-trip" disabled style="opacity:0.65; cursor:not-allowed; background:#f1f5f9; border-color:#cbd5e1; color:#64748b;" title="A cancellation request has already been submitted and is pending review.">
+              <span>⏳</span> Cancellation Pending
+            </button>
+          </div>
         </div>
       </div>
 
@@ -496,6 +613,12 @@ include __DIR__ . '/includes/navbar.php';
           </div>
           <?php endif; ?>
         </div>
+
+        <?php if (!empty($b['adminNotes'])): ?>
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:10px 16px; margin-bottom:14px; font-size:0.85rem; color:#1e40af;">
+            <strong>ℹ️ Admin Resolution Note:</strong> <?= htmlspecialchars($b['adminNotes'], ENT_QUOTES) ?>
+          </div>
+        <?php endif; ?>
 
         <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px; border-top:1px solid #f1f5f9; flex-wrap:wrap; gap:16px;">
           <div>
@@ -549,14 +672,14 @@ include __DIR__ . '/includes/navbar.php';
   </div>
 </div>
 
-<!-- CANCELLATION CONFIRMATION MODAL -->
+<!-- CANCELLATION REQUEST CONFIRMATION MODAL -->
 <div class="ticket-modal-overlay" id="cancel-modal">
   <div class="cancel-modal-card">
     <span class="modal-close-btn" id="cancel-modal-close" style="color:#9f1239;">&times;</span>
     <div class="cancel-modal-header">
       <div class="cancel-warning-icon">⚠️</div>
-      <h2 class="cancel-modal-title">Cancel this trip?</h2>
-      <p class="cancel-modal-subtitle">Are you sure you want to cancel this reservation? Cancellation has financial consequences.</p>
+      <h2 class="cancel-modal-title">Request Cancellation?</h2>
+      <p class="cancel-modal-subtitle">Submitting this form sends a cancellation request to AeroGlide administrators for verification and refund processing.</p>
     </div>
 
     <div class="cancel-modal-body">
@@ -571,23 +694,37 @@ include __DIR__ . '/includes/navbar.php';
         <div class="cc-row"><span>Original Total Paid:</span><strong id="cm-total">₱5,000</strong></div>
         <div class="cc-row cc-fee"><span>Cancellation Fee:</span><strong>- ₱500</strong></div>
         <div class="cc-row cc-refund"><span>Estimated Refund:</span><strong id="cm-refund" style="color:#16a34a; font-size:1.15rem;">₱4,500</strong></div>
-        <div class="cc-note">💡 Refund will be automatically recorded and credited back to your <strong>Original Payment Method</strong>.</div>
+        <div class="cc-note">💡 Upon administrator approval, the refund will be credited back to your <strong>Original Payment Method</strong>.</div>
       </div>
 
-      <form method="POST" action="<?= ag_base_url('auth.php') ?>">
-        <input type="hidden" name="action" value="cancel_booking">
+      <form method="POST" action="<?= ag_base_url('user/auth.php') ?>">
+        <input type="hidden" name="action" value="request_cancel_booking">
         <input type="hidden" name="booking_ref" id="cm-input-ref" value="">
         
+        <div style="margin-bottom:18px;">
+          <label for="cm-reason" style="display:block; font-size:0.82rem; font-weight:700; color:#334155; margin-bottom:6px;">
+            Reason for Cancellation (Optional):
+          </label>
+          <textarea id="cm-reason" name="cancellation_reason" rows="2" placeholder="e.g., Schedule change, emergency, incorrect passenger count..." style="width:100%; border:1.5px solid #cbd5e1; border-radius:10px; padding:8px 12px; font-family:inherit; font-size:0.88rem; outline:none; resize:none;"></textarea>
+        </div>
+
         <div class="cancel-btn-group">
-          <button type="button" class="btn-keep-booking" id="btn-keep-booking">Go Back &amp; Keep Booking</button>
-          <button type="submit" class="btn-confirm-cancel">Confirm Cancellation</button>
+          <button type="button" class="btn-keep-booking" id="btn-keep-booking">Keep Booking</button>
+          <button type="submit" class="btn-confirm-cancel">Submit Request</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<?php include __DIR__ . '/includes/footer.php'; ?>
+<?php
+if (file_exists(__DIR__ . '/includes/footer.php')) {
+    include __DIR__ . '/includes/footer.php';
+} else {
+    include __DIR__ . '/../includes/footer.php';
+}
+?>
+
 
 <script>
 (function() {

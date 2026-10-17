@@ -6,4 +6,9 @@
 
 $_GET['city'] = $_GET['city'] ?? 'Taal Volcano, Batangas';
 
-require __DIR__ . '/destination.php';
+if (file_exists(__DIR__ . '/../destination.php')) {
+    require __DIR__ . '/../destination.php';
+} else {
+    require __DIR__ . '/destination.php';
+}
+

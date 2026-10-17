@@ -1,9 +1,7 @@
 <?php
-// ============================================================
-// AeroGlide — includes/navbar.php
-// Reusable top navigation header bar
-// ============================================================
-require_once __DIR__ . '/../auth_helper.php';
+// main navigation bar
+
+require_once __DIR__ . '/../user/auth_helper.php';
 
 $isLoggedIn  = auth_is_logged_in();
 $currentUser = auth_get_user();
@@ -25,7 +23,7 @@ $activeNav   = $activeNav ?? '';
       <a href="<?= ag_base_url('index.php#tracker') ?>" class="nav-item <?= $activeNav === 'track' ? 'is-active' : '' ?>">Track</a>
       <a href="<?= ag_base_url('index.php#destinations') ?>" class="nav-item <?= $activeNav === 'destinations' ? 'is-active' : '' ?>">Destinations</a>
       <?php if ($isLoggedIn): ?>
-        <a href="<?= ag_base_url('my_bookings.php') ?>" class="nav-item <?= $activeNav === 'trips' ? 'is-active' : '' ?>">My Trips</a>
+        <a href="<?= ag_base_url('user/my_bookings.php') ?>" class="nav-item <?= $activeNav === 'trips' ? 'is-active' : '' ?>">My Trips</a>
       <?php endif; ?>
       <a href="<?= ag_base_url('help.php#about') ?>" class="nav-item <?= $activeNav === 'about' ? 'is-active' : '' ?>">About Us</a>
     </div>
@@ -39,11 +37,11 @@ $activeNav   = $activeNav ?? '';
 
       <?php if ($isLoggedIn): ?>
         <span class="nav-user-greeting">Hi, <?= htmlspecialchars($username) ?></span>
-        <a class="nav-auth-btn" href="<?= ag_base_url('logout.php') ?>" title="Logout">
+        <a class="nav-auth-btn" href="<?= ag_base_url('user/logout.php') ?>" title="Logout">
           <span>Logout</span>
         </a>
       <?php else: ?>
-        <a class="nav-auth-btn" href="<?= ag_base_url('login.php') ?>">
+        <a class="nav-auth-btn" href="<?= ag_base_url('user/login.php') ?>">
           <svg class="auth-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span>Sign up / Log in</span>
         </a>

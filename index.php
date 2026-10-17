@@ -1,23 +1,19 @@
 <?php
-// ============================================================
-// AeroGlide — index.php
-// Public homepage: photo hero background, booking, deals,
-// destinations, about, clients + Flight Tracker and
-// "Discover What's Happening" coupon sections.
-// ============================================================
+// main landing page
 
-require_once __DIR__ . '/auth_helper.php';
+require_once __DIR__ . '/user/auth_helper.php';
 
 $isLoggedIn  = auth_is_logged_in();
 $currentUser = auth_get_user();
 $username    = $isLoggedIn ? ($currentUser['username'] ?? 'User') : '';
 
-/* ---- Hero background photo (airplane in the sky) ---- */
+// hero background photo
  $heroBgSrc   = asset_find(['hero'], ['plane']);
  $heroBgIsImg = !str_starts_with($heroBgSrc, 'data:image/svg+xml');
 
-/* ---- About photo ---- */
+// about section photo
  $aboutImgSrc = asset_find(['about'], ['banaue']);
+
 $pageTitle = 'AeroGlide — Book Smarter, Travel Further';
 $activeNav = 'home';
 ?>
@@ -25,6 +21,215 @@ $activeNav = 'home';
 <html lang="en">
 <head>
 <?php include __DIR__ . '/includes/head.php'; ?>
+<style>
+/* ================= CEBU PACIFIC-STYLE DYNAMIC PRICE CALENDAR ================= */
+.cp-calendar-popover {
+  position: absolute !important;
+  top: calc(100% + 14px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) translateY(-6px) !important;
+  background: #ffffff !important;
+  border-radius: 18px !important;
+  box-shadow: 0 18px 45px rgba(10, 20, 35, 0.18), 0 4px 12px rgba(10, 20, 35, 0.08) !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 1.5rem !important;
+  z-index: 1000 !important;
+  width: 680px !important;
+  max-width: calc(100vw - 32px) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.22s ease, transform 0.22s ease !important;
+}
+.cp-calendar-popover.is-open {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateX(-50%) translateY(0) !important;
+}
+.cp-cal-months {
+  display: flex !important;
+  gap: 2rem !important;
+  position: relative !important;
+}
+@media (max-width: 720px) {
+  .cp-calendar-popover {
+    width: 340px !important;
+    padding: 1rem !important;
+  }
+  .cp-cal-months {
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+  }
+  .cp-cal-month:nth-child(2) {
+    display: none !important;
+  }
+}
+.cp-cal-month {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+.cp-cal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 1rem !important;
+  padding: 0 4px !important;
+}
+.cp-cal-title {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+.cp-cal-nav-btn {
+  background: transparent !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: #0284c7 !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease !important;
+}
+.cp-cal-nav-btn:hover:not(:disabled) {
+  background: #f0f9ff !important;
+  border-color: #38bdf8 !important;
+  transform: scale(1.08) !important;
+}
+.cp-cal-nav-btn:disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+}
+.cp-cal-weekdays {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  text-align: center !important;
+  margin-bottom: 8px !important;
+}
+.cp-cal-weekday {
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  padding: 4px 0 !important;
+}
+.cp-cal-weekday.is-sun {
+  color: #dc2626 !important;
+}
+.cp-cal-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 3px 2px !important;
+}
+.cp-cal-cell {
+  aspect-ratio: 1 !important;
+  min-height: 48px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  padding: 2px !important;
+  position: relative !important;
+  user-select: none !important;
+  transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease !important;
+}
+.cp-cal-cell.is-empty {
+  cursor: default !important;
+  pointer-events: none !important;
+  background: transparent !important;
+  border: none !important;
+}
+.cp-cal-cell.is-disabled {
+  cursor: not-allowed !important;
+  opacity: 0.35 !important;
+  pointer-events: none !important;
+}
+.cp-cal-cell:hover:not(.is-disabled):not(.is-empty):not(.is-selected) {
+  background: #f0f7ff !important;
+  border-color: #bae6fd !important;
+}
+.cp-cal-day {
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  line-height: 1.1 !important;
+}
+.cp-cal-cell.is-sun .cp-cal-day {
+  color: #dc2626 !important;
+}
+.cp-cal-price {
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  line-height: 1 !important;
+  margin-top: 3px !important;
+  white-space: nowrap !important;
+}
+.cp-cal-price.is-lowest {
+  color: #16a34a !important;
+  font-weight: 900 !important;
+}
+.cp-cal-cell.is-selected {
+  background: #ffcc00 !important;
+  border-color: #eab308 !important;
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.4) !important;
+  transform: scale(1.04) !important;
+}
+.cp-cal-cell.is-selected .cp-cal-day {
+  color: #0f172a !important;
+  font-weight: 900 !important;
+}
+.cp-cal-cell.is-selected .cp-cal-price {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+.cp-cal-cell.in-range {
+  background: #fef9c3 !important;
+  border-radius: 4px !important;
+}
+.cp-cal-footer {
+  margin-top: 1.25rem !important;
+  padding-top: 0.85rem !important;
+  border-top: 1px solid #f1f5f9 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  font-size: 0.78rem !important;
+  color: #64748b !important;
+}
+.cp-cal-legend {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
+.cp-legend-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+.cp-legend-dot {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+}
+.cp-legend-dot.is-lowest {
+  background: #16a34a !important;
+}
+.cp-legend-dot.is-selected {
+  background: #ffcc00 !important;
+  border: 1px solid #ca8a04 !important;
+}
+</style>
 </head>
 <body class="aeroglide-page">
 
@@ -167,13 +372,13 @@ $activeNav = 'home';
         <div class="segment-divider" aria-hidden="true"></div>
 
         <!-- Field 2: Check In -->
-        <div class="search-segment segment-date">
+        <div class="search-segment segment-date" id="segment-checkin">
           <label class="segment-label" for="input-checkin">
             Check In
           </label>
           <div class="date-input-wrap">
             <input type="text" id="input-checkin" class="segment-input date-text" placeholder="Choose dates" readonly>
-            <input type="date" id="native-checkin" class="native-date-picker" aria-hidden="true">
+            <input type="hidden" id="raw-checkin" name="departDate" value="<?= date('Y-m-d') ?>">
             <span class="calendar-icon" aria-hidden="true">📅</span>
           </div>
         </div>
@@ -187,10 +392,25 @@ $activeNav = 'home';
           </label>
           <div class="date-input-wrap">
             <input type="text" id="input-checkout" class="segment-input date-text" placeholder="Choose dates" readonly>
-            <input type="date" id="native-checkout" class="native-date-picker" aria-hidden="true">
+            <input type="hidden" id="raw-checkout" name="returnDate" value="">
             <span class="calendar-icon" aria-hidden="true">📅</span>
           </div>
         </div>
+
+        <!-- Cebu Pacific-Style 2-Month Dynamic Price Calendar Popover -->
+        <div class="cp-calendar-popover" id="cp-calendar-popover" hidden aria-label="Two-month flight pricing calendar">
+          <div class="cp-cal-months" id="cp-cal-months-container">
+            <!-- Dynamically populated by JavaScript with real async prices -->
+          </div>
+          <div class="cp-cal-footer">
+            <div class="cp-cal-legend">
+              <div class="cp-legend-item"><span class="cp-legend-dot is-lowest"></span> Lowest fare</div>
+              <div class="cp-legend-item"><span class="cp-legend-dot is-selected"></span> Selected date</div>
+            </div>
+            <span class="cp-cal-route-hint" id="cp-cal-route-hint">Route: Manila &rarr; <span id="cp-cal-dest-name">Mayon Volcano, Albay</span></span>
+          </div>
+        </div>
+
 
         <div class="segment-divider" aria-hidden="true"></div>
 
@@ -390,7 +610,7 @@ $activeNav = 'home';
 
   <div class="popular-capsule-grid">
     <!-- 1: Albay (Mayon Volcano) -->
-    <div class="capsule-card" role="button" tabindex="0" data-destination="Mayon Volcano, Albay" data-url="albay.php" aria-label="Select Mayon Volcano, Albay">
+    <div class="capsule-card" role="button" tabindex="0" data-destination="Mayon Volcano, Albay" data-url="destinations/albay.php" aria-label="Select Mayon Volcano, Albay">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['albay']), ENT_QUOTES) ?>" alt="Mayon Volcano and Cagsawa Ruins, Albay, Philippines">
         <div class="capsule-hover-panel">
@@ -407,7 +627,7 @@ $activeNav = 'home';
     </div>
 
     <!-- 2: Bukidnon -->
-    <div class="capsule-card" role="button" tabindex="0" data-destination="Bukidnon" data-url="bukidnon.php" aria-label="Select Bukidnon">
+    <div class="capsule-card" role="button" tabindex="0" data-destination="Bukidnon" data-url="destinations/bukidnon.php" aria-label="Select Bukidnon">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['bukidnon']), ENT_QUOTES) ?>" alt="Communal Ranch, Bukidnon, Philippines">
         <div class="capsule-hover-panel">
@@ -424,7 +644,7 @@ $activeNav = 'home';
     </div>
 
     <!-- 3: Chocolate Hills, Bohol -->
-    <div class="capsule-card" role="button" tabindex="0" data-destination="Chocolate Hills, Bohol" data-url="chocolate-hills.php" aria-label="Select Chocolate Hills, Bohol">
+    <div class="capsule-card" role="button" tabindex="0" data-destination="Chocolate Hills, Bohol" data-url="destinations/chocolate-hills.php" aria-label="Select Chocolate Hills, Bohol">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['chocolate']), ENT_QUOTES) ?>" alt="Chocolate Hills, Carmen, Bohol, Philippines">
         <div class="capsule-hover-panel">
@@ -441,7 +661,7 @@ $activeNav = 'home';
     </div>
 
     <!-- 4: Malapascua Island, Cebu -->
-    <div class="capsule-card" role="button" tabindex="0" data-destination="Malapascua Island, Cebu" data-url="malapascua-island.php" aria-label="Select Malapascua Island, Cebu">
+    <div class="capsule-card" role="button" tabindex="0" data-destination="Malapascua Island, Cebu" data-url="destinations/malapascua-island.php" aria-label="Select Malapascua Island, Cebu">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['malapascua']), ENT_QUOTES) ?>" alt="Malapascua Island, Cebu, Philippines">
         <div class="capsule-hover-panel">
@@ -458,7 +678,7 @@ $activeNav = 'home';
     </div>
 
     <!-- 5: Taal Volcano, Batangas -->
-    <div class="capsule-card" role="button" tabindex="0" data-destination="Taal Volcano, Batangas" data-url="taal-volcano.php" aria-label="Select Taal Volcano, Batangas">
+    <div class="capsule-card" role="button" tabindex="0" data-destination="Taal Volcano, Batangas" data-url="destinations/taal-volcano.php" aria-label="Select Taal Volcano, Batangas">
       <div class="capsule-image-wrap">
         <img src="<?= htmlspecialchars(asset_find(['taal']), ENT_QUOTES) ?>" alt="Taal Volcano, Batangas, Philippines">
         <div class="capsule-hover-panel">
@@ -763,57 +983,318 @@ $activeNav = 'home';
     });
   }
 
-  /* ---------- DATE PICKERS ---------- */
-  const textCheckin    = document.getElementById('input-checkin');
-  const nativeCheckin  = document.getElementById('native-checkin');
-  const textCheckout   = document.getElementById('input-checkout');
-  const nativeCheckout = document.getElementById('native-checkout');
+  /* ============================================================
+     CEBU PACIFIC-STYLE DYNAMIC 2-MONTH PRICE CALENDAR CONTROLLER
+     ============================================================ */
+  const calPopover      = document.getElementById('cp-calendar-popover');
+  const calContainer    = document.getElementById('cp-cal-months-container');
+  const calDestNameDisp = document.getElementById('cp-cal-dest-name');
+  const textCheckin     = document.getElementById('input-checkin');
+  const textCheckout    = document.getElementById('input-checkout');
+  const rawCheckin      = document.getElementById('raw-checkin');
+  const rawCheckout     = document.getElementById('raw-checkout');
+  const wrapCheckin     = document.getElementById('segment-checkin');
+  const wrapCheckout    = document.getElementById('wrap-checkout');
 
-  const formatDate = dStr => {
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const now = new Date();
+  let calBaseYear  = now.getFullYear();
+  let calBaseMonth = now.getMonth(); // 0-indexed
+
+  let activeCalendarTarget = 'checkin'; // 'checkin' | 'checkout'
+  let selectedCheckinDate  = rawCheckin?.value || '';
+  let selectedCheckoutDate = rawCheckout?.value || '';
+  let currentTripMode      = 'two_way';
+
+  const pricesCache = {}; // Cache: { "Destination_YYYY_MM": { "YYYY-MM-DD": { price, price_k, is_lowest, ... } } }
+
+  const formatDisplayDate = dStr => {
     if (!dStr) return '';
-    const d = new Date(dStr);
+    const d = new Date(dStr + 'T00:00:00');
     if (isNaN(d.getTime())) return dStr;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  textCheckin?.addEventListener('click', () => {
-    if (nativeCheckin) {
-      try { nativeCheckin.showPicker ? nativeCheckin.showPicker() : nativeCheckin.click(); } catch(err) { nativeCheckin.click(); }
+  // Preset initial checkin date
+  if (selectedCheckinDate && textCheckin) {
+    textCheckin.value = formatDisplayDate(selectedCheckinDate);
+  }
+
+  async function fetchMonthPricing(destination, year, month) {
+    const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const cacheKey = `${destination}_${monthStr}`;
+
+    if (pricesCache[cacheKey]) {
+      return pricesCache[cacheKey];
+    }
+
+    try {
+      const res = await fetch(`api/flight_prices.php?destination=${encodeURIComponent(destination)}&month=${encodeURIComponent(monthStr)}`);
+      const data = await res.json();
+      if (data.success && data.daily) {
+        pricesCache[cacheKey] = data.daily;
+        return data.daily;
+      }
+    } catch (e) {
+      console.warn('Could not fetch daily prices:', e);
+    }
+    return {};
+  }
+
+  async function renderTwoMonthCalendar() {
+    if (!calContainer) return;
+
+    const destVal = (destInput?.value || 'Mayon Volcano, Albay').trim();
+    if (calDestNameDisp) calDestNameDisp.textContent = destVal;
+
+    // Month 1: baseYear, baseMonth
+    // Month 2: baseYear, baseMonth + 1
+    const m1Year = calBaseYear;
+    const m1Month = calBaseMonth;
+
+    let m2Year = calBaseYear;
+    let m2Month = calBaseMonth + 1;
+    if (m2Month > 11) {
+      m2Month = 0;
+      m2Year += 1;
+    }
+
+    // Fetch prices for both months in parallel
+    const [pricesM1, pricesM2] = await Promise.all([
+      fetchMonthPricing(destVal, m1Year, m1Month),
+      fetchMonthPricing(destVal, m2Year, m2Month)
+    ]);
+
+    const isPrevDisabled = (m1Year < now.getFullYear() || (m1Year === now.getFullYear() && m1Month <= now.getMonth()));
+
+    const buildMonthHTML = (year, month, pricesData, isFirstMonth) => {
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const monthTitle = `${monthNames[month]} ${year}`;
+
+      let cellsHTML = '';
+      // Leading blanks
+      for (let b = 0; b < firstDay; b++) {
+        cellsHTML += `<div class="cp-cal-cell is-empty"></div>`;
+      }
+
+      // Days
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayOfWeek = (firstDay + day - 1) % 7;
+        const isSun = (dayOfWeek === 0);
+
+        const thisDateObj = new Date(year, month, day);
+        const todayObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const isPast = (thisDateObj < todayObj);
+
+        const priceItem = pricesData[dateStr];
+        let priceTagHTML = '';
+        let isLowest = false;
+
+        if (priceItem && priceItem.has_flights && priceItem.price_k) {
+          isLowest = !!priceItem.is_lowest;
+          priceTagHTML = `<span class="cp-cal-price${isLowest ? ' is-lowest' : ''}">${priceItem.price_k}</span>`;
+        } else if (!isPast) {
+          priceTagHTML = `<span class="cp-cal-price">—</span>`;
+        }
+
+        const isCheckin = (dateStr === selectedCheckinDate);
+        const isCheckout = (dateStr === selectedCheckoutDate);
+        const isSelected = isCheckin || isCheckout;
+
+        let inRange = false;
+        if (selectedCheckinDate && selectedCheckoutDate && currentTripMode === 'two_way') {
+          inRange = (dateStr > selectedCheckinDate && dateStr < selectedCheckoutDate);
+        }
+
+        let classes = ['cp-cal-cell'];
+        if (isSun) classes.push('is-sun');
+        if (isPast) classes.push('is-disabled');
+        if (isSelected) classes.push('is-selected');
+        if (inRange) classes.push('in-range');
+
+        cellsHTML += `
+          <div class="${classes.join(' ')}" data-date="${dateStr}" role="button" tabindex="0">
+            <span class="cp-cal-day">${day}</span>
+            ${priceTagHTML}
+          </div>
+        `;
+      }
+
+      const navLeftHTML = isFirstMonth ? `<button type="button" class="cp-cal-nav-btn" id="cp-cal-prev" ${isPrevDisabled ? 'disabled' : ''} aria-label="Previous month">&#10094;</button>` : `<div></div>`;
+      const navRightHTML = !isFirstMonth ? `<button type="button" class="cp-cal-nav-btn" id="cp-cal-next" aria-label="Next month">&#10095;</button>` : `<div></div>`;
+
+      return `
+        <div class="cp-cal-month">
+          <div class="cp-cal-header">
+            ${navLeftHTML}
+            <span class="cp-cal-title">${monthTitle} <span style="font-size:0.75rem; color:#64748b;">▼</span></span>
+            ${navRightHTML}
+          </div>
+          <div class="cp-cal-weekdays">
+            ${dayNames.map((dn, idx) => `<span class="cp-cal-weekday${idx === 0 ? ' is-sun' : ''}">${dn}</span>`).join('')}
+          </div>
+          <div class="cp-cal-grid">
+            ${cellsHTML}
+          </div>
+        </div>
+      `;
+    };
+
+    calContainer.innerHTML = `
+      ${buildMonthHTML(m1Year, m1Month, pricesM1, true)}
+      ${buildMonthHTML(m2Year, m2Month, pricesM2, false)}
+    `;
+
+    // Bind prev / next buttons
+    document.getElementById('cp-cal-prev')?.addEventListener('click', e => {
+      e.stopPropagation();
+      calBaseMonth--;
+      if (calBaseMonth < 0) {
+        calBaseMonth = 11;
+        calBaseYear--;
+      }
+      renderTwoMonthCalendar();
+    });
+
+    document.getElementById('cp-cal-next')?.addEventListener('click', e => {
+      e.stopPropagation();
+      calBaseMonth++;
+      if (calBaseMonth > 11) {
+        calBaseMonth = 0;
+        calBaseYear++;
+      }
+      renderTwoMonthCalendar();
+    });
+
+    // Bind cell selection
+    calContainer.querySelectorAll('.cp-cal-cell:not(.is-empty):not(.is-disabled)').forEach(cell => {
+      cell.addEventListener('click', e => {
+        e.stopPropagation();
+        const d = cell.dataset.date;
+        if (!d) return;
+
+        if (activeCalendarTarget === 'checkin') {
+          selectedCheckinDate = d;
+          if (rawCheckin) rawCheckin.value = d;
+          if (textCheckin) textCheckin.value = formatDisplayDate(d);
+
+          if (currentTripMode === 'two_way') {
+            // Auto transition to picking checkout date
+            activeCalendarTarget = 'checkout';
+            if (selectedCheckoutDate && selectedCheckoutDate <= selectedCheckinDate) {
+              selectedCheckoutDate = '';
+              if (rawCheckout) rawCheckout.value = '';
+              if (textCheckout) textCheckout.value = '';
+            }
+            renderTwoMonthCalendar();
+          } else {
+            closeCalendar();
+          }
+        } else if (activeCalendarTarget === 'checkout') {
+          if (selectedCheckinDate && d < selectedCheckinDate) {
+            // If picked before checkin, make it the new checkin date
+            selectedCheckinDate = d;
+            selectedCheckoutDate = '';
+            if (rawCheckin) rawCheckin.value = d;
+            if (textCheckin) textCheckin.value = formatDisplayDate(d);
+            if (rawCheckout) rawCheckout.value = '';
+            if (textCheckout) textCheckout.value = '';
+            activeCalendarTarget = 'checkout';
+            renderTwoMonthCalendar();
+          } else {
+            selectedCheckoutDate = d;
+            if (rawCheckout) rawCheckout.value = d;
+            if (textCheckout) textCheckout.value = formatDisplayDate(d);
+            closeCalendar();
+          }
+        }
+      });
+    });
+  }
+
+  function openCalendar(target) {
+    activeCalendarTarget = target || 'checkin';
+    if (calPopover) {
+      calPopover.hidden = false;
+      setTimeout(() => calPopover.classList.add('is-open'), 10);
+    }
+    renderTwoMonthCalendar();
+  }
+
+  function closeCalendar() {
+    if (calPopover) {
+      calPopover.classList.remove('is-open');
+      setTimeout(() => { calPopover.hidden = true; }, 220);
+    }
+  }
+
+  textCheckin?.addEventListener('click', e => {
+    e.stopPropagation();
+    openCalendar('checkin');
+  });
+
+  wrapCheckin?.addEventListener('click', e => {
+    e.stopPropagation();
+    openCalendar('checkin');
+  });
+
+  textCheckout?.addEventListener('click', e => {
+    e.stopPropagation();
+    if (currentTripMode === 'two_way') openCalendar('checkout');
+  });
+
+  wrapCheckout?.addEventListener('click', e => {
+    e.stopPropagation();
+    if (currentTripMode === 'two_way') openCalendar('checkout');
+  });
+
+  calPopover?.addEventListener('click', e => e.stopPropagation());
+
+  // Close when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#cp-calendar-popover') && !e.target.closest('#segment-checkin') && !e.target.closest('#wrap-checkout')) {
+      closeCalendar();
     }
   });
 
-  nativeCheckin?.addEventListener('change', () => {
-    if (textCheckin) textCheckin.value = formatDate(nativeCheckin.value);
+  // Re-fetch calendar prices when destination changes
+  destInput?.addEventListener('change', () => {
+    if (!calPopover?.hidden) renderTwoMonthCalendar();
   });
-
-  textCheckout?.addEventListener('click', () => {
-    if (nativeCheckout) {
-      try { nativeCheckout.showPicker ? nativeCheckout.showPicker() : nativeCheckout.click(); } catch(err) { nativeCheckout.click(); }
-    }
-  });
-
-  nativeCheckout?.addEventListener('change', () => {
-    if (textCheckout) textCheckout.value = formatDate(nativeCheckout.value);
+  destMenu?.querySelectorAll('.quick-dest-item').forEach(item => {
+    item.addEventListener('click', () => {
+      setTimeout(() => {
+        if (!calPopover?.hidden) renderTwoMonthCalendar();
+      }, 50);
+    });
   });
 
   /* ---------- TRIP DIRECTION RADIOS ---------- */
-  const wrapCheckout = document.getElementById('wrap-checkout');
   document.querySelectorAll('input[name="trip_mode"]').forEach(radio => {
     radio.addEventListener('change', () => {
+      currentTripMode = radio.value;
       if (radio.value === 'one_way') {
         if (wrapCheckout) {
           wrapCheckout.style.opacity = '0.4';
           wrapCheckout.style.pointerEvents = 'none';
         }
         if (textCheckout) textCheckout.value = '';
+        if (rawCheckout) rawCheckout.value = '';
+        selectedCheckoutDate = '';
       } else {
         if (wrapCheckout) {
           wrapCheckout.style.opacity = '1';
           wrapCheckout.style.pointerEvents = 'auto';
         }
       }
+      if (!calPopover?.hidden) renderTwoMonthCalendar();
     });
   });
+
 
   /* ---------- GUEST POPOVER & SEARCH STATE ---------- */
   const guestBtn  = document.getElementById('btn-guests-modal');
@@ -927,8 +1408,16 @@ $activeNav = 'home';
       return;
     }
     const state = getSearchState();
-    window.location.href = `destination.php?city=${encodeURIComponent(dest)}&mode=${state.mode}&adults=${state.adults}&cabin=${encodeURIComponent(state.classText)}`;
+    const depDate = rawCheckin?.value || '';
+    const retDate = rawCheckout?.value || '';
+
+    let url = `destination.php?city=${encodeURIComponent(dest)}&mode=${state.mode}&adults=${state.adults}&cabin=${encodeURIComponent(state.classText)}`;
+    if (depDate) url += `&departDate=${encodeURIComponent(depDate)}&date=${encodeURIComponent(depDate)}`;
+    if (retDate) url += `&returnDate=${encodeURIComponent(retDate)}`;
+
+    window.location.href = url;
   });
+
 
   /* ---------- NAV SEARCH ---------- */
   document.getElementById('nav-search-form')?.addEventListener('submit', e => {
