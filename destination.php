@@ -298,15 +298,33 @@ $routeInfo = $flightSearchResults['route'];
 $carouselDays = $flightSearchResults['carousel'];
 $availableFlights = $flightSearchResults['flights'];
 
-// Curate flight price to match lowest available flight card if in flights mode and no override
-if ($mode === 'flights' && (!isset($_GET['price']) || $basePrice === 4999.0)) {
-    if (!empty($availableFlights)) {
+$firstAvailableFlight = null;
+foreach ($availableFlights as $af) {
+    if (!empty($af['is_available'])) {
+        $firstAvailableFlight = $af;
+        break;
+    }
+}
+
+// Curate flight price to match lowest available flight card if no explicit override is provided
+if ($mode !== 'hotels' && (!isset($_GET['price']) || $basePrice === 4999.0)) {
+    if ($firstAvailableFlight) {
+        $basePrice = (float)$firstAvailableFlight['base_price'];
+        $farePriceNum = round($basePrice * $cabinMult * $adults);
+        $farePriceRaw = '₱' . number_format($farePriceNum);
+    } elseif (!empty($availableFlights)) {
         $basePrice = (float)$availableFlights[0]['base_price'];
+        $farePriceNum = round($basePrice * $cabinMult * $adults);
+        $farePriceRaw = '₱' . number_format($farePriceNum);
     } elseif (!empty($routeInfo['base_rate'])) {
         $basePrice = (float)$routeInfo['base_rate'];
+        $farePriceNum = round($basePrice * $cabinMult * $adults);
+        $farePriceRaw = '₱' . number_format($farePriceNum);
+    } else {
+        $basePrice = 0;
+        $farePriceNum = 0;
+        $farePriceRaw = 'Unavailable';
     }
-    $farePriceNum = round($basePrice * $cabinMult * $adults);
-    $farePriceRaw = '₱' . number_format($farePriceNum);
 }
 
 $pageTitle = htmlspecialchars($destination['label'], ENT_QUOTES) . ' — AeroGlide Flights & Packages';
@@ -698,6 +716,27 @@ $activeNav = 'deals';
   font-weight: 600;
   color: #94a3b8;
 }
+.cp-card-price.sold-out {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #ef4444;
+  background: #fee2e2;
+  padding: 2px 7px;
+  border-radius: 5px;
+  display: inline-block;
+}
+.cp-lowest-pill {
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
 /* Active Card Highlight */
 .cp-carousel-card.is-active {
   background: #ffe600 !important;
@@ -711,8 +750,16 @@ $activeNav = 'deals';
   color: #0f172a;
   font-weight: 900;
 }
+.cp-carousel-card.is-active .cp-card-price.sold-out {
+  background: rgba(220, 38, 38, 0.15);
+  color: #b91c1c;
+}
+.cp-carousel-card.is-active .cp-lowest-pill {
+  background: #0f172a;
+  color: #ffe600;
+}
 
-/* Filter Bar */
+/* Filter & Sort Toolbar */
 .cp-filter-bar {
   display: flex;
   align-items: center;
@@ -720,7 +767,11 @@ $activeNav = 'deals';
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1.5rem;
-  padding: 0.25rem 0;
+  padding: 0.85rem 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-sizing: border-box;
 }
 .cp-filter-group {
   display: flex;
@@ -732,12 +783,13 @@ $activeNav = 'deals';
   font-size: 0.82rem;
   font-weight: 700;
   color: #475569;
+  letter-spacing: 0.2px;
 }
 .cp-select-pill {
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   border-radius: 8px;
-  padding: 0.5rem 1.8rem 0.5rem 0.85rem;
+  padding: 0.45rem 2rem 0.45rem 0.85rem;
   font-size: 0.85rem;
   font-weight: 600;
   color: #1e293b;
@@ -746,12 +798,39 @@ $activeNav = 'deals';
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230284c7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.2s ease;
+  height: 38px;
+}
+.cp-select-pill:hover {
+  border-color: #94a3b8;
 }
 .cp-select-pill:focus {
   outline: none;
   border-color: #0284c7;
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+.cp-select-pill.is-active-filter {
+  border-color: #0284c7;
+  background-color: #f0f9ff;
+  color: #0369a1;
+  font-weight: 700;
+}
+
+@media (max-width: 860px) {
+  .cp-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+  }
+  .cp-filter-group {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .cp-filter-group.sort-group {
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 0.75rem;
+    justify-content: space-between;
+  }
 }
 
 /* Flight List & Cards */
@@ -772,8 +851,9 @@ $activeNav = 'deals';
   gap: 1.5rem;
   flex-wrap: wrap;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
 }
-.cp-flight-card:hover {
+.cp-flight-card:hover:not(.is-sold-out) {
   border-color: #38bdf8;
   box-shadow: 0 8px 24px rgba(2, 132, 199, 0.08);
 }
@@ -781,6 +861,17 @@ $activeNav = 'deals';
   border-color: #0284c7;
   background: #f8fcff;
   box-shadow: 0 6px 20px rgba(2, 132, 199, 0.12);
+}
+.cp-flight-card.is-sold-out {
+  opacity: 0.65;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+}
+.cp-flight-card.is-sold-out:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e2e8f0;
 }
 .cp-flight-airline {
   display: flex;
@@ -874,6 +965,39 @@ $activeNav = 'deals';
   border-radius: 6px;
   margin-top: 4px;
 }
+
+/* Status Badges */
+.cp-flight-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.cp-flight-badge.badge-available {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+.cp-flight-badge.badge-warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+.cp-flight-badge.badge-soldout {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+.cp-flight-badge.badge-lowest {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
 .cp-flight-action {
   display: flex;
   flex-direction: column;
@@ -885,6 +1009,10 @@ $activeNav = 'deals';
   font-size: 1.15rem;
   font-weight: 900;
   color: #0f172a;
+}
+.cp-flight-fare.muted {
+  color: #94a3b8;
+  font-size: 1rem;
 }
 .cp-flight-fare-sub {
   font-size: 0.72rem;
@@ -901,7 +1029,7 @@ $activeNav = 'deals';
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
 }
-.cp-btn-flight-select:hover {
+.cp-btn-flight-select:hover:not(:disabled) {
   background: #0369a1;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
@@ -909,6 +1037,15 @@ $activeNav = 'deals';
 .cp-flight-card.is-selected .cp-btn-flight-select {
   background: #0f172a;
 }
+.cp-btn-flight-select.is-disabled, .cp-btn-flight-select:disabled {
+  background: #cbd5e1 !important;
+  color: #64748b !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.85;
+}
+
 .cp-empty-state-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -964,6 +1101,144 @@ $activeNav = 'deals';
   color: #334155;
 }
 .cp-operator-item span { color: #eab308; }
+
+/* Sticky Trip Summary Bar */
+.trip-summary-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  border-top: 1.5px solid #e2e8f0;
+  padding: 0.85rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  z-index: 1000;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+}
+.summary-items {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+.summary-action {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  flex-shrink: 0;
+}
+.summary-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.summary-line span:first-child {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+.summary-price {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+.summary-total {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  gap: 2px;
+}
+.total-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.summary-total #sum-total {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #0284c7;
+}
+.btn-proceed {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  padding: 0.85rem 2rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  white-space: nowrap;
+}
+.btn-proceed:hover:not(:disabled) {
+  background: #0369a1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+}
+.btn-proceed:disabled, .btn-proceed.is-disabled {
+  background: #cbd5e1 !important;
+  color: #64748b !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.85;
+}
+
+@media (max-width: 992px) {
+  .destination-main {
+    padding-bottom: 160px;
+  }
+  .trip-summary-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+    padding: 0.85rem 1.25rem;
+  }
+  .summary-items {
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+  }
+  .summary-action {
+    justify-content: space-between;
+    width: 100%;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 0.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .destination-main {
+    padding-bottom: 180px;
+  }
+  .summary-items {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    text-align: center;
+  }
+  .summary-line span:first-child {
+    font-size: 0.72rem;
+  }
+  .summary-price {
+    font-size: 0.95rem;
+  }
+  .summary-total #sum-total {
+    font-size: 1.25rem;
+  }
+  .btn-proceed {
+    padding: 0.7rem 1.25rem;
+    font-size: 0.88rem;
+  }
+}
 </style>
 </head>
 <body class="aeroglide-page">
@@ -1013,7 +1288,7 @@ $activeNav = 'deals';
     </div>
     <div class="cp-step-item">
       <div class="cp-step-icon-wrap">🧳</div>
-      <span class="cp-step-label">Add ons</span>
+      <span class="cp-step-label">Add-ons</span>
     </div>
     <div class="cp-step-item">
       <div class="cp-step-icon-wrap">💳</div>
@@ -1063,6 +1338,11 @@ $activeNav = 'deals';
 <?php if ($mode !== 'hotels'): ?>
 <section class="dest-section" id="section-flights">
   
+  <div class="dest-section-header">
+    <h2 class="section-main-title">Available Flights</h2>
+    <p class="section-tagline">Choose your preferred flight schedule from <?= htmlspecialchars($routeInfo['origin_name'], ENT_QUOTES) ?> to <?= htmlspecialchars($routeInfo['label'], ENT_QUOTES) ?>.</p>
+  </div>
+
   <div class="cp-route-header">
     <span class="cp-route-eyebrow">Select your departing flight</span>
     <h2 class="cp-route-title">
@@ -1078,12 +1358,19 @@ $activeNav = 'deals';
     <div class="cp-carousel-cards" id="cp-carousel-cards-container">
       <?php foreach ($carouselDays as $cDay): ?>
         <a href="javascript:void(0)" 
-           class="cp-carousel-card<?= $cDay['is_selected'] ? ' is-active' : '' ?>"
+           class="cp-carousel-card<?= $cDay['is_selected'] ? ' is-active' : '' ?><?= !empty($cDay['is_sold_out']) ? ' is-sold-out-date' : '' ?>"
            data-date="<?= htmlspecialchars($cDay['date'], ENT_QUOTES) ?>">
           <span class="cp-card-date"><?= htmlspecialchars($cDay['label'], ENT_QUOTES) ?></span>
-          <span class="cp-card-price<?= $cDay['has_flights'] ? '' : ' no-flights' ?>">
-            <?= htmlspecialchars($cDay['price_label'], ENT_QUOTES) ?>
-          </span>
+          <?php if (!empty($cDay['has_flights'])): ?>
+            <span class="cp-card-price"><?= htmlspecialchars($cDay['price_label'], ENT_QUOTES) ?></span>
+            <?php if (!empty($cDay['is_lowest'])): ?>
+              <span class="cp-lowest-pill">Lowest Fare</span>
+            <?php endif; ?>
+          <?php elseif (!empty($cDay['is_sold_out'])): ?>
+            <span class="cp-card-price sold-out">Sold Out</span>
+          <?php else: ?>
+            <span class="cp-card-price no-flights">No Flights</span>
+          <?php endif; ?>
         </a>
       <?php endforeach; ?>
     </div>
@@ -1093,30 +1380,30 @@ $activeNav = 'deals';
   <!-- Filter & Sort Toolbar -->
   <div class="cp-filter-bar">
     <div class="cp-filter-group">
-      <span class="cp-filter-label">Filter by:</span>
+      <span class="cp-filter-label">⚡ Filter by:</span>
       <select class="cp-select-pill" id="filter-flight-time" aria-label="Filter by departure time">
-        <option value="">Time of flight</option>
+        <option value="">All Flight Times</option>
         <option value="morning">Morning (00:00 - 11:59)</option>
         <option value="afternoon">Afternoon (12:00 - 17:59)</option>
         <option value="evening">Evening (18:00 - 23:59)</option>
       </select>
 
       <select class="cp-select-pill" id="filter-flight-stops" aria-label="Filter by stops">
-        <option value="all">Stops</option>
+        <option value="all">All Stops</option>
         <option value="Nonstop">Nonstop only</option>
         <option value="1 Stop">1 Stop</option>
       </select>
 
       <select class="cp-select-pill" id="filter-flight-price" aria-label="Filter by price">
-        <option value="">Price</option>
+        <option value="">All Prices</option>
         <option value="under_3000">Under ₱3,000</option>
         <option value="3000_6000">₱3,000 - ₱6,000</option>
         <option value="above_6000">Above ₱6,000</option>
       </select>
     </div>
 
-    <div class="cp-filter-group">
-      <span class="cp-filter-label">Sort by:</span>
+    <div class="cp-filter-group sort-group">
+      <span class="cp-filter-label">⇅ Sort by:</span>
       <select class="cp-select-pill" id="filter-flight-sort" aria-label="Sort flights">
         <option value="earliest">Earliest Departure</option>
         <option value="cheapest">Lowest Price</option>
@@ -1127,21 +1414,24 @@ $activeNav = 'deals';
 
   <!-- Flight Cards List & Empty State Container -->
   <div class="cp-flights-list" id="flight-schedule-grid">
-    <?php if (!empty($availableFlights)): ?>
+    <?php if (!empty($availableFlights)): 
+      $selectedCardId = $firstAvailableFlight['id'] ?? ($availableFlights[0]['id'] ?? 0);
+    ?>
       <?php foreach ($availableFlights as $fIdx => $flight): 
-        $isSelected = ($fIdx === 0);
+        $isSelected = ($flight['id'] === $selectedCardId && $flight['is_available']);
         $airlineLogo = '✈️';
         if (stripos($flight['airline'], 'Cebu') !== false) $airlineLogo = '🟡';
         elseif (stripos($flight['airline'], 'Philippine Airlines') !== false) $airlineLogo = '🔵';
         elseif (stripos($flight['airline'], 'AirAsia') !== false) $airlineLogo = '🔴';
       ?>
-      <div class="cp-flight-card<?= $isSelected ? ' is-selected' : '' ?>" 
-           tabindex="0" role="button" 
+      <div class="cp-flight-card<?= $isSelected ? ' is-selected' : '' ?><?= !$flight['is_available'] ? ' is-sold-out' : '' ?>" 
+           tabindex="<?= $flight['is_available'] ? '0' : '-1' ?>" role="button" 
            data-id="<?= $flight['id'] ?>"
            data-airline="<?= htmlspecialchars($flight['airline'], ENT_QUOTES) ?>"
            data-flight-no="<?= htmlspecialchars($flight['flight_number'], ENT_QUOTES) ?>"
            data-departure="<?= htmlspecialchars($flight['departure_time'], ENT_QUOTES) ?>"
            data-price="<?= (float) $flight['base_price'] ?>"
+           data-available="<?= $flight['is_available'] ? '1' : '0' ?>"
            data-schedule="<?= htmlspecialchars($flight['airline'] . ' ' . $flight['flight_number'] . ' (' . $flight['departure_time'] . ' ' . $flight['origin_code'] . ' → ' . $flight['arrival_time'] . ' ' . $flight['dest_code'] . ')', ENT_QUOTES) ?>">
         
         <div class="cp-flight-airline">
@@ -1171,9 +1461,23 @@ $activeNav = 'deals';
         </div>
 
         <div class="cp-flight-action">
-          <span class="cp-flight-fare"><?= htmlspecialchars($flight['price_formatted'], ENT_QUOTES) ?></span>
-          <span class="cp-flight-fare-sub">Included with package</span>
-          <button type="button" class="cp-btn-flight-select"><?= $isSelected ? 'Selected' : 'Select' ?></button>
+          <?php if (!empty($flight['is_available'])): ?>
+            <?php if (!empty($flight['is_lowest'])): ?>
+              <span class="cp-flight-badge badge-lowest">★ Lowest Fare</span>
+            <?php elseif ($flight['seats'] <= 5): ?>
+              <span class="cp-flight-badge badge-warning">⚡ Only <?= $flight['seats'] ?> seats left!</span>
+            <?php else: ?>
+              <span class="cp-flight-badge badge-available">✓ Available</span>
+            <?php endif; ?>
+            <span class="cp-flight-fare"><?= htmlspecialchars($flight['price_formatted'], ENT_QUOTES) ?></span>
+            <span class="cp-flight-fare-sub">Included with package</span>
+            <button type="button" class="cp-btn-flight-select"><?= $isSelected ? 'Selected' : 'Select' ?></button>
+          <?php else: ?>
+            <span class="cp-flight-badge badge-soldout">✕ Sold Out</span>
+            <span class="cp-flight-fare muted">Fully Booked</span>
+            <span class="cp-flight-fare-sub">No seats remaining</span>
+            <button type="button" class="cp-btn-flight-select is-disabled" disabled>Sold Out</button>
+          <?php endif; ?>
         </div>
       </div>
       <?php endforeach; ?>
@@ -1355,23 +1659,27 @@ $activeNav = 'deals';
 
 <!-- ============ STICKY TRIP SUMMARY BAR ============ -->
 <div class="trip-summary-bar" id="trip-summary-bar">
-  <div class="summary-line">
-    <span id="sum-flight-label">Flight (<?= htmlspecialchars($fareName, ENT_QUOTES) ?> &middot; <?= $adults ?> Adult<?= $adults > 1 ? 's' : '' ?>)</span>
-    <span id="sum-flight" class="summary-price"><?= htmlspecialchars($farePriceRaw, ENT_QUOTES) ?></span>
+  <div class="summary-items">
+    <div class="summary-line" id="sum-flight-col">
+      <span id="sum-flight-label">Flight (<?= htmlspecialchars($fareName, ENT_QUOTES) ?> &middot; <?= $adults ?> Adult<?= $adults > 1 ? 's' : '' ?>)</span>
+      <span id="sum-flight" class="summary-price"><?= htmlspecialchars($farePriceRaw, ENT_QUOTES) ?></span>
+    </div>
+    <div class="summary-line" id="sum-hotel-col">
+      <span id="sum-hotel-label">Hotel &middot; <?= $defaultNights ?> night(s)</span>
+      <span id="sum-hotel" class="summary-price">—</span>
+    </div>
+    <div class="summary-line" id="sum-car-col">
+      <span id="sum-car-label">Car rental &middot; <?= $defaultDays ?> day(s)</span>
+      <span id="sum-car" class="summary-price">—</span>
+    </div>
   </div>
-  <div class="summary-line">
-    <span id="sum-hotel-label">Hotel &middot; <?= $defaultNights ?> night(s)</span>
-    <span id="sum-hotel" class="summary-price">—</span>
+  <div class="summary-action">
+    <div class="summary-total">
+      <span class="total-label">Estimated total</span>
+      <span id="sum-total">—</span>
+    </div>
+    <button type="button" class="btn-proceed" id="btn-proceed">Proceed to booking</button>
   </div>
-  <div class="summary-line">
-    <span id="sum-car-label">Car rental &middot; <?= $defaultDays ?> day(s)</span>
-    <span id="sum-car" class="summary-price">—</span>
-  </div>
-  <div class="summary-total">
-    <span>Estimated total</span>
-    <span id="sum-total">—</span>
-  </div>
-  <button type="button" class="btn-proceed" id="btn-proceed">Proceed to booking</button>
 </div>
 
 <!-- Hidden hand-off form: carries choices to checkout.php -->
@@ -1386,7 +1694,7 @@ $activeNav = 'deals';
   <input type="hidden" name="fareName"       value="<?= htmlspecialchars($fareName, ENT_QUOTES) ?>">
   <input type="hidden" name="fareDesc"       value="<?= htmlspecialchars($fareDesc, ENT_QUOTES) ?>">
   <input type="hidden" name="price"          value="<?= htmlspecialchars($farePriceRaw, ENT_QUOTES) ?>">
-  <input type="hidden" name="flightSchedule" value="<?= !empty($availableFlights) ? htmlspecialchars($availableFlights[0]['airline'] . ' ' . $availableFlights[0]['flight_number'] . ' (' . $availableFlights[0]['departure_time'] . ' ' . $availableFlights[0]['origin_code'] . ' → ' . $availableFlights[0]['arrival_time'] . ' ' . $availableFlights[0]['dest_code'] . ')', ENT_QUOTES) : 'Standard Flight' ?>">
+  <input type="hidden" name="flightSchedule" value="<?= !empty($firstAvailableFlight) ? htmlspecialchars($firstAvailableFlight['airline'] . ' ' . $firstAvailableFlight['flight_number'] . ' (' . $firstAvailableFlight['departure_time'] . ' ' . $firstAvailableFlight['origin_code'] . ' → ' . $firstAvailableFlight['arrival_time'] . ' ' . $firstAvailableFlight['dest_code'] . ')', ENT_QUOTES) : (!empty($availableFlights) ? htmlspecialchars($availableFlights[0]['airline'] . ' ' . $availableFlights[0]['flight_number'], ENT_QUOTES) : 'Standard Flight') ?>">
   <input type="hidden" name="hotelName"      value="<?= htmlspecialchars($destination['hotels'][0]['name'] ?? '', ENT_QUOTES) ?>">
   <input type="hidden" name="hotelPrice"     value="<?= (float)($destination['hotels'][0]['price'] ?? 0) ?>">
   <input type="hidden" name="nights"         value="<?= $defaultNights ?>">
@@ -1425,20 +1733,44 @@ $activeNav = 'deals';
     const flightTotal = isHotelMode ? 0 : Math.round(basePerPerson * currentAdults);
 
     const priceDisp = $('#dest-fare-chip-price-disp');
-    if (priceDisp) priceDisp.textContent = isHotelMode ? '₱0 (Flight skipped)' : peso(flightTotal);
+    if (priceDisp) {
+      if (isHotelMode) {
+        priceDisp.textContent = '₱0 (Flight skipped)';
+      } else if (basePerPerson <= 0) {
+        priceDisp.textContent = 'Unavailable';
+      } else {
+        priceDisp.textContent = peso(flightTotal);
+      }
+    }
 
     const sumFlightLabel = $('#sum-flight-label');
-    if (sumFlightLabel) sumFlightLabel.innerHTML = `Flight (${fareNameStr} &middot; ${currentAdults} Guest${currentAdults !== 1 ? 's' : ''})`;
+    if (sumFlightLabel) {
+      if (isHotelMode) {
+        sumFlightLabel.innerHTML = `Flight skipped (Hotel mode)`;
+      } else if (basePerPerson <= 0) {
+        sumFlightLabel.innerHTML = `Flight (${fareNameStr} &middot; ${currentAdults} Guest${currentAdults !== 1 ? 's' : ''})`;
+      } else {
+        sumFlightLabel.innerHTML = `Flight (${fareNameStr} &middot; ${currentAdults} Guest${currentAdults !== 1 ? 's' : ''})`;
+      }
+    }
 
     const sumFlight = $('#sum-flight');
-    if (sumFlight) sumFlight.textContent = isHotelMode ? '₱0' : peso(flightTotal);
+    if (sumFlight) {
+      if (isHotelMode) {
+        sumFlight.textContent = '₱0';
+      } else if (basePerPerson <= 0) {
+        sumFlight.textContent = '—';
+      } else {
+        sumFlight.textContent = peso(flightTotal);
+      }
+    }
 
     const form = $('#checkout-form');
     if (form) {
       const hAdults = form.querySelector('[name="adults"]');
       if (hAdults) hAdults.value = currentAdults;
       const hPrice = form.querySelector('[name="price"]');
-      if (hPrice) hPrice.value = isHotelMode ? '₱0' : peso(flightTotal);
+      if (hPrice) hPrice.value = isHotelMode ? '₱0' : (basePerPerson > 0 ? peso(flightTotal) : '₱0');
     }
 
     recalc();
@@ -1460,10 +1792,13 @@ $activeNav = 'deals';
   function bindFlightCards() {
     $$('.cp-flight-card').forEach(card => {
       card.addEventListener('click', () => {
+        // Do not allow selecting sold out flights
+        if (card.dataset.available === '0') return;
+
         $$('.cp-flight-card').forEach(c => {
           c.classList.remove('is-selected');
           const btn = c.querySelector('.cp-btn-flight-select');
-          if (btn) btn.textContent = 'Select';
+          if (btn && c.dataset.available !== '0') btn.textContent = 'Select';
         });
         card.classList.add('is-selected');
         const btn = card.querySelector('.cp-btn-flight-select');
@@ -1479,6 +1814,11 @@ $activeNav = 'deals';
           basePerPerson = Math.round(cardPrice * cabinMult);
           updateTravelers(currentAdults);
         }
+
+        // Ensure proceed button is enabled
+        $('#btn-proceed')?.removeAttribute('disabled');
+        $('#btn-proceed')?.classList.remove('is-disabled');
+        if ($('#btn-proceed')) $('#btn-proceed').textContent = 'Proceed to booking';
       });
       card.addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
@@ -1493,6 +1833,11 @@ $activeNav = 'deals';
     const stopsVal = stopsFilter?.value || 'all';
     const priceVal = priceFilter?.value || '';
     const sortVal = sortFilter?.value || 'earliest';
+
+    // Highlight active filters
+    timeFilter?.classList.toggle('is-active-filter', timeVal !== '');
+    stopsFilter?.classList.toggle('is-active-filter', stopsVal !== 'all');
+    priceFilter?.classList.toggle('is-active-filter', priceVal !== '');
 
     // Update URL query string without reloading page
     const url = new URL(window.location.href);
@@ -1515,37 +1860,68 @@ $activeNav = 'deals';
 
       // 1. Render Carousel
       if (carouselContainer && data.carousel) {
-        carouselContainer.innerHTML = data.carousel.map(c => `
-          <a href="javascript:void(0)" 
-             class="cp-carousel-card${c.is_selected ? ' is-active' : ''}"
-             data-date="${c.date}">
-            <span class="cp-card-date">${c.label}</span>
-            <span class="cp-card-price${c.has_flights ? '' : ' no-flights'}">
-              ${c.price_label}
-            </span>
-          </a>
-        `).join('');
+        carouselContainer.innerHTML = data.carousel.map(c => {
+          let priceHtml = '';
+          if (c.has_flights) {
+            priceHtml = `<span class="cp-card-price">${c.price_label}</span>`;
+            if (c.is_lowest) {
+              priceHtml += `<span class="cp-lowest-pill">Lowest Fare</span>`;
+            }
+          } else if (c.is_sold_out) {
+            priceHtml = `<span class="cp-card-price sold-out">Sold Out</span>`;
+          } else {
+            priceHtml = `<span class="cp-card-price no-flights">No Flights</span>`;
+          }
+
+          return `
+            <a href="javascript:void(0)" 
+               class="cp-carousel-card${c.is_selected ? ' is-active' : ''}${c.is_sold_out ? ' is-sold-out-date' : ''}"
+               data-date="${c.date}">
+              <span class="cp-card-date">${c.label}</span>
+              ${priceHtml}
+            </a>
+          `;
+        }).join('');
         bindCarouselClicks();
       }
 
       // 2. Render Flight Cards or Empty State
       if (flightGrid) {
         if (data.flights && data.flights.length > 0) {
-          flightGrid.innerHTML = data.flights.map((f, idx) => {
-            const isSel = (idx === 0);
+          const firstAvail = data.flights.find(f => f.is_available);
+
+          flightGrid.innerHTML = data.flights.map((f) => {
+            const isSel = (firstAvail && f.id === firstAvail.id);
             let logo = '✈️';
             if (f.airline.includes('Cebu')) logo = '🟡';
             else if (f.airline.includes('Philippine Airlines')) logo = '🔵';
             else if (f.airline.includes('AirAsia')) logo = '🔴';
 
+            let badgeHtml = '';
+            let actionBtnHtml = '';
+            if (f.is_available) {
+              if (f.is_lowest) {
+                badgeHtml = '<span class="cp-flight-badge badge-lowest">★ Lowest Fare</span>';
+              } else if (f.seats <= 5) {
+                badgeHtml = `<span class="cp-flight-badge badge-warning">⚡ Only ${f.seats} seats left!</span>`;
+              } else {
+                badgeHtml = '<span class="cp-flight-badge badge-available">✓ Available</span>';
+              }
+              actionBtnHtml = `<button type="button" class="cp-btn-flight-select">${isSel ? 'Selected' : 'Select'}</button>`;
+            } else {
+              badgeHtml = '<span class="cp-flight-badge badge-soldout">✕ Sold Out</span>';
+              actionBtnHtml = '<button type="button" class="cp-btn-flight-select is-disabled" disabled>Sold Out</button>';
+            }
+
             return `
-              <div class="cp-flight-card${isSel ? ' is-selected' : ''}" 
-                   tabindex="0" role="button" 
+              <div class="cp-flight-card${isSel ? ' is-selected' : ''}${!f.is_available ? ' is-sold-out' : ''}" 
+                   tabindex="${f.is_available ? '0' : '-1'}" role="button" 
                    data-id="${f.id}"
                    data-airline="${f.airline}"
                    data-flight-no="${f.flight_number}"
                    data-departure="${f.departure_time}"
                    data-price="${f.base_price}"
+                   data-available="${f.is_available ? '1' : '0'}"
                    data-schedule="${f.airline} ${f.flight_number} (${f.departure_time} ${f.origin_code} → ${f.arrival_time} ${f.dest_code})">
                 <div class="cp-flight-airline">
                   <div class="cp-airline-badge">${logo}</div>
@@ -1570,27 +1946,43 @@ $activeNav = 'deals';
                   </div>
                 </div>
                 <div class="cp-flight-action">
-                  <span class="cp-flight-fare">${f.price_formatted}</span>
-                  <span class="cp-flight-fare-sub">Included with package</span>
-                  <button type="button" class="cp-btn-flight-select">${isSel ? 'Selected' : 'Select'}</button>
+                  ${badgeHtml}
+                  <span class="cp-flight-fare${!f.is_available ? ' muted' : ''}">${f.is_available ? f.price_formatted : 'Fully Booked'}</span>
+                  <span class="cp-flight-fare-sub">${f.is_available ? 'Included with package' : 'No seats remaining'}</span>
+                  ${actionBtnHtml}
                 </div>
               </div>
             `;
           }).join('');
           bindFlightCards();
 
-          if (data.flights[0]) {
-            const f0 = data.flights[0];
+          if (firstAvail) {
             if (form) {
-              form.querySelector('[name="flightSchedule"]').value = `${f0.airline} ${f0.flight_number} (${f0.departure_time} ${f0.origin_code} → ${f0.arrival_time} ${f0.dest_code})`;
+              form.querySelector('[name="flightSchedule"]').value = `${firstAvail.airline} ${firstAvail.flight_number} (${firstAvail.departure_time} ${firstAvail.origin_code} → ${firstAvail.arrival_time} ${firstAvail.dest_code})`;
             }
-            if (!isHotelMode && f0.base_price) {
-              basePerPerson = Math.round(parseFloat(f0.base_price) * cabinMult);
+            if (!isHotelMode && firstAvail.base_price) {
+              basePerPerson = Math.round(parseFloat(firstAvail.base_price) * cabinMult);
               updateTravelers(currentAdults);
             }
+            $('#btn-proceed')?.removeAttribute('disabled');
+            $('#btn-proceed')?.classList.remove('is-disabled');
+            if ($('#btn-proceed')) $('#btn-proceed').textContent = 'Proceed to booking';
+          } else {
+            // All flights sold out for this day
+            if (form) form.querySelector('[name="flightSchedule"]').value = 'Sold Out';
+            if (!isHotelMode) {
+              basePerPerson = 0;
+              if ($('#sum-flight-label')) $('#sum-flight-label').innerHTML = `Flight (Sold Out &middot; ${currentAdults} Guest${currentAdults !== 1 ? 's' : ''})`;
+              if ($('#sum-flight')) $('#sum-flight').textContent = 'Sold Out';
+              if ($('#dest-fare-chip-price-disp')) $('#dest-fare-chip-price-disp').textContent = 'Sold Out';
+            }
+            $('#btn-proceed')?.setAttribute('disabled', 'disabled');
+            $('#btn-proceed')?.classList.add('is-disabled');
+            if ($('#btn-proceed')) $('#btn-proceed').textContent = 'Flights Sold Out — Pick Another Date';
+            recalc();
           }
         } else {
-          // Empty State
+          // Empty State (No flights on this day)
           flightGrid.innerHTML = `
             <div class="cp-empty-state-card" id="cp-empty-state">
               <div class="cp-empty-plane-graphic">
@@ -1613,13 +2005,24 @@ $activeNav = 'deals';
             </div>
           `;
           $('#btn-empty-change-date')?.addEventListener('click', () => {
-            const nextAvail = $$('.cp-carousel-card').find(c => !c.querySelector('.no-flights'));
+            const nextAvail = $$('.cp-carousel-card').find(c => !c.querySelector('.no-flights') && !c.querySelector('.sold-out'));
             if (nextAvail) {
               nextAvail.click();
             } else {
               window.location.href = `${baseUrl}/index.php#booking`;
             }
           });
+
+          if (!isHotelMode) {
+            basePerPerson = 0;
+            if ($('#sum-flight-label')) $('#sum-flight-label').innerHTML = `Flight (No flights available)`;
+            if ($('#sum-flight')) $('#sum-flight').textContent = 'Unavailable';
+            if ($('#dest-fare-chip-price-disp')) $('#dest-fare-chip-price-disp').textContent = 'No Flights';
+          }
+          $('#btn-proceed')?.setAttribute('disabled', 'disabled');
+          $('#btn-proceed')?.classList.add('is-disabled');
+          if ($('#btn-proceed')) $('#btn-proceed').textContent = 'No Flights Available — Pick Another Date';
+          recalc();
         }
       }
     } catch (err) {
@@ -1656,7 +2059,7 @@ $activeNav = 'deals';
   });
 
   $('#btn-empty-change-date')?.addEventListener('click', () => {
-    const nextAvail = $$('.cp-carousel-card').find(c => !c.querySelector('.no-flights'));
+    const nextAvail = $$('.cp-carousel-card').find(c => !c.querySelector('.no-flights') && !c.querySelector('.sold-out'));
     if (nextAvail) {
       nextAvail.click();
     } else {
@@ -1720,7 +2123,12 @@ $activeNav = 'deals';
     }
     if ($('#sum-hotel')) $('#sum-hotel').textContent = peso(hotelTotal);
     if ($('#sum-car'))   $('#sum-car').textContent   = peso(carTotal);
-    if ($('#sum-total')) $('#sum-total').textContent = peso(total);
+
+    if (basePerPerson > 0 || isHotelMode) {
+      if ($('#sum-total')) $('#sum-total').textContent = peso(total);
+    } else {
+      if ($('#sum-total')) $('#sum-total').textContent = total > 0 ? (peso(total) + ' (Flight skipped)') : '—';
+    }
   }
 
   recalc();
@@ -1732,6 +2140,11 @@ $activeNav = 'deals';
     const schedCard = $('.cp-flight-card.is-selected');
     const hotelCard = $('#hotel-grid .option-card.is-selected');
     const carCard   = $('#car-grid .option-card.is-selected');
+
+    if (!isHotelMode && (!schedCard || schedCard.dataset.available === '0')) {
+      alert('Please select an available flight schedule before proceeding to booking.');
+      return;
+    }
 
     if (schedCard) {
       form.querySelector('[name="flightSchedule"]').value = schedCard.dataset.schedule || 'Standard Schedule';

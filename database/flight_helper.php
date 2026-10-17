@@ -194,67 +194,140 @@ function flight_get_templates(array $route): array
 {
     $flightTime = $route['flight_time'] ?? '1h 20m';
 
+    // Parse duration to calculate realistic arrival times
+    preg_match('/(?:(\d+)h)?\s*(?:(\d+)m)?/', $flightTime, $m);
+    $hours = isset($m[1]) && $m[1] !== '' ? (int)$m[1] : 1;
+    $mins  = isset($m[2]) && $m[2] !== '' ? (int)$m[2] : 20;
+    $durationSecs = ($hours * 3600) + ($mins * 60);
+
+    $calcArrival = function(string $depTime, int $addMins = 0) use ($durationSecs) {
+        $depSecs = strtotime("1970-01-01 $depTime UTC");
+        $arrSecs = ($depSecs + $durationSecs + ($addMins * 60)) % 86400;
+        return gmdate('H:i:s', $arrSecs);
+    };
+
     return [
+        // --- MORNING (00:00 - 11:59) ---
         [
             'airline'       => 'Philippines AirAsia',
             'airline_code'  => 'Z2',
             'flight_prefix' => 'AG-204',
             'aircraft'      => 'Airbus A320',
-            'departure_time'=> '03:55:00',
-            'arrival_time'  => '05:20:00',
+            'departure_time'=> '05:30:00',
+            'arrival_time'  => $calcArrival('05:30:00'),
             'duration'      => $flightTime,
             'stops'         => 'Nonstop',
-            'price_factor'  => 1.0, // Matches daily baseline lowest price
-        ],
-        [
-            'airline'       => 'Philippines AirAsia',
-            'airline_code'  => 'Z2',
-            'flight_prefix' => 'AG-418',
-            'aircraft'      => 'Airbus A320',
-            'departure_time'=> '05:55:00',
-            'arrival_time'  => '07:20:00',
-            'duration'      => $flightTime,
-            'stops'         => 'Nonstop',
-            'price_factor'  => 1.05,
+            'price_factor'  => 1.0, // Matches promo baseline
         ],
         [
             'airline'       => 'Cebu Pacific',
             'airline_code'  => '5J',
             'flight_prefix' => '5J-514',
             'aircraft'      => 'Airbus A321neo',
-            'departure_time'=> '11:40:00',
-            'arrival_time'  => '13:00:00',
+            'departure_time'=> '08:45:00',
+            'arrival_time'  => $calcArrival('08:45:00'),
             'duration'      => $flightTime,
             'stops'         => 'Nonstop',
             'price_factor'  => 1.15,
         ],
         [
+            'airline'       => 'Philippine Airlines',
+            'airline_code'  => 'PR',
+            'flight_prefix' => 'PR-1814',
+            'aircraft'      => 'Airbus A321',
+            'departure_time'=> '11:15:00',
+            'arrival_time'  => $calcArrival('11:15:00'),
+            'duration'      => $flightTime,
+            'stops'         => 'Nonstop',
+            'price_factor'  => 1.25,
+        ],
+
+        // --- AFTERNOON (12:00 - 17:59) ---
+        [
             'airline'       => 'Cebgo',
             'airline_code'  => 'DG',
             'flight_prefix' => 'DG-6022',
             'aircraft'      => 'ATR 72-600',
-            'departure_time'=> '14:15:00',
-            'arrival_time'  => '15:45:00',
-            'duration'      => '1h 30m',
+            'departure_time'=> '13:45:00',
+            'arrival_time'  => $calcArrival('13:45:00', 10),
+            'duration'      => $flightTime,
             'stops'         => 'Nonstop',
-            'price_factor'  => 1.0, // Matches daily lowest promo
+            'price_factor'  => 1.05,
         ],
+        [
+            'airline'       => 'Philippines AirAsia',
+            'airline_code'  => 'Z2',
+            'flight_prefix' => 'AG-418',
+            'aircraft'      => 'Airbus A320',
+            'departure_time'=> '15:20:00',
+            'arrival_time'  => $calcArrival('15:20:00', 45),
+            'duration'      => '2h 15m',
+            'stops'         => '1 Stop',
+            'price_factor'  => 0.95,
+        ],
+        [
+            'airline'       => 'Cebu Pacific',
+            'airline_code'  => '5J',
+            'flight_prefix' => '5J-562',
+            'aircraft'      => 'Airbus A320',
+            'departure_time'=> '17:15:00',
+            'arrival_time'  => $calcArrival('17:15:00'),
+            'duration'      => $flightTime,
+            'stops'         => 'Nonstop',
+            'price_factor'  => 1.12,
+        ],
+
+        // --- EVENING (18:00 - 23:59) ---
         [
             'airline'       => 'Philippine Airlines',
             'airline_code'  => 'PR',
-            'flight_prefix' => 'PR-788',
+            'flight_prefix' => 'PR-2814',
             'aircraft'      => 'Boeing 737',
-            'departure_time'=> '17:45:00',
-            'arrival_time'  => '19:10:00',
+            'departure_time'=> '18:40:00',
+            'arrival_time'  => $calcArrival('18:40:00'),
             'duration'      => $flightTime,
             'stops'         => 'Nonstop',
-            'price_factor'  => 1.35,
+            'price_factor'  => 1.30,
+        ],
+        [
+            'airline'       => 'Cebu Pacific',
+            'airline_code'  => '5J',
+            'flight_prefix' => '5J-580',
+            'aircraft'      => 'Airbus A321neo',
+            'departure_time'=> '20:15:00',
+            'arrival_time'  => $calcArrival('20:15:00'),
+            'duration'      => $flightTime,
+            'stops'         => 'Nonstop',
+            'price_factor'  => 1.10,
+        ],
+        [
+            'airline'       => 'Philippines AirAsia',
+            'airline_code'  => 'Z2',
+            'flight_prefix' => 'AG-822',
+            'aircraft'      => 'Airbus A320',
+            'departure_time'=> '21:50:00',
+            'arrival_time'  => $calcArrival('21:50:00'),
+            'duration'      => $flightTime,
+            'stops'         => 'Nonstop',
+            'price_factor'  => 1.0,
+        ],
+        [
+            'airline'       => 'Cebgo',
+            'airline_code'  => 'DG',
+            'flight_prefix' => 'DG-6098',
+            'aircraft'      => 'ATR 72-600',
+            'departure_time'=> '22:45:00',
+            'arrival_time'  => $calcArrival('22:45:00', 40),
+            'duration'      => '2h 10m',
+            'stops'         => '1 Stop',
+            'price_factor'  => 0.90,
         ],
     ];
 }
 
 /**
- * Seeds flights into the database for a specific date range if they don't already exist.
+ * Seeds flights into the database for a specific date range if they don't already exist
+ * or refreshes if evening flights are missing.
  */
 function flight_seed_dates_if_needed(PDO $db, array $route, string $startDate, string $endDate): void
 {
@@ -269,7 +342,19 @@ function flight_seed_dates_if_needed(PDO $db, array $route, string $startDate, s
     $end   = new DateTime($endDate);
     $end->modify('+1 day'); // inclusive
 
-    $checkStmt = $db->prepare("SELECT COUNT(*) FROM flights WHERE origin_code = :orig AND dest_code = :dest AND flight_date = :fdate");
+    $checkStmt = $db->prepare("
+        SELECT 
+            COUNT(*) AS total_cnt,
+            SUM(CASE WHEN departure_time >= '18:00:00' THEN 1 ELSE 0 END) AS evening_cnt
+        FROM flights 
+        WHERE origin_code = :orig AND dest_code = :dest AND flight_date = :fdate
+    ");
+
+    $deleteStmt = $db->prepare("
+        DELETE FROM flights 
+        WHERE origin_code = :orig AND dest_code = :dest AND flight_date = :fdate
+    ");
+
     $insertStmt = $db->prepare("
         INSERT INTO flights (
             flight_number, airline, airline_code, aircraft, origin_code, origin_name,
@@ -286,43 +371,73 @@ function flight_seed_dates_if_needed(PDO $db, array $route, string $startDate, s
     foreach ($period as $dt) {
         $dateStr = $dt->format('Y-m-d');
         $checkStmt->execute([':orig' => $origCode, ':dest' => $destCode, ':fdate' => $dateStr]);
-        if ($checkStmt->fetchColumn() > 0) {
-            continue; // Already seeded
-        }
+        $check = $checkStmt->fetch();
+        $totalSeeded = (int)($check['total_cnt'] ?? 0);
+        $eveningSeeded = (int)($check['evening_cnt'] ?? 0);
 
-        // Pseudo-random pricing curve based on date hashing for realistic Cebu Pacific price patterns
-        $dayNum = (int)$dt->format('j');
-        $dayOfWeek = (int)$dt->format('N'); // 1 = Mon, 7 = Sun
-        $hashVal = abs(crc32($dateStr . $destCode)) % 100;
-
-        // Occasional sold out / no flight days
-        $isNoFlightDay = ($hashVal < 5 && $dayOfWeek === 5 && $dayNum < 10);
-
-        if ($isNoFlightDay) {
+        // If already seeded with evening flights, no need to touch
+        if ($totalSeeded > 0 && $eveningSeeded > 0) {
             continue;
         }
 
-        // Price multiplier curve (weekends/holidays higher, mid-week promotions lower)
-        $mult = 1.0;
-        if ($dayOfWeek === 5 || $dayOfWeek === 6) {
-            $mult = 1.25 + ($hashVal % 30) / 100;
-        } elseif ($dayOfWeek === 2 || $dayOfWeek === 3) {
-            $mult = 0.82 + ($hashVal % 20) / 100; // Promo days (green cheapest)
-        } else {
-            $mult = 0.95 + ($hashVal % 35) / 100;
+        // If seeded previously without evening flights, clear and re-seed with complete schedule
+        if ($totalSeeded > 0 && $eveningSeeded === 0) {
+            $deleteStmt->execute([':orig' => $origCode, ':dest' => $destCode, ':fdate' => $dateStr]);
         }
 
-        // Flash deal days (like 1.8K / 2.2K in Cebu Pacific)
-        if ($hashVal % 11 === 0 || ($dayNum === 17 || $dayNum === 25 || $dayNum === 7)) {
+        // Deterministic pseudo-random variation based on date and destination
+        $dayNum    = (int)$dt->format('j');
+        $dayOfWeek = (int)$dt->format('N'); // 1 = Mon, 7 = Sun
+        $hashVal   = abs(crc32($dateStr . '_' . $destCode));
+
+        // 1. Off-peak Mid-week Days with No Flights Available (~7% of days, e.g. certain Wednesdays / Tuesdays)
+        $isNoFlightDay = (($dayOfWeek === 3 && ($hashVal % 6 === 0)) || ($dayOfWeek === 2 && ($hashVal % 9 === 0)));
+        if ($isNoFlightDay) {
+            continue; // Graceful empty state day
+        }
+
+        // 2. High-demand Fully Booked / Sold Out Days (~6% of days, e.g. certain peak Saturdays / dates)
+        $isAllSoldOutDay = (($dayOfWeek === 6 && ($hashVal % 7 === 1)) || ($hashVal % 31 === 2));
+
+        // Price multiplier curve (weekends/holidays higher, mid-week promotions lower)
+        $mult = 1.0;
+        if ($dayOfWeek === 5 || $dayOfWeek === 6 || $dayOfWeek === 7) {
+            $mult = 1.25 + ($hashVal % 25) / 100;
+        } elseif ($dayOfWeek === 2 || $dayOfWeek === 3 || $dayOfWeek === 4) {
+            $mult = 0.85 + ($hashVal % 15) / 100; // Promo mid-week deal
+        } else {
+            $mult = 0.98 + ($hashVal % 20) / 100;
+        }
+
+        // Flash promo deal days (cheapest rate)
+        if ($hashVal % 11 === 0 || $dayNum === 17 || $dayNum === 25 || $dayNum === 7) {
             $mult = 0.75;
         }
 
-        foreach ($templates as $t) {
+        foreach ($templates as $tIdx => $t) {
             $price = round(($baseRate * $t['price_factor'] * $mult) / 100) * 100;
             if ($price < 1500) $price = 1800;
 
-            $seats = rand(5, 52);
-            $status = ($seats <= 0) ? 'sold_out' : 'available';
+            if ($isAllSoldOutDay) {
+                $seats = 0;
+                $status = 'sold_out';
+            } else {
+                // Occasional single flight slot sold out (e.g. 1 out of 10 slots)
+                $isSlotSoldOut = ($tIdx === ($hashVal % count($templates)) && ($hashVal % 3 === 0));
+                // Occasional flight slot filling fast
+                $isSlotFillingFast = ($tIdx === (($hashVal + 3) % count($templates)) && ($hashVal % 2 === 0));
+
+                if ($isSlotSoldOut) {
+                    $seats = 0;
+                    $status = 'sold_out';
+                } elseif ($isSlotFillingFast) {
+                    $seats = 3 + ($hashVal % 4); // 3 to 6 seats left
+                    $status = 'available';
+                } else {
+                    $seats = 18 + ($hashVal % 42); // 18 to 59 seats left
+                    $status = 'available';
+                }
+            }
 
             $flightNo = $t['flight_prefix'];
             $insertStmt->execute([
@@ -391,9 +506,9 @@ function flight_get_daily_prices(string $destination, string $origin = 'MNL', ?s
         $stmt = $db->prepare("
             SELECT 
                 flight_date, 
-                MIN(base_price) AS min_price, 
                 COUNT(*) AS total_flights,
-                SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS available_count
+                SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS available_count,
+                MIN(CASE WHEN status = 'available' THEN base_price ELSE NULL END) AS min_price
             FROM flights
             WHERE origin_code = :orig 
               AND dest_code = :dest
@@ -416,8 +531,9 @@ function flight_get_daily_prices(string $destination, string $origin = 'MNL', ?s
 
         foreach ($rows as $r) {
             $fDate = $r['flight_date'];
+            $total = (int)$r['total_flights'];
             $avail = (int)$r['available_count'];
-            $price = (float)$r['min_price'];
+            $price = $r['min_price'] !== null ? (float)$r['min_price'] : 0.0;
 
             if ($avail > 0 && $price > 0) {
                 if ($price < $overallMin) {
@@ -430,7 +546,19 @@ function flight_get_daily_prices(string $destination, string $origin = 'MNL', ?s
                     'price_raw'   => '₱' . number_format($price, 0),
                     'price_php'   => 'PHP ' . number_format($price, 2),
                     'has_flights' => true,
+                    'is_sold_out' => false,
                     'available'   => $avail,
+                ];
+            } elseif ($total > 0 && $avail === 0) {
+                $daily[$fDate] = [
+                    'date'        => $fDate,
+                    'price'       => null,
+                    'price_k'     => '',
+                    'price_raw'   => 'Sold Out',
+                    'price_php'   => 'Sold Out',
+                    'has_flights' => false,
+                    'is_sold_out' => true,
+                    'available'   => 0,
                 ];
             } else {
                 $daily[$fDate] = [
@@ -440,6 +568,7 @@ function flight_get_daily_prices(string $destination, string $origin = 'MNL', ?s
                     'price_raw'   => 'No Flights',
                     'price_php'   => 'No Flights',
                     'has_flights' => false,
+                    'is_sold_out' => false,
                     'available'   => 0,
                 ];
             }
@@ -491,32 +620,68 @@ function flight_search_results(string $destination, string $origin = 'MNL', ?str
 
     // 1. Build 7-day horizontal carousel (-3 days to +3 days)
     $carousel = [];
+    $lowestCarouselPrice = PHP_FLOAT_MAX;
+
     for ($i = -3; $i <= 3; $i++) {
         $dt = (clone $selDt)->modify("{$i} days");
         $dStr = $dt->format('Y-m-d');
         $label = $dt->format('D d M');
 
         $stmt = $db->prepare("
-            SELECT MIN(base_price) AS min_price, SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS avail_cnt
+            SELECT 
+                COUNT(*) AS total_cnt, 
+                SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS avail_cnt,
+                MIN(CASE WHEN status = 'available' THEN base_price ELSE NULL END) AS min_price
             FROM flights
             WHERE origin_code = :orig AND dest_code = :dest AND flight_date = :fdate
         ");
         $stmt->execute([':orig' => $route['origin_code'], ':dest' => $route['dest_code'], ':fdate' => $dStr]);
         $row = $stmt->fetch();
 
+        $total = (int)($row['total_cnt'] ?? 0);
         $avail = (int)($row['avail_cnt'] ?? 0);
-        $minPrice = (float)($row['min_price'] ?? 0);
+        $minPrice = $row['min_price'] !== null ? (float)$row['min_price'] : 0.0;
+
+        $hasFlights = ($avail > 0 && $minPrice > 0);
+        $isSoldOut  = ($total > 0 && $avail === 0);
+
+        if ($hasFlights) {
+            $priceLabel = 'PHP ' . number_format($minPrice, 2);
+            $priceShort = '₱' . number_format($minPrice, 0);
+            $statusStr  = 'available';
+            if ($minPrice < $lowestCarouselPrice) {
+                $lowestCarouselPrice = $minPrice;
+            }
+        } elseif ($isSoldOut) {
+            $priceLabel = 'Sold Out';
+            $priceShort = 'Sold Out';
+            $statusStr  = 'sold_out';
+        } else {
+            $priceLabel = 'No Flights';
+            $priceShort = 'No Flights';
+            $statusStr  = 'no_flights';
+        }
 
         $carousel[] = [
             'date'         => $dStr,
             'label'        => $label,
             'is_selected'  => ($i === 0),
-            'has_flights'  => ($avail > 0),
-            'price'        => ($avail > 0) ? $minPrice : null,
-            'price_label'  => ($avail > 0) ? ('PHP ' . number_format($minPrice, 2)) : 'No Flights',
-            'price_short'  => ($avail > 0) ? ('₱' . number_format($minPrice, 0)) : 'No Flights',
+            'has_flights'  => $hasFlights,
+            'is_sold_out'  => $isSoldOut,
+            'status'       => $statusStr,
+            'price'        => $hasFlights ? $minPrice : null,
+            'price_label'  => $priceLabel,
+            'price_short'  => $priceShort,
+            'avail_count'  => $avail,
+            'total_count'  => $total,
         ];
     }
+
+    // Tag lowest price card in the 7-day carousel
+    foreach ($carousel as &$c) {
+        $c['is_lowest'] = ($c['has_flights'] && $lowestCarouselPrice < PHP_FLOAT_MAX && $c['price'] <= ($lowestCarouselPrice + 1));
+    }
+    unset($c);
 
     // 2. Query flight cards for the selected date
     $sql = "SELECT * FROM flights WHERE origin_code = :orig AND dest_code = :dest AND flight_date = :fdate";
@@ -527,12 +692,13 @@ function flight_search_results(string $destination, string $origin = 'MNL', ?str
     ];
 
     if (!empty($filters['time'])) {
-        if ($filters['time'] === 'morning') {
-            $sql .= " AND departure_time < '12:00:00'";
-        } elseif ($filters['time'] === 'afternoon') {
+        $tFilter = strtolower(trim($filters['time']));
+        if ($tFilter === 'morning') {
+            $sql .= " AND departure_time >= '00:00:00' AND departure_time < '12:00:00'";
+        } elseif ($tFilter === 'afternoon') {
             $sql .= " AND departure_time >= '12:00:00' AND departure_time < '18:00:00'";
-        } elseif ($filters['time'] === 'evening') {
-            $sql .= " AND departure_time >= '18:00:00'";
+        } elseif ($tFilter === 'evening') {
+            $sql .= " AND departure_time >= '18:00:00' AND departure_time <= '23:59:59'";
         }
     }
 
@@ -542,33 +708,43 @@ function flight_search_results(string $destination, string $origin = 'MNL', ?str
     }
 
     if (!empty($filters['price_range'])) {
-        if ($filters['price_range'] === 'under_3000') {
+        $pRange = trim($filters['price_range']);
+        if ($pRange === 'under_3000') {
             $sql .= " AND base_price <= 3000";
-        } elseif ($filters['price_range'] === '3000_6000') {
+        } elseif ($pRange === '3000_6000') {
             $sql .= " AND base_price > 3000 AND base_price <= 6000";
-        } elseif ($filters['price_range'] === 'above_6000') {
+        } elseif ($pRange === 'above_6000') {
             $sql .= " AND base_price > 6000";
         }
     }
 
     $sort = $filters['sort'] ?? 'earliest';
     if ($sort === 'cheapest') {
-        $sql .= " ORDER BY base_price ASC, departure_time ASC";
+        $sql .= " ORDER BY (status = 'available') DESC, base_price ASC, departure_time ASC";
     } elseif ($sort === 'fastest') {
-        $sql .= " ORDER BY duration ASC, departure_time ASC";
+        $sql .= " ORDER BY (status = 'available') DESC, duration ASC, departure_time ASC";
     } else {
-        $sql .= " ORDER BY departure_time ASC";
+        $sql .= " ORDER BY (status = 'available') DESC, departure_time ASC";
     }
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $flights = $stmt->fetchAll();
 
+    $minDayPrice = PHP_FLOAT_MAX;
+    foreach ($flights as $f) {
+        if ($f['status'] === 'available' && (float)$f['base_price'] < $minDayPrice) {
+            $minDayPrice = (float)$f['base_price'];
+        }
+    }
+
     $formattedFlights = [];
     foreach ($flights as $f) {
         $depTime = date('h:i A', strtotime($f['departure_time']));
         $arrTime = date('h:i A', strtotime($f['arrival_time']));
         $price = (float)$f['base_price'];
+        $isAvail = ($f['status'] === 'available' && (int)$f['seats_available'] > 0);
+        $isLowest = ($isAvail && $price <= $minDayPrice);
 
         $formattedFlights[] = [
             'id'             => $f['id'],
@@ -590,18 +766,23 @@ function flight_search_results(string $destination, string $origin = 'MNL', ?str
             'stops'          => $f['stops'],
             'seats'          => (int)$f['seats_available'],
             'status'         => $f['status'],
-            'is_available'   => ($f['status'] === 'available' && $f['seats_available'] > 0),
+            'is_available'   => $isAvail,
+            'is_lowest'      => $isLowest,
         ];
     }
 
+    $availFlights = array_filter($formattedFlights, fn($f) => $f['is_available']);
+
     return [
-        'success'      => true,
-        'route'        => $route,
-        'selectedDate' => $selectedDate,
+        'success'               => true,
+        'route'                 => $route,
+        'selectedDate'          => $selectedDate,
         'selectedDateFormatted' => (new DateTime($selectedDate))->format('D d M Y'),
-        'carousel'     => $carousel,
-        'flights'      => $formattedFlights,
-        'totalCount'   => count($formattedFlights),
-        'hasAvailable' => count(array_filter($formattedFlights, fn($f) => $f['is_available'])) > 0,
+        'carousel'              => $carousel,
+        'flights'               => $formattedFlights,
+        'totalCount'            => count($formattedFlights),
+        'availableCount'        => count($availFlights),
+        'hasAvailable'          => count($availFlights) > 0,
+        'isAllSoldOut'          => (count($formattedFlights) > 0 && count($availFlights) === 0),
     ];
 }
