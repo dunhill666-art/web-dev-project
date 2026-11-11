@@ -8,6 +8,7 @@ Thumbs.db
 # WAMP / Apache temp files
 /tmp/
 /scratch/
+/_backups/
 
 ###> symfony/framework-bundle ###
 /.env.local
