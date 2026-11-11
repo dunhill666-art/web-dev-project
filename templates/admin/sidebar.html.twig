@@ -1,0 +1,48 @@
+<!-- UNIFIED SYMFONY ADMIN SIDEBAR -->
+<aside class="sidebar">
+  <a href="{{ ag_base_url('index.php') }}" class="sidebar-brand" style="text-decoration:none;color:inherit;" title="Return to Homepage">
+    <img src="{{ asset_find(['logo']) }}" alt="Logo">
+    <div>
+      <span class="brand-text">AeroGlide</span>
+      <span class="brand-badge">ADMIN</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a href="index.php" class="nav-link {% if current_page == 'index.php' or current_page == 'dashboard' %}active{% endif %}">
+      <span class="nav-icon">📊</span> Dashboard
+    </a>
+    <a href="bookings.php" class="nav-link {% if current_page == 'bookings.php' %}active{% endif %}">
+      <span class="nav-icon">🎫</span> All Bookings
+    </a>
+    <a href="users.php" class="nav-link {% if current_page == 'users.php' %}active{% endif %}">
+      <span class="nav-icon">👥</span> Users
+    </a>
+
+    <div class="nav-section-label" style="margin-top:.75rem;">Reports</div>
+    <a href="revenue.php" class="nav-link {% if current_page == 'revenue.php' %}active{% endif %}">
+      <span class="nav-icon">💰</span> Revenue
+    </a>
+    <a href="logs.php" class="nav-link {% if current_page == 'logs.php' %}active{% endif %}">
+      <span class="nav-icon">📋</span> Activity Logs
+    </a>
+
+    <div class="nav-section-label" style="margin-top:.75rem;">Site</div>
+    <a href="{{ ag_base_url('index.php') }}" class="nav-link" target="_blank">
+      <span class="nav-icon">🌐</span> View Website
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <div class="admin-avatar">{{ admin.name|slice(0, 1)|upper }}</div>
+      <div>
+        <div class="admin-name">{{ admin.name }}</div>
+        <div class="admin-role">Administrator</div>
+      </div>
+    </div>
+    <a href="{{ ag_base_url('user/logout.php') }}">Sign Out</a>
+  </div>
+</aside>
+

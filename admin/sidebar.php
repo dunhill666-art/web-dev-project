@@ -21,7 +21,6 @@ $nav = function($file, $icon, $label) use ($currentPage) {
   <nav class="sidebar-nav">
     <div class="nav-section-label">Overview</div>
     <?php $nav('index.php', '📊', 'Dashboard'); ?>
-    <?php $nav('symfony_dashboard.php', '⚡', 'Symfony Analytics'); ?>
     <?php $nav('bookings.php', '🎫', 'All Bookings'); ?>
     <?php $nav('users.php', '👥', 'Users'); ?>
 
@@ -30,7 +29,7 @@ $nav = function($file, $icon, $label) use ($currentPage) {
     <?php $nav('logs.php', '📋', 'Activity Logs'); ?>
 
     <div class="nav-section-label" style="margin-top:.75rem;">Site</div>
-    <a href="<?= ag_base_url('index.php') ?>" class="nav-link"><span class="nav-icon">🌐</span> View Website</a>
+    <a href="<?= ag_base_url('index.php') ?>" class="nav-link" target="_blank"><span class="nav-icon">🌐</span> View Website</a>
   </nav>
 
   <div class="sidebar-footer">

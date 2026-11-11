@@ -3,23 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Symfony Dashboard — AeroGlide Admin</title>
+<title>Admin Dashboard — AeroGlide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 <style>
-.sf-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #000000;
-  color: #ffffff;
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
 .sf-pill {
   background: linear-gradient(135deg, #0f172a, #1e293b);
   color: #38bdf8;
@@ -104,49 +92,15 @@
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <a href="{{ ag_base_url('index.php') }}" class="sidebar-brand" style="text-decoration:none;color:inherit;" title="Return to Homepage">
-    <img src="{{ asset_find(['logo']) }}" alt="Logo">
-    <div>
-      <span class="brand-text">AeroGlide</span>
-      <span class="brand-badge">ADMIN</span>
-    </div>
-  </a>
-
-  <nav class="sidebar-nav">
-    <div class="nav-section-label">Overview</div>
-    <a href="index.php" class="nav-link"><span class="nav-icon">📊</span> Standard Dashboard</a>
-    <a href="symfony_dashboard.php" class="nav-link active"><span class="nav-icon">⚡</span> Symfony Dashboard</a>
-    <a href="bookings.php" class="nav-link"><span class="nav-icon">🎫</span> All Bookings</a>
-    <a href="users.php" class="nav-link"><span class="nav-icon">👥</span> Users</a>
-
-    <div class="nav-section-label" style="margin-top:.75rem;">Reports</div>
-    <a href="revenue.php" class="nav-link"><span class="nav-icon">💰</span> Revenue</a>
-    <a href="logs.php" class="nav-link"><span class="nav-icon">📋</span> Activity Logs</a>
-
-    <div class="nav-section-label" style="margin-top:.75rem;">Site</div>
-    <a href="{{ ag_base_url('index.php') }}" class="nav-link"><span class="nav-icon">🌐</span> View Website</a>
-  </nav>
-
-  <div class="sidebar-footer">
-    <div class="admin-info">
-      <div class="admin-avatar">{{ admin.name|slice(0, 1)|upper }}</div>
-      <div>
-        <div class="admin-name">{{ admin.name }}</div>
-        <div class="admin-role">Administrator</div>
-      </div>
-    </div>
-    <a href="{{ ag_base_url('user/logout.php') }}">Sign Out</a>
-  </div>
-</aside>
+<!-- UNIFIED SIDEBAR -->
+{% include 'admin/sidebar.html.twig' %}
 
 <!-- MAIN CONTENT -->
 <div class="main">
   <!-- TOPBAR -->
   <header class="topbar">
     <div style="display:flex;align-items:center;gap:10px;">
-      <div class="topbar-title">Symfony Admin Intelligence</div>
+      <div class="topbar-title">Dashboard Overview</div>
       <span class="sf-pill"><span class="live-indicator"></span> Realtime Engine</span>
     </div>
     <div class="topbar-right">
@@ -162,10 +116,7 @@
     <!-- PAGE HEADER -->
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;">
       <div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-          <h1 class="page-title">Welcome back, {{ admin.name }}.</h1>
-          <span class="sf-badge">⚡ SYMFONY POWERED</span>
-        </div>
+        <h1 class="page-title">Welcome back, {{ admin.name }}.</h1>
         <p class="page-subtitle">Unified administrative metrics & operational intelligence from the live database.</p>
       </div>
       <div style="font-size:.78rem;color:var(--muted);background:#ffffff;padding:6px 14px;border-radius:8px;border:1px solid var(--line);">
@@ -495,7 +446,7 @@ function refreshDashboardData() {
   if (icon) icon.classList.add('sync-spinning');
   if (btn) btn.disabled = true;
 
-  fetch('symfony_dashboard.php?action=api_stats', {
+  fetch('index.php?action=api_stats', {
     headers: { 'X-Requested-With': 'XMLHttpRequest' }
   })
   .then(res => res.json())
@@ -531,3 +482,4 @@ function refreshDashboardData() {
 
 </body>
 </html>
+
