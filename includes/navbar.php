@@ -18,7 +18,7 @@ $activeNav   = $activeNav ?? '';
 
     <div class="nav-menu">
       <a href="<?= ag_base_url('index.php') ?>" class="nav-item <?= $activeNav === 'home' ? 'is-active' : '' ?>">Home</a>
-      <a href="<?= ag_base_url('index.php#booking') ?>" class="nav-item <?= $activeNav === 'flights' ? 'is-active' : '' ?>">Flights</a>
+      <a href="<?= ag_base_url('flights.php') ?>" class="nav-item <?= $activeNav === 'flights' ? 'is-active' : '' ?>">Flights</a>
       <a href="<?= ag_base_url('index.php#promos') ?>" class="nav-item <?= $activeNav === 'deals' ? 'is-active' : '' ?>">Deals</a>
       <a href="<?= ag_base_url('index.php#tracker') ?>" class="nav-item <?= $activeNav === 'track' ? 'is-active' : '' ?>">Track</a>
       <a href="<?= ag_base_url('index.php#destinations') ?>" class="nav-item <?= $activeNav === 'destinations' ? 'is-active' : '' ?>">Destinations</a>

@@ -1411,7 +1411,8 @@ $activeNav = 'home';
     const depDate = rawCheckin?.value || '';
     const retDate = rawCheckout?.value || '';
 
-    let url = `destination.php?city=${encodeURIComponent(dest)}&mode=${state.mode}&adults=${state.adults}&cabin=${encodeURIComponent(state.classText)}`;
+    const targetPage = state.mode === 'flights' ? 'flights.php' : 'destination.php';
+    let url = `${targetPage}?destination=${encodeURIComponent(dest)}&city=${encodeURIComponent(dest)}&mode=${state.mode}&adults=${state.adults}&cabin=${encodeURIComponent(state.classText)}`;
     if (depDate) url += `&departDate=${encodeURIComponent(depDate)}&date=${encodeURIComponent(depDate)}`;
     if (retDate) url += `&returnDate=${encodeURIComponent(retDate)}`;
 
