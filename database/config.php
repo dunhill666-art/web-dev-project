@@ -1,11 +1,12 @@
 <?php
 // ============================================================
 // AeroGlide — database/config.php
-// Central MySQL PDO connection configuration (with .env support)
+// Central MySQL/MariaDB PDO connection configuration
+// Compatible with Docker, WampServer, and standalone environments
 // ============================================================
 
 // Lightweight .env loader if Symfony Dotenv is not loaded
-if (!isset($_ENV['DB_NAME']) && file_exists(dirname(__DIR__) . '/.env')) {
+if (file_exists(dirname(__DIR__) . '/.env')) {
     $lines = file(dirname(__DIR__) . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
         $line = trim($line);
@@ -15,18 +16,26 @@ if (!isset($_ENV['DB_NAME']) && file_exists(dirname(__DIR__) . '/.env')) {
         [$key, $val] = explode('=', $line, 2);
         $key = trim($key);
         $val = trim(trim($val), "\"'");
-        if (!isset($_ENV[$key])) {
+        
+        // Priority: Only set if NOT already passed in environment (e.g. from Docker)
+        if (getenv($key) === false && !isset($_ENV[$key])) {
             $_ENV[$key] = $val;
             putenv("$key=$val");
         }
     }
 }
 
-if (!defined('AG_DB_HOST')) define('AG_DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '127.0.0.1');
-if (!defined('AG_DB_PORT')) define('AG_DB_PORT', $_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306');
-if (!defined('AG_DB_NAME')) define('AG_DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'aeroglide');
-if (!defined('AG_DB_USER')) define('AG_DB_USER', $_ENV['DB_USER'] ?? getenv('DB_USER') ?: 'root');
-if (!defined('AG_DB_PASS')) define('AG_DB_PASS', $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: '');
+$dbHost = getenv('DB_HOST') ?: ($_ENV['DB_HOST'] ?? '127.0.0.1');
+$dbPort = getenv('DB_PORT') ?: ($_ENV['DB_PORT'] ?? '3306');
+$dbName = getenv('DB_NAME') ?: ($_ENV['DB_NAME'] ?? 'aeroglide');
+$dbUser = getenv('DB_USER') ?: ($_ENV['DB_USER'] ?? 'root');
+$dbPass = getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : ($_ENV['DB_PASSWORD'] ?? '');
+
+if (!defined('AG_DB_HOST')) define('AG_DB_HOST', $dbHost);
+if (!defined('AG_DB_PORT')) define('AG_DB_PORT', $dbPort);
+if (!defined('AG_DB_NAME')) define('AG_DB_NAME', $dbName);
+if (!defined('AG_DB_USER')) define('AG_DB_USER', $dbUser);
+if (!defined('AG_DB_PASS')) define('AG_DB_PASS', $dbPass);
 
 /**
  * Returns a static PDO database connection instance.

@@ -1,0 +1,21 @@
+# Version control
+.git
+.gitignore
+
+# Backups and temporary files
+_backups/
+scratch/
+tmp/
+*.log
+*.sql.gz
+*.bak
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local environment overrides
+.env.local
+.env.*.local
+

@@ -5,29 +5,43 @@
 // Visit: http://localhost/project/db_setup.php
 // ============================================================
 
-// ── PDO connection (no DB selected yet so we can CREATE DATABASE) ──
-$host   = 'localhost';
-$user   = 'root';
-$pass   = '';
-$dbName = 'aeroglide';
+require_once __DIR__ . '/config.php';
+
+// ── PDO connection (supports Docker, WAMP, and external hosts) ──
+$host   = AG_DB_HOST;
+$port   = AG_DB_PORT;
+$user   = AG_DB_USER;
+$pass   = AG_DB_PASS;
+$dbName = AG_DB_NAME;
 
 try {
-    $pdo = new PDO("mysql:host={$host};charset=utf8mb4", $user, $pass, [
+    $pdo = new PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 } catch (PDOException $e) {
-    die("❌ Connection failed: " . htmlspecialchars($e->getMessage()));
+    try {
+        $pdo = new PDO("mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4", $user, $pass, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+    } catch (PDOException $e2) {
+        die("❌ Connection failed: " . htmlspecialchars($e2->getMessage()));
+    }
 }
 
 $log = [];
 $error = null;
 
 try {
-    // 1. Create database
-    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    $pdo->exec("USE `{$dbName}`");
-    $log[] = "✅ Database <strong>aeroglide</strong> created / confirmed.";
+    // 1. Create database (if permissions allow)
+    try {
+        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("USE `{$dbName}`");
+    } catch (Exception $eDb) {
+        $pdo->exec("USE `{$dbName}`");
+    }
+    $log[] = "✅ Database <strong>{$dbName}</strong> confirmed active.";
 
     // 2. USERS table
     $pdo->exec("

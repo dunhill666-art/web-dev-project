@@ -6,12 +6,13 @@
 // DELETE this file after testing (do not leave in production).
 // ============================================================
 
-// Restrict access: only allow from localhost
+// Restrict access: allow localhost, private local/Docker networks, and CLI
 $allowed = ['127.0.0.1', '::1', 'localhost'];
 $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-if (!in_array($ip, $allowed)) {
+$isPrivate = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+if (!in_array($ip, $allowed, true) && !$isPrivate && php_sapi_name() !== 'cli') {
     http_response_code(403);
-    die('<h2>403 Forbidden — Test script can only run from localhost.</h2>');
+    die('<h2>403 Forbidden — Test script can only run from local or private networks.</h2>');
 }
 
 require_once __DIR__ . '/config.php';

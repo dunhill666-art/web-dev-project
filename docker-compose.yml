@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # AeroGlide Web Application (PHP 8.3 + Apache + Symfony Components)
+  # ============================================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aeroglide_web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: aeroglide
+      DB_USER: aeroglide
+      DB_PASSWORD: aeroglide_secret
+      APP_ENV: prod
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - aeroglide_net
+
+  # ============================================================
+  # Dedicated Database Engine (MariaDB 10.11 LTS)
+  # Persistent storage with automatic DDL and seed initialization
+  # ============================================================
+  db:
+    image: mariadb:10.11
+    container_name: aeroglide_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: aeroglide
+      MYSQL_USER: aeroglide
+      MYSQL_PASSWORD: aeroglide_secret
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized || mariadb-admin ping -h localhost -uroot -proot_secret || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    networks:
+      - aeroglide_net
+
+  # ============================================================
+  # phpMyAdmin Visual Database Administration GUI
+  # Inspect tables, records, queries without CLI commands
+  # ============================================================
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: aeroglide_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root_secret
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - aeroglide_net
+
+# ============================================================
+# Named Volumes & Isolated Bridge Network
+# ============================================================
+volumes:
+  db_data:
+    driver: local
+
+networks:
+  aeroglide_net:
+    driver: bridge
+
