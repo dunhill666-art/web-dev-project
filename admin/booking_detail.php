@@ -3,7 +3,14 @@
 // AeroGlide — admin/booking_detail.php
 // Full booking detail + status management
 // ============================================================
+if (session_status() === PHP_SESSION_NONE) {
+    session_cache_limiter('');
+}
 require_once __DIR__ . '/guard.php';
+
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0', true);
+header('Pragma: no-cache', true);
+header('Expires: 0', true);
 
 $db = ag_db();
 $id = (int)($_GET['id'] ?? 0);
@@ -16,24 +23,71 @@ $b = $stmt->fetch();
 if (!$b) { header('Location: bookings.php'); exit; }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Check if booking is already finalized before processing any action
+    $curDbStatus = strtolower((string)($b['status'] ?? ''));
+    $isFinalized = in_array($curDbStatus, ['confirmed', 'cancelled'], true);
+
     if (isset($_POST['action']) && $_POST['action'] === 'approve_cancellation') {
+        if ($isFinalized && $curDbStatus === 'cancelled') {
+            admin_log("Attempted cancellation approval on already cancelled booking #{$id}", "booking:{$id}");
+            header("Location: booking_detail.php?id={$id}&err=locked");
+            exit;
+        }
         $notes = trim($_POST['admin_notes'] ?? 'Cancellation approved by Admin. Refund processed.');
         $res = auth_admin_approve_cancellation((int)$_SESSION['user_id'], $id, $notes);
+        admin_log("Admin finalized cancellation for booking #{$id} ({$b['booking_ref']})", "booking:{$id}");
         header("Location: booking_detail.php?id={$id}&saved=1&msg=" . urlencode($res['message']));
         exit;
     }
 
     if (isset($_POST['action']) && $_POST['action'] === 'reject_cancellation') {
+        if ($isFinalized && $curDbStatus === 'confirmed') {
+            admin_log("Attempted cancellation rejection on already confirmed booking #{$id}", "booking:{$id}");
+            header("Location: booking_detail.php?id={$id}&err=locked");
+            exit;
+        }
         $notes = trim($_POST['admin_notes'] ?? 'Cancellation request rejected by Admin.');
         $res = auth_admin_reject_cancellation((int)$_SESSION['user_id'], $id, $notes);
+        admin_log("Admin rejected cancellation and restored confirmed status for booking #{$id}", "booking:{$id}");
         header("Location: booking_detail.php?id={$id}&saved=1&msg=" . urlencode($res['message']));
         exit;
     }
 
-    $ns = in_array($_POST['status'] ?? '', ['confirmed', 'pending', 'cancelled', 'pending_cancellation']) ? $_POST['status'] : $b['status'];
-    $db->prepare("UPDATE bookings SET status=:s WHERE id=:id")->execute([':s'=>$ns, ':id'=>$id]);
-    admin_log("Updated booking #{$id} status to {$ns}", "booking:{$id}");
-    header("Location: booking_detail.php?id={$id}&saved=1"); 
+    // ── Status change guard ─────────────────────────────────────────────────
+    // 1. If the booking is already in a permanent final state (Confirmed or Cancelled), reject ALL further changes.
+    if ($isFinalized) {
+        admin_log("Attempted to modify permanently finalized booking #{$id} (status: {$curDbStatus})", "booking:{$id}");
+        header("Location: booking_detail.php?id={$id}&err=locked");
+        exit;
+    }
+
+    // 2. Only two valid transitions are allowed: accept (confirmed) or cancel (cancelled).
+    $allowed = ['confirmed', 'cancelled'];
+    $ns = in_array($_POST['status'] ?? '', $allowed, true) ? $_POST['status'] : null;
+    if ($ns === null) {
+        header("Location: booking_detail.php?id={$id}&err=invalid");
+        exit;
+    }
+
+    if ($ns === 'cancelled') {
+        $grandTotal = (float)($b['grand_total'] ?? 0);
+        $fee = min(500.00, $grandTotal);
+        $refund = max(0.00, $grandTotal - $fee);
+        $notes = 'Booking cancelled by Administrator.';
+        $cancelledAt = date('Y-m-d H:i:s');
+        $up = $db->prepare("UPDATE bookings SET status='cancelled', cancellation_fee=:fee, refund_amount=:refund, cancelled_at=:cat, admin_notes=:notes WHERE id=:id");
+        $up->execute([':fee' => $fee, ':refund' => $refund, ':cat' => $cancelledAt, ':notes' => $notes, ':id' => $id]);
+        admin_log("Admin permanently finalized booking #{$id} ({$b['booking_ref']}) to CANCELLED. Fee: P{$fee}, Refund: P{$refund}", "booking:{$id}");
+        $msg = 'Flight cancelled successfully. Booking status is now Cancelled and permanently finalized.';
+    } else {
+        $up = $db->prepare("UPDATE bookings SET status='confirmed' WHERE id=:id");
+        $up->execute([':id' => $id]);
+        admin_log("Admin permanently finalized booking #{$id} ({$b['booking_ref']}) to CONFIRMED.", "booking:{$id}");
+        $msg = 'Flight accepted successfully. Booking status is now Confirmed and permanently locked.';
+    }
+
+    // Clean redirect after POST (PRG pattern)
+    header("Location: booking_detail.php?id={$id}&saved=1&msg=" . urlencode($msg));
     exit;
 }
 
@@ -96,6 +150,49 @@ $isCancelled = ($bStatus === 'cancelled');
   <div class="content">
     <?php if (isset($_GET['saved'])): ?>
       <div class="alert-success">✅ <?= htmlspecialchars($_GET['msg'] ?? 'Booking status updated successfully.', ENT_QUOTES) ?></div>
+    <?php endif; ?>
+    <?php if (isset($_GET['err'])): ?>
+      <?php if ($_GET['err'] === 'locked'): ?>
+        <div class="alert-error">🔒 This booking is permanently finalized (<strong><?= ucfirst(htmlspecialchars($b['status'])) ?></strong>) and cannot be modified.</div>
+      <?php elseif ($_GET['err'] === 'invalid'): ?>
+        <div class="alert-error">⚠️ Invalid status transition. Only "Accept Flight" or "Cancel Flight" are permitted.</div>
+      <?php endif; ?>
+    <?php endif; ?>
+
+    <!-- PENDING INITIAL REVIEW ACTION PANEL -->
+    <?php if ($bStatus === 'pending'): ?>
+      <div style="background:#eff6ff; border:2px solid #93c5fd; border-radius:18px; padding:1.5rem 1.75rem; margin-bottom:1.75rem; box-shadow:0 8px 24px rgba(37,99,235,0.08);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <span style="font-size:2rem; line-height:1;">⏳</span>
+          <div>
+            <h2 style="font-family:'Montserrat',sans-serif; font-size:1.25rem; font-weight:800; color:#1e40af; margin:0 0 4px;">
+              New Booking Awaiting Administrator Review
+            </h2>
+            <p style="margin:0; font-size:0.88rem; color:#2563eb;">
+              Submitted on <strong><?= date('F j, Y g:i A', strtotime($b['booking_date'])) ?></strong> &middot; Default Status: <strong>Pending Admin Review</strong>
+            </p>
+          </div>
+        </div>
+
+        <p style="margin:0 0 16px; font-size:0.9rem; color:#1e3a8a; line-height:1.5;">
+          This booking was submitted by <strong><?= htmlspecialchars($b['user_name']) ?></strong> and is currently awaiting administrator decision. Review the itinerary and guest details below, then click <strong>Accept Flight</strong> to officially confirm, or <strong>Cancel Flight</strong> to void the reservation.
+        </p>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <form method="POST" style="display:inline;" onsubmit="return confirm('Accept this flight booking (Ref <?= htmlspecialchars($b['booking_ref']) ?>) and set status to Confirmed?');">
+            <input type="hidden" name="status" value="confirmed">
+            <button type="submit" style="background:#16a34a; color:#fff; border:none; padding:10px 22px; border-radius:10px; font-weight:800; font-size:0.92rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+              ✈ Accept Flight (Confirm Booking)
+            </button>
+          </form>
+          <form method="POST" style="display:inline;" onsubmit="return confirm('Cancel this pending flight booking (Ref <?= htmlspecialchars($b['booking_ref']) ?>)?');">
+            <input type="hidden" name="status" value="cancelled">
+            <button type="submit" style="background:#dc2626; color:#fff; border:none; padding:10px 22px; border-radius:10px; font-weight:800; font-size:0.92rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+              ✕ Cancel Flight
+            </button>
+          </form>
+        </div>
+      </div>
     <?php endif; ?>
 
     <!-- PENDING CANCELLATION ACTION PANEL -->
@@ -274,16 +371,35 @@ $isCancelled = ($bStatus === 'cancelled');
                 <span class="badge badge-<?= $b['status'] ?>" style="font-size:.9rem;padding:5px 14px;"><?= ucfirst($b['status']) ?></span>
               <?php endif; ?>
             </div>
-            <form method="POST" class="status-form">
-              <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.06em;">Change Status</label>
-              <select name="status">
-                <option value="confirmed" <?= $b['status']==='confirmed'?'selected':'' ?>>Confirmed</option>
-                <option value="pending_cancellation" <?= $b['status']==='pending_cancellation'?'selected':'' ?>>Pending Cancellation</option>
-                <option value="pending"   <?= $b['status']==='pending'  ?'selected':'' ?>>Pending</option>
-                <option value="cancelled" <?= $b['status']==='cancelled'?'selected':'' ?>>Cancelled</option>
-              </select>
-              <button type="submit" class="status-save">Save Status</button>
-            </form>
+            <?php if ($bStatus === 'confirmed'): ?>
+              <!-- LOCKED STATE: CONFIRMED -->
+              <div style="display:flex;align-items:center;gap:12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:14px 16px;margin-top:.5rem;">
+                <span style="font-size:1.5rem;line-height:1;">🔒</span>
+                <div>
+                  <div style="font-weight:800;color:#15803d;font-size:.9rem;">Flight Confirmed — Permanently Locked</div>
+                  <div style="font-size:.78rem;color:#166534;margin-top:2px;line-height:1.4;">This booking is confirmed. No further status changes or cancellations are permitted.</div>
+                </div>
+              </div>
+            <?php elseif ($bStatus === 'cancelled'): ?>
+              <!-- LOCKED STATE: CANCELLED -->
+              <div style="display:flex;align-items:center;gap:12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:14px 16px;margin-top:.5rem;">
+                <span style="font-size:1.5rem;line-height:1;">🔒</span>
+                <div>
+                  <div style="font-weight:800;color:#991b1b;font-size:.9rem;">Flight Cancelled — Permanently Finalized</div>
+                  <div style="font-size:.78rem;color:#b91c1c;margin-top:2px;line-height:1.4;">This booking has reached its final state. No further status modifications are allowed.</div>
+                </div>
+              </div>
+            <?php else: ?>
+              <!-- ACCEPT / CANCEL FORM — only shown for non-finalized bookings (e.g. pending) -->
+              <form method="POST" class="status-form">
+                <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.06em;">Change Status</label>
+                <select name="status">
+                  <option value="confirmed">✈ Accept Flight</option>
+                  <option value="cancelled">✕ Cancel Flight</option>
+                </select>
+                <button type="submit" class="status-save">Save Status</button>
+              </form>
+            <?php endif; ?>
           </div>
         </div>
 
@@ -311,5 +427,13 @@ $isCancelled = ($bStatus === 'cancelled');
     </div>
   </div>
 </div>
+<script>
+// Prevent stale UI when user navigates using browser Back/Forward buttons
+window.addEventListener('pageshow', function (event) {
+  if (event.persisted || (window.performance && window.performance.getEntriesByType && window.performance.getEntriesByType('navigation')[0] && window.performance.getEntriesByType('navigation')[0].type === 'back_forward')) {
+    window.location.reload();
+  }
+});
+</script>
 </body>
 </html>

@@ -15,11 +15,8 @@ security:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
         main:
-            lazy: true
-            provider: app_user_provider
-
-    access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
+            pattern: ^/
+            security: false
 
 when@test:
     security:

@@ -20,7 +20,7 @@ $nav = function($file, $icon, $label) use ($currentPage) {
 
   <nav class="sidebar-nav">
     <div class="nav-section-label">Overview</div>
-    <?php $nav('index.php', '📊', 'Dashboard'); ?>
+    <?php $nav(ag_base_url('admin'), '📊', 'Dashboard'); ?>
     <?php $nav('bookings.php', '🎫', 'All Bookings'); ?>
     <?php $nav('users.php', '👥', 'Users'); ?>
 

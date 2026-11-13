@@ -52,9 +52,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'status_change' && $bId) {
-        $ns = in_array($_POST['new_status'], ['confirmed', 'pending', 'cancelled', 'pending_cancellation']) ? $_POST['new_status'] : 'confirmed';
-        $db->prepare("UPDATE bookings SET status=:s WHERE id=:id")->execute([':s'=>$ns, ':id'=>$bId]);
-        admin_log("Changed booking #{$bId} status to {$ns}", "booking:{$bId}");
+        // Security: fetch current status — finalized bookings (confirmed or cancelled) cannot be changed
+        $curStmt = $db->prepare("SELECT grand_total, booking_ref, status FROM bookings WHERE id=:id LIMIT 1");
+        $curStmt->execute([':id' => $bId]);
+        $bRow = $curStmt->fetch();
+        $curStatus = strtolower((string)($bRow['status'] ?? ''));
+        if (in_array($curStatus, ['confirmed', 'cancelled'], true)) {
+            admin_log("Attempted status change on finalized booking #{$bId} ({$curStatus})", "booking:{$bId}");
+            header('Location: bookings.php?err=locked');
+            exit;
+        }
+        // Only confirmed and cancelled are valid transitions
+        $ns = in_array($_POST['new_status'] ?? '', ['confirmed', 'cancelled'], true) ? $_POST['new_status'] : null;
+        if ($ns === null) {
+            header('Location: bookings.php?err=invalid');
+            exit;
+        }
+        if ($ns === 'cancelled') {
+            $gt = (float)($bRow['grand_total'] ?? 0);
+            $fee = min(500.00, $gt);
+            $refund = max(0.00, $gt - $fee);
+            $db->prepare("UPDATE bookings SET status='cancelled', cancellation_fee=:fee, refund_amount=:ref, cancelled_at=NOW(), admin_notes='Cancelled by Administrator' WHERE id=:id")
+               ->execute([':fee' => $fee, ':ref' => $refund, ':id' => $bId]);
+            admin_log("Admin finalized booking #{$bId} ({$bRow['booking_ref']}) to CANCELLED (Permanent Final State). Fee: P{$fee}, Refund: P{$refund}", "booking:{$bId}");
+        } else {
+            $db->prepare("UPDATE bookings SET status='confirmed' WHERE id=:id")->execute([':id' => $bId]);
+            admin_log("Admin finalized booking #{$bId} ({$bRow['booking_ref']}) to CONFIRMED (Permanent Final State)", "booking:{$bId}");
+        }
         header('Location: bookings.php?updated=1'); 
         exit;
     }
@@ -67,8 +91,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
-// Count pending cancellations for alert badge
+// Count pending cancellations and pending reviews for alert badges
 $pendingCount = (int)$db->query("SELECT COUNT(*) FROM bookings WHERE status='pending_cancellation'")->fetchColumn();
+$pendingReviewCount = (int)$db->query("SELECT COUNT(*) FROM bookings WHERE status='pending'")->fetchColumn();
 
 // Query builder
 $where = []; $params = [];
@@ -238,11 +263,34 @@ admin_log('Viewed bookings list');
     <?php endif; ?>
     <?php if (isset($_GET['updated'])): ?><div class="alert-success">✅ Booking status updated.</div><?php endif; ?>
     <?php if (isset($_GET['deleted'])): ?><div class="alert-warning">🗑 Booking deleted.</div><?php endif; ?>
+    <?php if (isset($_GET['err'])): ?>
+      <?php if ($_GET['err'] === 'locked'): ?>
+        <div class="alert-error">🔒 This booking is permanently finalized and cannot be modified.</div>
+      <?php elseif ($_GET['err'] === 'invalid'): ?>
+        <div class="alert-error">⚠️ Invalid status transition. Only Confirmed or Cancelled are permitted.</div>
+      <?php endif; ?>
+    <?php endif; ?>
 
     <div class="page-header">
       <h1 class="page-title">Bookings</h1>
       <p class="page-subtitle"><?= number_format($total) ?> booking(s) found</p>
     </div>
+
+    <!-- PENDING REVIEWS ALERT BANNER -->
+    <?php if ($pendingReviewCount > 0): ?>
+      <div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 4px 14px rgba(37,99,235,0.08);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:1.6rem; line-height:1;">⏳</span>
+          <div>
+            <div style="font-weight:800; color:#1e40af; font-size:0.95rem;">Action Needed: <?= $pendingReviewCount ?> New Booking(s) Awaiting Review</div>
+            <div style="font-size:0.82rem; color:#2563eb;">New reservations default to Pending and require admin acceptance before confirmation.</div>
+          </div>
+        </div>
+        <a href="bookings.php?status=pending" style="background:#2563eb; color:#ffffff; padding:7px 16px; border-radius:10px; font-size:0.85rem; font-weight:800; text-decoration:none; transition:background 0.2s;">
+          Review Pending Bookings (<?= $pendingReviewCount ?>) &rarr;
+        </a>
+      </div>
+    <?php endif; ?>
 
     <!-- PENDING CANCELLATIONS ALERT BANNER -->
     <?php if ($pendingCount > 0): ?>
@@ -297,10 +345,10 @@ admin_log('Viewed bookings list');
         <label class="filter-label">Status</label>
         <select class="filter-select" name="status">
           <option value="">All Statuses</option>
+          <option value="pending" <?= $status==='pending'?'selected':'' ?>>Pending <?= $pendingReviewCount > 0 ? "({$pendingReviewCount})" : '' ?></option>
           <option value="confirmed" <?= $status==='confirmed'?'selected':'' ?>>Confirmed</option>
           <option value="pending_cancellation" <?= $status==='pending_cancellation'?'selected':'' ?>>Pending Cancellation <?= $pendingCount > 0 ? "({$pendingCount})" : '' ?></option>
           <option value="cancelled" <?= $status==='cancelled'?'selected':'' ?>>Cancelled</option>
-          <option value="pending" <?= $status==='pending'?'selected':'' ?>>Pending</option>
         </select>
       </div>
       <div class="filter-group">
@@ -375,6 +423,26 @@ admin_log('Viewed bookings list');
                               title="Reject cancellation request and restore confirmed status">
                         ✕ Reject
                       </button>
+                    <?php elseif ($bStatus === 'pending'): ?>
+                      <!-- ACCEPT FLIGHT BUTTON -->
+                      <form method="POST" style="display:inline;" onsubmit="return confirm('Accept this flight reservation (Ref <?= htmlspecialchars($b['booking_ref']) ?>) and set to Confirmed?');">
+                        <input type="hidden" name="action" value="status_change">
+                        <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
+                        <input type="hidden" name="new_status" value="confirmed">
+                        <button type="submit" class="admin-action-btn" style="background:#16a34a;color:#fff;border:none;padding:5px 11px;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;" title="Accept Flight — Confirm booking">
+                          ✓ Accept
+                        </button>
+                      </form>
+
+                      <!-- CANCEL FLIGHT BUTTON -->
+                      <form method="POST" style="display:inline;" onsubmit="return confirm('Cancel this pending reservation (Ref <?= htmlspecialchars($b['booking_ref']) ?>)?');">
+                        <input type="hidden" name="action" value="status_change">
+                        <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
+                        <input type="hidden" name="new_status" value="cancelled">
+                        <button type="submit" class="admin-action-btn" style="background:#dc2626;color:#fff;border:none;padding:5px 11px;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;" title="Cancel Flight">
+                          ✕ Cancel
+                        </button>
+                      </form>
                     <?php endif; ?>
 
                     <a href="booking_detail.php?id=<?= $b['id'] ?>" class="action-btn" style="background:#dbeafe;color:#1d4ed8;text-decoration:none;">View</a>

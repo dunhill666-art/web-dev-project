@@ -30,7 +30,7 @@ $activeNav   = $activeNav ?? '';
 
     <div class="nav-right">
       <?php if (auth_is_admin()): ?>
-        <a class="nav-auth-btn" href="<?= ag_base_url('admin/index.php') ?>" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;margin-right:6px;" title="Admin Dashboard">
+        <a class="nav-auth-btn" href="<?= ag_base_url('admin') ?>" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;margin-right:6px;" title="Admin Dashboard">
           <span>🛡️ Admin Panel</span>
         </a>
       <?php endif; ?>

@@ -1,7 +1,13 @@
 <?php
 // admin access check
-
+if (session_status() === PHP_SESSION_NONE) {
+    session_cache_limiter('');
+}
 require_once dirname(__DIR__) . '/user/auth_helper.php';
+
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0', true);
+header('Pragma: no-cache', true);
+header('Expires: 0', true);
 
 if (!auth_is_logged_in() || !auth_is_admin()) {
     header('Location: ' . ag_base_url('user/login.php?error=' . urlencode('Admin access only. Please log in with an administrator account.')));

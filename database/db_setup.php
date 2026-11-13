@@ -104,7 +104,7 @@ try {
             `cancelled_at`    DATETIME NULL DEFAULT NULL,
             `promo_code`      VARCHAR(30)  NULL,
             `payment_method`  VARCHAR(30)  NULL,
-            `status`          ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'confirmed',
+            `status`          ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'pending',
             `cancellation_reason` VARCHAR(255) NULL,
             `admin_notes`     TEXT NULL,
             `cancellation_requested_at` DATETIME NULL,
@@ -114,7 +114,7 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
 
-    try { $pdo->exec("ALTER TABLE `bookings` MODIFY COLUMN `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'confirmed'"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE `bookings` MODIFY COLUMN `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'pending'"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `cancellation_fee` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `grand_total`"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `refund_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `cancellation_fee`"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE `bookings` ADD COLUMN `cancelled_at` DATETIME NULL DEFAULT NULL AFTER `refund_amount`"); } catch (Exception $e) {}
@@ -323,7 +323,7 @@ try {
     <?php endif; ?>
     <div class="links">
       <a href="../index.php" class="btn btn-blue">Go to Homepage</a>
-      <a href="../admin/index.php" class="btn btn-blue">Open Admin Panel</a>
+      <a href="<?= function_exists('ag_base_url') ? ag_base_url('admin') : '../admin' ?>" class="btn btn-blue">Open Admin Panel</a>
       <a href="../user/login.php" class="btn btn-gray">Login Page</a>
     </div>
   </div>

@@ -6,7 +6,7 @@
 <title>Admin Dashboard — AeroGlide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="{{ ag_base_url('admin/admin.css') }}">
 <style>
 .sf-pill {
   background: linear-gradient(135deg, #0f172a, #1e293b);
@@ -108,7 +108,7 @@
         <span id="refreshIcon">🔄</span> Refresh Data
       </button>
       <span style="font-size:.82rem;color:var(--muted);">📅 {{ "now"|date("l, F j, Y") }}</span>
-      <a href="bookings.php" class="topbar-btn btn-primary">Manage Bookings</a>
+      <a href="{{ ag_base_url('admin/bookings.php') }}" class="topbar-btn btn-primary">Manage Bookings</a>
     </div>
   </header>
 
@@ -134,7 +134,7 @@
             <div style="font-size:0.85rem; color:#b45309;">Review traveler refund requests, authorize ₱500 fee deductions, and void itineraries.</div>
           </div>
         </div>
-        <a href="bookings.php?status=pending_cancellation" style="background:#d97706; color:#ffffff; padding:8px 18px; border-radius:10px; font-size:0.88rem; font-weight:800; text-decoration:none;">
+        <a href="{{ ag_base_url('admin/bookings.php?status=pending_cancellation') }}" style="background:#d97706; color:#ffffff; padding:8px 18px; border-radius:10px; font-size:0.88rem; font-weight:800; text-decoration:none;">
           Process Cancellations &rarr;
         </a>
       </div>
@@ -206,7 +206,7 @@
       <div class="section-card">
         <div class="section-head">
           <span class="section-head-title">Top Philippine Destinations</span>
-          <a href="revenue.php">Full Revenue Report</a>
+          <a href="{{ ag_base_url('admin/revenue.php') }}">Full Revenue Report</a>
         </div>
         <div class="chart-bar-h">
           {% if top_destinations is empty %}
@@ -299,7 +299,7 @@
           <span class="section-head-title">Live Reservation Stream</span>
           <span class="badge badge-user">{{ summary.total_bookings }} Records</span>
         </div>
-        <a href="bookings.php">View All Bookings &rarr;</a>
+        <a href="{{ ag_base_url('admin/bookings.php') }}">View All Bookings &rarr;</a>
       </div>
       <div class="table-wrap">
         <table class="data-table">
@@ -323,7 +323,7 @@
               {% for b in recent_bookings %}
                 <tr>
                   <td>
-                    <a href="booking_detail.php?id={{ b.id }}" style="text-decoration:none;">
+                    <a href="{{ ag_base_url('admin/booking_detail.php?id=' ~ b.id) }}" style="text-decoration:none;">
                       <code style="font-size:.78rem;background:#f1f5f9;padding:3px 7px;border-radius:6px;color:var(--blue);font-weight:700;">{{ b.bookingRef }}</code>
                     </a>
                   </td>
@@ -349,7 +349,7 @@
                     {% endif %}
                   </td>
                   <td>
-                    <a href="booking_detail.php?id={{ b.id }}" class="action-btn" style="background:#f1f5f9;color:var(--ink);text-decoration:none;display:inline-block;">View</a>
+                    <a href="{{ ag_base_url('admin/booking_detail.php?id=' ~ b.id) }}" class="action-btn" style="background:#f1f5f9;color:var(--ink);text-decoration:none;display:inline-block;">View</a>
                   </td>
                 </tr>
               {% endfor %}
@@ -365,7 +365,7 @@
       <div class="section-card">
         <div class="section-head">
           <span class="section-head-title">Administrative Audit Stream</span>
-          <a href="logs.php">All Logs</a>
+          <a href="{{ ag_base_url('admin/logs.php') }}">All Logs</a>
         </div>
         <div class="table-wrap">
           <table class="data-table">
@@ -402,7 +402,7 @@
       <div class="section-card">
         <div class="section-head">
           <span class="section-head-title">Recent Traveler Registrations</span>
-          <a href="users.php">All Users</a>
+          <a href="{{ ag_base_url('admin/users.php') }}">All Users</a>
         </div>
         <div class="table-wrap">
           <table class="data-table">
@@ -446,7 +446,7 @@ function refreshDashboardData() {
   if (icon) icon.classList.add('sync-spinning');
   if (btn) btn.disabled = true;
 
-  fetch('index.php?action=api_stats', {
+  fetch('{{ ag_base_url('admin/api/stats') }}', {
     headers: { 'X-Requested-With': 'XMLHttpRequest' }
   })
   .then(res => res.json())

@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `bookings` (
   `cancelled_at` DATETIME NULL DEFAULT NULL,
   `promo_code` VARCHAR(30) NULL,
   `payment_method` VARCHAR(30) NULL,
-  `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'confirmed',
+  `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'pending',
   `cancellation_reason` VARCHAR(255) NULL,
   `admin_notes` TEXT NULL,
   `cancellation_requested_at` DATETIME NULL,

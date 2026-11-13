@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `bookings` (
   `cancelled_at` DATETIME NULL DEFAULT NULL,
   `promo_code` VARCHAR(30) NULL,
   `payment_method` VARCHAR(30) NULL,
-  `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'confirmed',
+  `status` ENUM('confirmed','pending','cancelled','pending_cancellation') NOT NULL DEFAULT 'pending',
   `cancellation_reason` VARCHAR(255) NULL,
   `admin_notes` TEXT NULL,
   `cancellation_requested_at` DATETIME NULL,
@@ -106,13 +106,13 @@ CREATE TABLE IF NOT EXISTS `flights` (
 
 -- Administrator: admin / admin2026!
 INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)
-VALUES (1, 'admin', 'AeroGlide Admin', 'admin@aeroglide.com', '$2y$12$q5QJiiZ84NAQ7PqCULGQleMj4i8UTRh5pKP8ndNDtDcvYFw3h7.Jq', 'admin', 'SEPTDEAL2026')
-ON DUPLICATE KEY UPDATE `role` = 'admin';
+VALUES (1, 'admin', 'AeroGlide Admin', 'admin@aeroglide.com', '$2y$12$vovP1I4rrpsGlmmgxcN1m.9EUgwBoOgUAgDGeuoDn7at6xqD/yZN.', 'admin', 'SEPTDEAL2026')
+ON DUPLICATE KEY UPDATE `password` = '$2y$12$vovP1I4rrpsGlmmgxcN1m.9EUgwBoOgUAgDGeuoDn7at6xqD/yZN.', `role` = 'admin';
 
 -- Traveler Demo: demo / password123
 INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)
-VALUES (2, 'demo', 'Juan Dela Cruz', 'juan@aeroglide.com', '$2y$12$.e77SRo.9ti0/jOibLwf5.0Cbai0grAvlXNkm8BkWilPf1faGrph.', 'user', 'SEPTDEAL2026')
-ON DUPLICATE KEY UPDATE `role` = 'user';
+VALUES (2, 'demo', 'Juan Dela Cruz', 'juan@aeroglide.com', '$2y$12$Wnm/wCHRCA3wduBr4kiwW.Bvannto71gcZfqyqeI8jKkjWV6uK6wO', 'user', 'SEPTDEAL2026')
+ON DUPLICATE KEY UPDATE `password` = '$2y$12$Wnm/wCHRCA3wduBr4kiwW.Bvannto71gcZfqyqeI8jKkjWV6uK6wO', `role` = 'user';
 
 -- Initial Sample Reservation
 INSERT INTO `bookings` (`id`, `user_id`, `booking_ref`, `booking_date`, `traveler_name`, `traveler_email`, `traveler_phone`, `city`, `mode`, `adults`, `cabin`, `fare_name`, `fare_desc`, `flight_schedule`, `subtotal`, `grand_total`, `status`)

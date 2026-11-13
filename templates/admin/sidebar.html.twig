@@ -10,21 +10,21 @@
 
   <nav class="sidebar-nav">
     <div class="nav-section-label">Overview</div>
-    <a href="index.php" class="nav-link {% if current_page == 'index.php' or current_page == 'dashboard' %}active{% endif %}">
+    <a href="{{ ag_base_url('admin') }}" class="nav-link {% if current_page == 'index.php' or current_page == 'dashboard' or current_page == 'admin' %}active{% endif %}">
       <span class="nav-icon">📊</span> Dashboard
     </a>
-    <a href="bookings.php" class="nav-link {% if current_page == 'bookings.php' %}active{% endif %}">
+    <a href="{{ ag_base_url('admin/bookings.php') }}" class="nav-link {% if current_page == 'bookings.php' %}active{% endif %}">
       <span class="nav-icon">🎫</span> All Bookings
     </a>
-    <a href="users.php" class="nav-link {% if current_page == 'users.php' %}active{% endif %}">
+    <a href="{{ ag_base_url('admin/users.php') }}" class="nav-link {% if current_page == 'users.php' %}active{% endif %}">
       <span class="nav-icon">👥</span> Users
     </a>
 
     <div class="nav-section-label" style="margin-top:.75rem;">Reports</div>
-    <a href="revenue.php" class="nav-link {% if current_page == 'revenue.php' %}active{% endif %}">
+    <a href="{{ ag_base_url('admin/revenue.php') }}" class="nav-link {% if current_page == 'revenue.php' %}active{% endif %}">
       <span class="nav-icon">💰</span> Revenue
     </a>
-    <a href="logs.php" class="nav-link {% if current_page == 'logs.php' %}active{% endif %}">
+    <a href="{{ ag_base_url('admin/logs.php') }}" class="nav-link {% if current_page == 'logs.php' %}active{% endif %}">
       <span class="nav-icon">📋</span> Activity Logs
     </a>
 
@@ -42,7 +42,6 @@
         <div class="admin-role">Administrator</div>
       </div>
     </div>
-    <a href="{{ ag_base_url('user/logout.php') }}">Sign Out</a>
+    <a href="{{ ag_base_url('user/logout.php') }}" class="nav-link" style="padding:0;color:var(--muted);font-size:.78rem;" title="Sign out of Admin Session">Sign Out</a>
   </div>
 </aside>
-

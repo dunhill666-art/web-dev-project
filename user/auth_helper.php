@@ -347,7 +347,7 @@ if (!function_exists('auth_add_user_booking')) {
             ':gt'     => $b['grandTotal']     ?? 0,
             ':promo'  => $b['promoCode']      ?? null,
             ':pay'    => $b['paymentMethod']  ?? null,
-            ':status' => $b['status']         ?? 'confirmed',
+            ':status' => $b['status']         ?? 'pending',
         ]);
     }
 }

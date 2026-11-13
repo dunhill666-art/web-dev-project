@@ -435,9 +435,11 @@ if (file_exists(__DIR__ . '/includes/navbar.php')) {
       $bCar        = $b['carName'] ?? '';
       $bTotal      = $b['grandTotal'] ?? $b['subTotal'] ?? 4999;
       $bCoupon     = $b['discountLabel'] ?? '';
-      $rawStatus   = strtolower(trim($b['status'] ?? 'confirmed'));
-      $isCancelled = ($rawStatus === 'cancelled');
-      $isPending   = ($rawStatus === 'pending_cancellation');
+      $rawStatus       = strtolower(trim($b['status'] ?? 'pending'));
+      $isCancelled     = ($rawStatus === 'cancelled');
+      $isPendingCancel = ($rawStatus === 'pending_cancellation');
+      $isPending       = ($rawStatus === 'pending');
+      $isConfirmed     = ($rawStatus === 'confirmed');
     ?>
 
     <?php if ($isCancelled): ?>
@@ -495,7 +497,7 @@ if (file_exists(__DIR__ . '/includes/navbar.php')) {
         </div>
       </div>
 
-    <?php elseif ($isPending): ?>
+    <?php elseif ($isPendingCancel): ?>
       <!-- PENDING CANCELLATION BOOKING CARD -->
       <div class="trip-history-card" style="background:#fffdfa; border:1.5px solid #fde68a; box-shadow:0 8px 24px rgba(217,119,6,0.08);">
         <div class="th-top-row">
@@ -507,7 +509,7 @@ if (file_exists(__DIR__ . '/includes/navbar.php')) {
 
         <h2 class="th-city-title">
           <span>📍</span> <?= htmlspecialchars($bCity, ENT_QUOTES) ?>
-          <span style="font-size:0.75rem; font-weight:800; color:#b45309; background:#fef3c7; padding:3px 10px; border-radius:8px; margin-left:8px;">UNDER ADMIN REVIEW</span>
+          <span style="font-size:0.75rem; font-weight:800; color:#b45309; background:#fef3c7; padding:3px 10px; border-radius:8px; margin-left:8px;">UNDER CANCELLATION REVIEW</span>
         </h2>
 
         <div class="th-details-grid">
@@ -574,6 +576,83 @@ if (file_exists(__DIR__ . '/includes/navbar.php')) {
 
             <button type="button" class="btn-cancel-trip" disabled style="opacity:0.65; cursor:not-allowed; background:#f1f5f9; border-color:#cbd5e1; color:#64748b;" title="A cancellation request has already been submitted and is pending review.">
               <span>⏳</span> Cancellation Pending
+            </button>
+          </div>
+        </div>
+      </div>
+
+    <?php elseif ($isPending): ?>
+      <!-- PENDING ADMIN APPROVAL BOOKING CARD -->
+      <div class="trip-history-card" style="background:#fffdf7; border:1.5px solid #fde68a; box-shadow:0 8px 24px rgba(217,119,6,0.08);">
+        <div class="th-top-row">
+          <span class="th-ref-badge" style="background:#fef3c7; color:#92400e; font-weight:800;">Ref: <?= htmlspecialchars($bRef, ENT_QUOTES) ?></span>
+          <span style="font-size:0.85rem; color:#92400e; font-weight:800; background:#fef3c7; border:1px solid #fde68a; padding:4px 14px; border-radius:999px;">
+            ⏳ Pending Admin Approval
+          </span>
+        </div>
+
+        <h2 class="th-city-title">
+          <span>📍</span> <?= htmlspecialchars($bCity, ENT_QUOTES) ?>
+          <span style="font-size:0.75rem; font-weight:800; color:#b45309; background:#fef3c7; padding:3px 10px; border-radius:8px; margin-left:8px;">AWAITING REVIEW</span>
+        </h2>
+
+        <div class="th-details-grid">
+          <div class="th-detail-box">
+            <span class="th-detail-label">Fare &amp; Cabin Class</span>
+            <span class="th-detail-val"><?= htmlspecialchars($bFare, ENT_QUOTES) ?> &middot; <?= htmlspecialchars($bCabin, ENT_QUOTES) ?> (<?= $bAdults ?> Guest<?= $bAdults > 1 ? 's' : '' ?>)</span>
+          </div>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Flight Schedule</span>
+            <span class="th-detail-val" style="color:#0d6efd;"><?= htmlspecialchars($bSched, ENT_QUOTES) ?></span>
+          </div>
+          <?php if ($bHotel !== ''): ?>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Hotel Accommodation</span>
+            <span class="th-detail-val">🏨 <?= htmlspecialchars($bHotel, ENT_QUOTES) ?> (<?= $b['nights'] ?? 1 ?> nights)</span>
+          </div>
+          <?php endif; ?>
+          <?php if ($bCar !== ''): ?>
+          <div class="th-detail-box">
+            <span class="th-detail-label">Car Rental Service</span>
+            <span class="th-detail-val">🚗 <?= htmlspecialchars($bCar, ENT_QUOTES) ?> (<?= $b['days'] ?? 1 ?> days)</span>
+          </div>
+          <?php endif; ?>
+        </div>
+
+        <!-- PENDING APPROVAL NOTICE -->
+        <div style="background:#fefce8; border:1px solid #fef08a; border-radius:14px; padding:16px 20px; margin-bottom:16px;">
+          <div style="font-size:0.85rem; font-weight:800; color:#854d0e; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <span>⏳</span> Awaiting Administrator Review
+          </div>
+          <p style="margin:0; font-size:0.88rem; color:#713f12; line-height:1.45;">
+            Your reservation has been submitted and is currently awaiting administrator review and confirmation. No further action is required from you at this time. Once an administrator reviews and accepts your booking, your boarding pass will be fully confirmed.
+          </p>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px; border-top:1px solid #f1f5f9; flex-wrap:wrap; gap:16px;">
+          <div>
+            <span style="font-size:0.8rem; color:#5b6b7f; display:block;">Grand Total Paid</span>
+            <strong style="font-size:1.3rem; color:#0a1425; font-family:'Montserrat',sans-serif;">₱<?= number_format($bTotal) ?></strong>
+            <?php if ($bCoupon !== ''): ?>
+              <span style="font-size:0.75rem; color:#16a34a; font-weight:700; display:block; margin-top:2px;">🎉 <?= htmlspecialchars($bCoupon, ENT_QUOTES) ?></span>
+            <?php endif; ?>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="btn-view-ticket" data-ticket='<?= json_encode([
+              'ref'     => $bRef,
+              'name'    => $b['travelerName'] ?? $currentUser['name'],
+              'city'    => $bCity,
+              'sched'   => $bSched,
+              'cabin'   => $bCabin,
+              'fare'    => $bFare,
+              'date'    => date('M d, Y', strtotime('+3 days')),
+            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
+              <span>🎟️</span> View Boarding Pass
+            </button>
+
+            <button type="button" class="btn-cancel-trip" disabled style="opacity:0.65; cursor:not-allowed; background:#f1f5f9; border-color:#cbd5e1; color:#64748b;" title="Your booking is awaiting administrator review.">
+              <span>⏳</span> Pending Review
             </button>
           </div>
         </div>

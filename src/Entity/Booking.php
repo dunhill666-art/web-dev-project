@@ -99,7 +99,7 @@ class Booking
     private ?string $paymentMethod = null;
 
     #[ORM\Column(type: 'string', length: 40)]
-    private string $status = 'confirmed';
+    private string $status = 'pending';
 
     #[ORM\Column(name: 'cancellation_reason', type: 'string', length: 255, nullable: true)]
     private ?string $cancellationReason = null;
@@ -149,7 +149,7 @@ class Booking
             }
             $this->promoCode = $data['promo_code'] ?? null;
             $this->paymentMethod = $data['payment_method'] ?? null;
-            $this->status = $data['status'] ?? 'confirmed';
+            $this->status = $data['status'] ?? 'pending';
             $this->cancellationReason = $data['cancellation_reason'] ?? null;
             $this->adminNotes = $data['admin_notes'] ?? null;
             if (!empty($data['cancellation_requested_at'])) {

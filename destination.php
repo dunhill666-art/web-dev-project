@@ -20,32 +20,116 @@ if (!function_exists('peso')) {
 }
 
 if (!function_exists('asset_gallery')) {
-    function asset_gallery(string $itemName, array $heroFallbackKeywords, int $max = 4): array
+    function asset_gallery(string $itemName, array $heroFallbackKeywords = [], int $max = 4, string $kind = 'auto'): array
     {
+        $lowerItem = strtolower($itemName);
+
+        // Auto-detect kind if not explicitly passed
+        if ($kind === 'auto') {
+            if (preg_match('/\b(sedan|suv|van|car|scooter|motorbike|bike|trike|shuttle|transfer|boat|outrigger|rental)\b/i', $itemName)
+                && !preg_match('/\b(hotel|resort|inn|lodge|cabin|villas|haven|suites|stay)\b/i', $itemName)) {
+                $kind = 'car';
+            } else {
+                $kind = 'hotel';
+            }
+        }
+
+        // ==========================================
+        // 1. DEDICATED VEHICLE ROUTING (KIND = CAR)
+        // ==========================================
+        if ($kind === 'car') {
+            if (str_contains($lowerItem, 'sedan') || str_contains($lowerItem, 'economy')) {
+                return [ag_base_url('asset/economy%20sedan.jpg')];
+            }
+            if (str_contains($lowerItem, 'suv')) {
+                return [ag_base_url('asset/mid%20size%20suv%20for%20tourist%20white%20background.jpg')];
+            }
+            if (str_contains($lowerItem, 'van') || str_contains($lowerItem, 'shuttle')) {
+                return [ag_base_url('asset/tourist%20van.jpg')];
+            }
+            if (str_contains($lowerItem, 'scooter') || str_contains($lowerItem, 'motorbike') || str_contains($lowerItem, 'bike') || str_contains($lowerItem, 'fazzio')) {
+                return [ag_base_url('asset/siargao/MIO-FAZZIO-1.jpg')];
+            }
+            if (str_contains($lowerItem, 'boat') || str_contains($lowerItem, 'transfer') || str_contains($lowerItem, 'outrigger')) {
+                return [ag_base_url('asset/outrigger%20boat%20transfer.jpg')];
+            }
+            if (str_contains($lowerItem, 'trike')) {
+                return [ag_base_url('asset/tourist%20van.jpg')];
+            }
+            return [ag_base_url('asset/economy%20sedan.jpg')];
+        }
+
+        // ==========================================
+        // 2. DEDICATED HOTEL ROUTING (KIND = HOTEL)
+        // ==========================================
         $files  = asset_index();
         $needle = strtolower(preg_replace('/[^a-z0-9]+/i', '', $itemName));
+
+        // System files, non-hotel assets, and vehicles that must NEVER be returned for a hotel
+        $disallowedFiles = [
+            'logo', 'cloud', 'aboutplane', 'airoplane', 'deal', 'avatar',
+            'economysedan', 'midsize', 'suv', 'touristvan', 'miofazzio', 'fazzio',
+            'outriggerboattransfer',
+            // scenery hero banners that shouldn't represent a hotel
+            'albayjpg', 'coronjpg', 'taalvolcanophilippines', 'mayonvolcanophilippines',
+            'chocolatehillscarmenboholancientorigins', 'malapascuaislandphilippines',
+            'siargaoislandphilippines', 'boracaysunrisemagic'
+        ];
 
         $matches = [];
         $seen = [];
 
-        // 1. Direct match on full squashed needle
+        // 1. Direct match on item name (e.g. "Dahilayan Eco Resort 1.jpg" contains "dahilayanecoresort")
         if ($needle !== '') {
             foreach ($files as $f) {
                 if (isset($seen[$f['name']])) continue;
-                if (strpos($f['squash'], $needle) !== false || strpos($needle, $f['squash']) !== false) {
+
+                // Skip vehicles and system files
+                $isDisallowed = false;
+                foreach ($disallowedFiles as $dis) {
+                    if (strpos($f['squash'], $dis) !== false) {
+                        $isDisallowed = true;
+                        break;
+                    }
+                }
+                if ($isDisallowed) continue;
+
+                // Match if file contains the item name (e.g. Dahilayan Eco Resort 1.jpg contains dahilayanecoresort)
+                if (strpos($f['squash'], $needle) !== false) {
                     $matches[] = $f;
                     $seen[$f['name']] = true;
                 }
             }
         }
 
-        // 2. Keyword token fallback for words
+        // 2. Word token fallback (strict: match word boundaries in $f['norm'] so "pine" doesn't match "philippines" and "eco" doesn't match "economy sedan")
         if (empty($matches)) {
-            $words = array_filter(explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))), fn($w) => strlen($w) >= 3 && !in_array($w, ['hotel', 'resort', 'inn', 'lodge', 'beach', 'view', 'dive', 'stay', 'town', 'island', 'house', 'park', 'villas', 'haven', 'travelers', 'rental', 'white', 'background']));
+            $stopWords = [
+                'hotel', 'resort', 'inn', 'lodge', 'beach', 'view', 'dive', 'stay', 'town',
+                'island', 'house', 'park', 'villas', 'haven', 'travelers', 'rental', 'white',
+                'background', 'eco', 'pine', 'and', 'the'
+            ];
+            $words = array_filter(
+                explode(' ', strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $itemName))),
+                fn($w) => strlen($w) >= 4 && !in_array($w, $stopWords, true)
+            );
+
             foreach ($words as $w) {
                 foreach ($files as $f) {
                     if (isset($seen[$f['name']])) continue;
-                    if (strpos($f['squash'], $w) !== false || strpos($f['norm'], ' ' . $w . ' ') !== false) {
+
+                    // Skip vehicles and system files
+                    $isDisallowed = false;
+                    foreach ($disallowedFiles as $dis) {
+                        if (strpos($f['squash'], $dis) !== false) {
+                            $isDisallowed = true;
+                            break;
+                        }
+                    }
+                    if ($isDisallowed) continue;
+
+                    // Strict word boundary match on normalized name
+                    if (strpos($f['norm'], ' ' . $w . ' ') !== false) {
                         $matches[] = $f;
                         $seen[$f['name']] = true;
                     }
@@ -54,43 +138,42 @@ if (!function_exists('asset_gallery')) {
             }
         }
 
-        // 3. Category fallback if no specific asset matches
-        if (empty($matches)) {
-            $lowerItem = strtolower($itemName);
-            if (str_contains($lowerItem, 'sedan') || str_contains($lowerItem, 'car')) {
-                return [asset_find(['sedan', 'economy sedan'])];
-            } elseif (str_contains($lowerItem, 'suv')) {
-                return [asset_find(['suv', 'mid size suv'])];
-            } elseif (str_contains($lowerItem, 'van')) {
-                return [asset_find(['van', 'tourist van'])];
-            } elseif (str_contains($lowerItem, 'scooter') || str_contains($lowerItem, 'motorbike') || str_contains($lowerItem, 'bike') || str_contains($lowerItem, 'fazzio')) {
-                return [asset_find(['fazzio', 'mio'])];
-            } elseif (str_contains($lowerItem, 'boat') || str_contains($lowerItem, 'transfer') || str_contains($lowerItem, 'outrigger')) {
-                return [asset_find(['coron'])];
-            } else {
-                $hotelPool = [
-                    'asset/Bellevue Resort Bohol.jpg',
-                    'asset/Communal Ranch Lodge.jpg',
-                    'asset/Discovery Shores Boracay.jpg',
-                    'asset/Henann Regency Resort & Spa 1.jpg',
-                    'asset/Ocean Vida Beach & Dive Resort.jpg',
-                    'asset/Shangri-La Boracay Resort & Spa 1.jpg',
-                    'asset/Taalisay Ridge Resort.jpg',
-                    'asset/albay/Harbor View Inn 1.jpg',
-                    'asset/albay/Seaside Garden Hotel 1.jpg',
-                    'asset/coron/coron-soleil-garden-resort.jpg',
-                    'asset/coron/Coron Westown Resort, Palawan, Philippines.jpg',
-                    'asset/siargao/Bravo Beach Resort, Siargao Island _ 2026 Updated Prices, Deals.jpg',
-                    'asset/siargao/Nay Palad Hideaway.jpg',
-                    'asset/siargao/kermit surf.jpg',
-                ];
-                $idx = abs(crc32($itemName)) % count($hotelPool);
-                return [asset_url($hotelPool[$idx])];
-            }
+        // 3. Fallback: if matches found, sort natural and return up to $max
+        if (!empty($matches)) {
+            usort($matches, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+            return array_map('asset_url', array_slice($matches, 0, $max));
         }
 
-        usort($matches, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
-        return array_map('asset_url', array_slice($matches, 0, $max));
+        // 4. Default Curated Hotel Pool (grouped in 4-image sets)
+        $hotelGalleries = [
+            [
+                'asset/Shangri-La Boracay Resort & Spa 1.jpg',
+                'asset/Shangri-La Boracay Resort & Spa 2.jpg',
+                'asset/Shangri-La Boracay Resort & Spa 3.jpg',
+                'asset/Shangri-La Boracay Resort & Spa 4.jpg',
+            ],
+            [
+                'asset/Henann Regency Resort & Spa 1.jpg',
+                'asset/Henann Regency Resort & Spa 2.jpg',
+                'asset/Henann Regency Resort & Spa 3.jpg',
+                'asset/Henann Regency Resort & Spa 4.jpg',
+            ],
+            [
+                'asset/albay/Seaside Garden Hotel 1.jpg',
+                'asset/albay/Seaside Garden Hotel 2.jpg',
+                'asset/albay/Seaside Garden Hotel 3.jpg',
+                'asset/albay/Seaside Garden Hotel 4.jpg',
+            ],
+            [
+                'asset/Dahilayan Eco Resort 1.jpg',
+                'asset/Dahilayan Eco Resort 2.jpg',
+                'asset/Dahilayan Eco Resort 3.jpg',
+                'asset/Dahilayan Eco Resort 4.jpg',
+            ],
+        ];
+
+        $idx = abs(crc32($itemName)) % count($hotelGalleries);
+        return array_map('asset_url', array_slice($hotelGalleries[$idx], 0, $max));
     }
 }
 
@@ -1529,7 +1612,7 @@ $activeNav = 'deals';
 
   <div class="option-grid" id="hotel-grid" data-kind="hotel">
     <?php foreach ($destination['hotels'] as $i => $hotel): 
-      $hotelImages = asset_gallery($hotel['name'], $destination['asset']);
+      $hotelImages = asset_gallery($hotel['name'], $destination['asset'], 4, 'hotel');
       $hasMultiple = count($hotelImages) > 1;
     ?>
     <div class="option-card<?= $i === 0 ? ' is-selected' : '' ?>"
@@ -1591,7 +1674,7 @@ $activeNav = 'deals';
 
   <div class="option-grid" id="car-grid" data-kind="car">
     <?php foreach ($destination['cars'] as $i => $car): 
-      $carImages = asset_gallery($car['name'], $destination['asset']);
+      $carImages = asset_gallery($car['name'], $destination['asset'], 4, 'car');
       $hasMultiple = count($carImages) > 1;
     ?>
     <div class="option-card<?= $i === 0 ? ' is-selected' : '' ?>" tabindex="0" role="button" aria-label="Select <?= htmlspecialchars($car['name'], ENT_QUOTES) ?>"

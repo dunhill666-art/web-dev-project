@@ -4,5 +4,9 @@
 // Permanently redirected to the unified Symfony admin dashboard
 // ============================================================
 
-header('Location: index.php', true, 301);
+require_once dirname(__DIR__) . '/database/config.php';
+require_once dirname(__DIR__) . '/database/function.php';
+
+$target = function_exists('ag_base_url') ? ag_base_url('admin') : '/admin';
+header('Location: ' . $target, true, 301);
 exit;

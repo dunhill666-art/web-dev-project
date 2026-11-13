@@ -21,29 +21,41 @@ class DashboardController extends AbstractController
     private ?Environment $customTwig = null;
 
     public function __construct(
-        ?PDO $pdo = null,
-        ?DashboardService $dashboardService = null
+        ?DashboardService $dashboardService = null,
+        ?Environment $twig = null,
+        ?PDO $pdo = null
     ) {
         $this->pdo = $pdo ?? DatabaseFactory::getConnection();
         $this->dashboardService = $dashboardService ?? new DashboardService($this->pdo);
-
-        // Standalone Twig fallback for direct invocation without full Symfony kernel
-        $templatesDir = dirname(__DIR__, 3) . '/templates';
-        if (is_dir($templatesDir)) {
-            $loader = new FilesystemLoader($templatesDir);
-            $this->customTwig = new Environment($loader, [
-                'auto_reload' => true,
-                'strict_variables' => false,
-            ]);
-            $this->customTwig->addExtension(new AeroGlideExtension());
-        }
+        $this->customTwig = $twig;
     }
 
     #[Route('/admin', name: 'admin_dashboard', methods: ['GET'])]
+    #[Route('/admin/', name: 'admin_dashboard_slash', methods: ['GET'])]
     #[Route('/admin/dashboard', name: 'admin_dashboard_alias', methods: ['GET'])]
+    #[Route('/admin/index.php', name: 'admin_dashboard_legacy', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        $adminUser = function_exists('auth_get_user') ? auth_get_user() : ['name' => 'Administrator', 'username' => 'admin'];
+        // 1. Session & Access Guard Check
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        $authHelper = dirname(__DIR__, 3) . '/user/auth_helper.php';
+        if (file_exists($authHelper)) {
+            require_once $authHelper;
+        }
+
+        if (function_exists('auth_is_logged_in') && function_exists('auth_is_admin')) {
+            if (!auth_is_logged_in() || !auth_is_admin()) {
+                $loginUrl = function_exists('ag_base_url')
+                    ? ag_base_url('user/login.php?error=' . urlencode('Admin access only. Please log in with an administrator account.'))
+                    : '/user/login.php';
+                return $this->redirect($loginUrl);
+            }
+        }
+
+        $adminUser = function_exists('auth_get_user') ? (auth_get_user() ?? ['name' => 'Administrator', 'username' => 'admin']) : ['name' => 'Administrator', 'username' => 'admin'];
         $data = $this->dashboardService->getDashboardData();
 
         if (function_exists('admin_log')) {
@@ -65,13 +77,24 @@ class DashboardController extends AbstractController
             'current_page' => 'index.php',
         ];
 
-        // Prefer Symfony's containerized Twig if available; otherwise use custom loader
-        if ($this->container && $this->container->has('twig')) {
+        // 2. Safe rendering: use Symfony container render when initialized; fallback cleanly if standalone
+        if (isset($this->container) && $this->container->has('twig')) {
             return $this->render('admin/dashboard.html.twig', $context);
         }
 
-        $html = $this->customTwig->render('admin/dashboard.html.twig', $context);
-        return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        if ($this->customTwig !== null) {
+            return new Response($this->customTwig->render('admin/dashboard.html.twig', $context), 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        }
+
+        $templatesDir = dirname(__DIR__, 3) . '/templates';
+        $loader = new FilesystemLoader($templatesDir);
+        $standaloneTwig = new Environment($loader, [
+            'auto_reload' => true,
+            'strict_variables' => false,
+        ]);
+        $standaloneTwig->addExtension(new AeroGlideExtension());
+        
+        return new Response($standaloneTwig->render('admin/dashboard.html.twig', $context), 200, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
 
     #[Route('/admin/api/stats', name: 'admin_dashboard_api_stats', methods: ['GET'])]

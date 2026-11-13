@@ -1,4 +1,8 @@
 # AeroGlide Web Application Apache Configuration
+<IfModule mod_dir.c>
+    DirectorySlash Off
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
@@ -12,11 +16,21 @@
     # Prevent direct directory browsing
     Options -Indexes
 
-    # If the requested file or directory physically exists, serve it directly
-    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    # 1. Route Symfony Admin Panel virtual routes directly to Symfony Front Controller
+    RewriteRule ^admin/?$ public/index.php [QSA,L]
+    RewriteRule ^admin/index\.php$ public/index.php [QSA,L]
+    RewriteRule ^admin/dashboard/?$ public/index.php [QSA,L]
+    RewriteRule ^admin/api/(.*)$ public/index.php [QSA,L]
+
+    # 2. If the requested file physically exists, serve it directly (e.g. admin/bookings.php, style.css, assets)
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # 3. If a directory exists (other than the admin dashboard itself), serve directly
+    RewriteCond %{REQUEST_URI} !^/admin/?$
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Forward all other requests to the Symfony Front Controller
-    RewriteRule ^ public/index.php [L]
+    # 4. Forward all other requests to the Symfony Front Controller
+    RewriteRule ^ public/index.php [QSA,L]
 </IfModule>

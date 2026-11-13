@@ -169,8 +169,8 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
             'grandTotal'     => $grandTotal,
             'promoCode'      => $discountNum > 0 ? $promoCodeUpper : '',
             'paymentMethod'  => $paymentMethod,
+            'status'         => 'pending',
         ];
-
 
         auth_add_user_booking($currentUser['id'], $newBookingRecord);
 
@@ -517,11 +517,26 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
 
 <?php elseif ($bookingRef): ?>
 
-  <!-- ============ BOOKING CONFIRMED ============ -->
+  <!-- ============ BOOKING SUBMITTED (PENDING ADMIN APPROVAL) ============ -->
   <div class="confirm-box" style="max-width:820px;">
-    <div class="confirm-badge">&#10003;</div>
-    <h1>Booking confirmed!</h1>
-    <p style="color:var(--ag-muted);">Thanks, <?= htmlspecialchars(explode(' ', $travelerName)[0], ENT_QUOTES) ?> &mdash; your trip to <strong style="color:var(--ag-ink);"><?= htmlspecialchars($tripCity, ENT_QUOTES) ?></strong> is booked.</p>
+    <div class="confirm-badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);">&#x23F3;</div>
+    <div style="margin-bottom:10px;">
+      <span class="badge-pending-pill" style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;font-weight:800;padding:6px 18px;border-radius:999px;font-size:0.88rem;letter-spacing:0.04em;">
+        <span>⏳</span> Pending Admin Approval
+      </span>
+    </div>
+    <h1>Booking Submitted!</h1>
+    <p style="color:var(--ag-muted);">Thanks, <?= htmlspecialchars(explode(' ', $travelerName)[0], ENT_QUOTES) ?> &mdash; your trip to <strong style="color:var(--ag-ink);"><?= htmlspecialchars($tripCity, ENT_QUOTES) ?></strong> has been received and is awaiting administrator verification.</p>
+
+    <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:14px 20px;margin:16px auto 20px;max-width:680px;font-size:0.88rem;color:#92400e;line-height:1.5;text-align:left;">
+      <div style="font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span>ℹ️</span> Awaiting Administrator Verification
+      </div>
+      <div>
+        Your booking status is currently <strong>Pending Admin Approval</strong>. All new reservations are queued for administrative review. An administrator will review your itinerary details and verify your booking shortly. You can track this reservation anytime under <strong>My Trips</strong>.
+      </div>
+    </div>
+
     <div class="confirm-ref">Reference: <?= htmlspecialchars($bookingRef, ENT_QUOTES) ?></div>
 
     <!-- ============ OFFICIAL AIRLINE BOARDING PASS TICKET ============ -->
@@ -529,9 +544,9 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
       <div class="ticket-header">
         <div class="ticket-brand">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-          AIRLINE TICKET
+          AIRLINE TICKET (PENDING REVIEW)
         </div>
-        <div class="ticket-stub-title">BOARDING PASS</div>
+        <div class="ticket-stub-title">RESERVATION TICKET</div>
       </div>
 
       <div class="ticket-body">
@@ -688,7 +703,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
       </div>
     </div>
 
-    <p class="lock-note">A confirmation for <?= htmlspecialchars($travelerEmail, ENT_QUOTES) ?> has been generated. Your booking has been saved to your account!</p>
+    <p class="lock-note">A reservation request for <?= htmlspecialchars($travelerEmail, ENT_QUOTES) ?> has been created with status <strong>Pending Admin Approval</strong>. Your booking has been saved to your account!</p>
 
     <div class="confirm-actions">
       <a href="<?= ag_base_url('user/my_bookings.php') ?>" class="primary">View My Trips</a>
