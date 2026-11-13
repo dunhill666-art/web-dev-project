@@ -51,12 +51,13 @@ try {
             `name`          VARCHAR(120) NOT NULL,
             `email`         VARCHAR(180) NOT NULL UNIQUE,
             `password`      VARCHAR(255) NOT NULL,
-            `role`          ENUM('user','admin') NOT NULL DEFAULT 'user',
+            `role`          ENUM('user','staff','admin') NOT NULL DEFAULT 'user',
             `used_coupon`   VARCHAR(30)  NULL DEFAULT NULL COMMENT '1 coupon per account',
             `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `last_login`    DATETIME     NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
+    try { $pdo->exec("ALTER TABLE `users` MODIFY COLUMN `role` ENUM('user','staff','admin') NOT NULL DEFAULT 'user'"); } catch (Exception $e) {}
     $log[] = "✅ Table <strong>users</strong> ready.";
 
     // 3. PASSWORD RESET TOKENS table
@@ -179,15 +180,43 @@ try {
     }
 
 
-    // 6. Seed admin account
-    $adminPass = password_hash('admin2026!', PASSWORD_BCRYPT);
+    // 6. Seed admin accounts (2 total)
+    $admin1Pass = password_hash('admin2026!', PASSWORD_BCRYPT);
     $stmt = $pdo->prepare("
         INSERT INTO `users` (`username`,`name`,`email`,`password`,`role`)
         VALUES ('admin','AeroGlide Admin','admin@aeroglide.com',:pw,'admin')
-        ON DUPLICATE KEY UPDATE `role`='admin'
+        ON DUPLICATE KEY UPDATE `name`='AeroGlide Admin', `password`=:pw2, `role`='admin'
     ");
-    $stmt->execute([':pw' => $adminPass]);
-    $log[] = "✅ Admin account seeded — username: <strong>admin</strong> / password: <strong>admin2026!</strong>";
+    $stmt->execute([':pw' => $admin1Pass, ':pw2' => $admin1Pass]);
+    $log[] = "✅ Admin account 1 seeded — username: <strong>admin</strong> / email: <strong>admin@aeroglide.com</strong> / password: <strong>admin2026!</strong>";
+
+    $admin2Pass = password_hash('Admin@1234', PASSWORD_BCRYPT);
+    $stmt = $pdo->prepare("
+        INSERT INTO `users` (`username`,`name`,`email`,`password`,`role`)
+        VALUES ('admin2','AeroGlide Admin 2','admin2@aeroglide.com',:pw,'admin')
+        ON DUPLICATE KEY UPDATE `name`='AeroGlide Admin 2', `password`=:pw2, `role`='admin'
+    ");
+    $stmt->execute([':pw' => $admin2Pass, ':pw2' => $admin2Pass]);
+    $log[] = "✅ Admin account 2 seeded — username: <strong>admin2</strong> / email: <strong>admin2@aeroglide.com</strong> / password: <strong>Admin@1234</strong>";
+
+    // 6b. Seed staff accounts (2 total)
+    $staff1Pass = password_hash('Staff@1234', PASSWORD_BCRYPT);
+    $stmt = $pdo->prepare("
+        INSERT INTO `users` (`username`,`name`,`email`,`password`,`role`)
+        VALUES ('staff1','Flight Staff 1','staff1@aeroglide.com',:pw,'staff')
+        ON DUPLICATE KEY UPDATE `name`='Flight Staff 1', `password`=:pw2, `role`='staff'
+    ");
+    $stmt->execute([':pw' => $staff1Pass, ':pw2' => $staff1Pass]);
+    $log[] = "✅ Staff account 1 seeded — username: <strong>staff1</strong> / email: <strong>staff1@aeroglide.com</strong> / password: <strong>Staff@1234</strong>";
+
+    $staff2Pass = password_hash('Staff@1234', PASSWORD_BCRYPT);
+    $stmt = $pdo->prepare("
+        INSERT INTO `users` (`username`,`name`,`email`,`password`,`role`)
+        VALUES ('staff2','Flight Staff 2','staff2@aeroglide.com',:pw,'staff')
+        ON DUPLICATE KEY UPDATE `name`='Flight Staff 2', `password`=:pw2, `role`='staff'
+    ");
+    $stmt->execute([':pw' => $staff2Pass, ':pw2' => $staff2Pass]);
+    $log[] = "✅ Staff account 2 seeded — username: <strong>staff2</strong> / email: <strong>staff2@aeroglide.com</strong> / password: <strong>Staff@1234</strong>";
 
     // 7. Seed initial traveler account
     $demoPass = password_hash('password123', PASSWORD_BCRYPT);

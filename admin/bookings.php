@@ -84,6 +84,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'delete' && $bId) {
+        if (!auth_is_admin()) {
+            header('Location: bookings.php?err=denied&msg=' . urlencode('Access Denied: Only full administrators have permission to delete bookings.'));
+            exit;
+        }
         $db->prepare("DELETE FROM bookings WHERE id=:id")->execute([':id'=>$bId]);
         admin_log("Deleted booking #{$bId}", "booking:{$bId}");
         header('Location: bookings.php?deleted=1'); 
@@ -268,6 +272,8 @@ admin_log('Viewed bookings list');
         <div class="alert-error">🔒 This booking is permanently finalized and cannot be modified.</div>
       <?php elseif ($_GET['err'] === 'invalid'): ?>
         <div class="alert-error">⚠️ Invalid status transition. Only Confirmed or Cancelled are permitted.</div>
+      <?php elseif ($_GET['err'] === 'denied'): ?>
+        <div class="alert-error">🚫 <?= htmlspecialchars($_GET['msg'] ?? 'Access Denied: You do not have permission to access that area or perform that action.', ENT_QUOTES) ?></div>
       <?php endif; ?>
     <?php endif; ?>
 
@@ -447,11 +453,13 @@ admin_log('Viewed bookings list');
 
                     <a href="booking_detail.php?id=<?= $b['id'] ?>" class="action-btn" style="background:#dbeafe;color:#1d4ed8;text-decoration:none;">View</a>
 
+                    <?php if (auth_is_admin()): ?>
                     <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this booking permanently?');">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
                       <button type="submit" class="action-btn" style="background:#fee2e2;color:#991b1b;">Delete</button>
                     </form>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>

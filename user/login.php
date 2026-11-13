@@ -46,6 +46,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $res = auth_login($username, $password);
         if ($res['success']) {
             $target = $redirect;
+            $userRole = $_SESSION['user_role'] ?? 'user';
+            if ($city === '' && ($target === ag_base_url('index.php') || empty($_REQUEST['redirect']))) {
+                if ($userRole === 'admin') {
+                    $target = ag_base_url('admin');
+                } elseif ($userRole === 'staff') {
+                    $target = ag_base_url('admin/bookings.php');
+                }
+            }
             if ($city !== '') {
                 $target .= '?city=' . urlencode($city) . '&fare=' . urlencode($fare) . '&fareName=' . urlencode($fareName) . '&desc=' . urlencode($desc) . '&price=' . urlencode($price);
             }

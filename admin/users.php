@@ -4,6 +4,7 @@
 // User Management
 // ============================================================
 require_once __DIR__ . '/guard.php';
+admin_require_full_admin('Access Denied: Staff accounts do not have permission to manage user accounts.');
 
 $db = ag_db();
 $search = trim($_GET['q'] ?? '');
@@ -15,10 +16,13 @@ $perPage = 20; $offset = ($page-1)*$perPage;
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     $uid = (int)($_POST['user_id'] ?? 0);
     if ($_POST['action']==='toggle_role' && $uid) {
-        $cur = $db->prepare("SELECT role FROM users WHERE id=:id")->execute([':id'=>$uid]) ? $db->prepare("SELECT role FROM users WHERE id=:id") : null;
         $cur = $db->prepare("SELECT role FROM users WHERE id=:id"); $cur->execute([':id'=>$uid]);
         $curRole = $cur->fetchColumn();
-        $newRole = $curRole==='admin' ? 'user' : 'admin';
+        $newRole = match($curRole) {
+            'user'  => 'staff',
+            'staff' => 'admin',
+            default => 'user',
+        };
         $db->prepare("UPDATE users SET role=:r WHERE id=:id")->execute([':r'=>$newRole,':id'=>$uid]);
         admin_log("Toggled user #{$uid} role to {$newRole}","user:{$uid}");
         header('Location: users.php?saved=1'); exit;
@@ -100,6 +104,7 @@ admin_log('Viewed users list');
         <select class="filter-select" name="role">
           <option value="">All Roles</option>
           <option value="user"  <?= $role==='user' ?'selected':'' ?>>User</option>
+          <option value="staff" <?= $role==='staff'?'selected':'' ?>>Staff</option>
           <option value="admin" <?= $role==='admin'?'selected':'' ?>>Admin</option>
         </select>
       </div>
@@ -152,7 +157,7 @@ admin_log('Viewed users list');
                     <form method="POST" style="display:inline;">
                       <input type="hidden" name="action" value="toggle_role">
                       <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                      <button type="submit" class="action-btn" style="background:#f3e8ff;color:#7c3aed;"><?= $u['role']==='admin'?'Demote':'Promote' ?></button>
+                      <button type="submit" class="action-btn" style="background:#f3e8ff;color:#7c3aed;"><?= $u['role']==='admin'?'Set User':($u['role']==='staff'?'Make Admin':'Make Staff') ?></button>
                     </form>
                     <?php endif; ?>
                     <?php if ($u['role'] !== 'admin'): ?>

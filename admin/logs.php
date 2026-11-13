@@ -4,6 +4,7 @@
 // Admin Activity Log Viewer
 // ============================================================
 require_once __DIR__ . '/guard.php';
+admin_require_full_admin('Access Denied: Staff accounts do not have permission to view system activity logs.');
 
 $db = ag_db();
 $page    = max(1,(int)($_GET['page'] ?? 1));

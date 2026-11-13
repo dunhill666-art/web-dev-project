@@ -101,3 +101,16 @@ CREATE TABLE IF NOT EXISTS `flights` (
   INDEX `idx_flight_date`(`flight_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ============================================================
+-- Default Seed Accounts (2 Admins, 2 Staff, 1 Traveler)
+-- ============================================================
+
+INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)
+VALUES 
+  (1, 'admin', 'AeroGlide Admin', 'admin@aeroglide.com', '$2y$12$vovP1I4rrpsGlmmgxcN1m.9EUgwBoOgUAgDGeuoDn7at6xqD/yZN.', 'admin', 'SEPTDEAL2026'),
+  (3, 'admin2', 'AeroGlide Admin 2', 'admin2@aeroglide.com', '$2y$12$M7MVnd0cT9nmR6eTH8aRzurkVkR7vpiivcAnPW9YNJT6xvwcS61um', 'admin', 'SEPTDEAL2026'),
+  (7, 'staff1', 'Flight Staff 1', 'staff1@aeroglide.com', '$2y$12$DKN1Gi1e4396e.mxU/vUrehzF8IRiuX6iR7nOyjSw9u.2R1.O28h6', 'staff', 'SEPTDEAL2026'),
+  (8, 'staff2', 'Flight Staff 2', 'staff2@aeroglide.com', '$2y$12$DKN1Gi1e4396e.mxU/vUrehzF8IRiuX6iR7nOyjSw9u.2R1.O28h6', 'staff', 'SEPTDEAL2026'),
+  (2, 'demo', 'Juan Dela Cruz', 'juan@aeroglide.com', '$2y$12$Wnm/wCHRCA3wduBr4kiwW.Bvannto71gcZfqyqeI8jKkjWV6uK6wO', 'user', 'SEPTDEAL2026')
+ON DUPLICATE KEY UPDATE `password` = VALUES(`password`), `role` = VALUES(`role`), `name` = VALUES(`name`);
+

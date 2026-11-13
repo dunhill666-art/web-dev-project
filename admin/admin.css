@@ -100,6 +100,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .badge-pending{background:#fef3c7;color:#92400e;}
 .badge-cancelled{background:#fee2e2;color:#991b1b;}
 .badge-admin{background:linear-gradient(135deg,#fde68a,#f59e0b);color:#78350f;}
+.badge-staff{background:linear-gradient(135deg,#e0f2fe,#bae6fd);color:#0369a1;border:1px solid #7dd3fc;}
 .badge-user{background:#f1f5f9;color:#475569;}
 
 /* User cell */

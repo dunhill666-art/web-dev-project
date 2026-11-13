@@ -4,18 +4,23 @@
     <img src="{{ asset_find(['logo']) }}" alt="Logo">
     <div>
       <span class="brand-text">AeroGlide</span>
-      <span class="brand-badge">ADMIN</span>
+      <span class="brand-badge" {% if admin.role == 'staff' %}style="background:linear-gradient(135deg,#0284c7,#0369a1);"{% endif %}>
+        {{ admin.role == 'staff' ? 'STAFF' : 'ADMIN' }}
+      </span>
     </div>
   </a>
 
   <nav class="sidebar-nav">
-    <div class="nav-section-label">Overview</div>
+    <div class="nav-section-label">Operations</div>
+    {% if admin.role != 'staff' %}
     <a href="{{ ag_base_url('admin') }}" class="nav-link {% if current_page == 'index.php' or current_page == 'dashboard' or current_page == 'admin' %}active{% endif %}">
       <span class="nav-icon">📊</span> Dashboard
     </a>
+    {% endif %}
     <a href="{{ ag_base_url('admin/bookings.php') }}" class="nav-link {% if current_page == 'bookings.php' %}active{% endif %}">
       <span class="nav-icon">🎫</span> All Bookings
     </a>
+    {% if admin.role != 'staff' %}
     <a href="{{ ag_base_url('admin/users.php') }}" class="nav-link {% if current_page == 'users.php' %}active{% endif %}">
       <span class="nav-icon">👥</span> Users
     </a>
@@ -27,6 +32,7 @@
     <a href="{{ ag_base_url('admin/logs.php') }}" class="nav-link {% if current_page == 'logs.php' %}active{% endif %}">
       <span class="nav-icon">📋</span> Activity Logs
     </a>
+    {% endif %}
 
     <div class="nav-section-label" style="margin-top:.75rem;">Site</div>
     <a href="{{ ag_base_url('index.php') }}" class="nav-link" target="_blank">
@@ -36,12 +42,12 @@
 
   <div class="sidebar-footer">
     <div class="admin-info">
-      <div class="admin-avatar">{{ admin.name|slice(0, 1)|upper }}</div>
+      <div class="admin-avatar" {% if admin.role == 'staff' %}style="background:#0284c7;"{% endif %}>{{ admin.name|slice(0, 1)|upper }}</div>
       <div>
         <div class="admin-name">{{ admin.name }}</div>
-        <div class="admin-role">Administrator</div>
+        <div class="admin-role">{{ admin.role == 'staff' ? 'Staff Member' : 'Administrator' }}</div>
       </div>
     </div>
-    <a href="{{ ag_base_url('user/logout.php') }}" class="nav-link" style="padding:0;color:var(--muted);font-size:.78rem;" title="Sign out of Admin Session">Sign Out</a>
+    <a href="{{ ag_base_url('user/logout.php') }}" class="nav-link" style="padding:0;color:var(--muted);font-size:.78rem;" title="Sign out">Sign Out</a>
   </div>
 </aside>

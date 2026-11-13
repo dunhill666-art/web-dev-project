@@ -470,34 +470,34 @@ $activeNav = 'home';
         <h3 class="deal-destination-title">Boracay, Aklan</h3>
 
         <div class="fare-options-list" role="radiogroup" aria-label="Fare options for Boracay">
-          <label class="fare-option" data-baseprice="3499">
+          <label class="fare-option" data-baseprice="1999">
             <input type="radio" name="fare_boracay" value="lite">
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
               <span class="fare-tier-name">Lite Escape</span>
               <span class="fare-tier-desc">Flight only</span>
             </div>
-            <span class="fare-tier-price">₱3,499</span>
+            <span class="fare-tier-price">₱1,999</span>
           </label>
 
-          <label class="fare-option is-active" data-baseprice="4999">
+          <label class="fare-option is-active" data-baseprice="2699">
             <input type="radio" name="fare_boracay" value="smart" checked>
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
               <span class="fare-tier-name">Smart Saver</span>
               <span class="fare-tier-desc">Flight + checked baggage</span>
             </div>
-            <span class="fare-tier-price">₱4,999</span>
+            <span class="fare-tier-price">₱2,699</span>
           </label>
 
-          <label class="fare-option" data-baseprice="6499">
+          <label class="fare-option" data-baseprice="3399">
             <input type="radio" name="fare_boracay" value="budget">
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
-              <span class="fare-tier-name">Budget Employer</span>
+              <span class="fare-tier-name">Budget Explorer</span>
               <span class="fare-tier-desc">Flight + baggage + meal</span>
             </div>
-            <span class="fare-tier-price">₱6,499</span>
+            <span class="fare-tier-price">₱3,399</span>
           </label>
         </div>
 
@@ -516,34 +516,34 @@ $activeNav = 'home';
         <h3 class="deal-destination-title">Coron, Palawan</h3>
 
         <div class="fare-options-list" role="radiogroup" aria-label="Fare options for Coron">
-          <label class="fare-option" data-baseprice="4299">
+          <label class="fare-option" data-baseprice="2499">
             <input type="radio" name="fare_coron" value="lite">
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
               <span class="fare-tier-name">Lite Escape</span>
               <span class="fare-tier-desc">Flight only</span>
             </div>
-            <span class="fare-tier-price">₱4,299</span>
+            <span class="fare-tier-price">₱2,499</span>
           </label>
 
-          <label class="fare-option is-active" data-baseprice="5799">
+          <label class="fare-option is-active" data-baseprice="3299">
             <input type="radio" name="fare_coron" value="smart" checked>
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
               <span class="fare-tier-name">Smart Saver</span>
               <span class="fare-tier-desc">Flight + checked baggage</span>
             </div>
-            <span class="fare-tier-price">₱5,799</span>
+            <span class="fare-tier-price">₱3,299</span>
           </label>
 
-          <label class="fare-option" data-baseprice="7299">
+          <label class="fare-option" data-baseprice="3999">
             <input type="radio" name="fare_coron" value="budget">
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
-              <span class="fare-tier-name">Budget Employer</span>
+              <span class="fare-tier-name">Budget Explorer</span>
               <span class="fare-tier-desc">Flight + baggage + meal</span>
             </div>
-            <span class="fare-tier-price">₱7,299</span>
+            <span class="fare-tier-price">₱3,999</span>
           </label>
         </div>
 
@@ -562,34 +562,34 @@ $activeNav = 'home';
         <h3 class="deal-destination-title">Siargao, Surigao del Norte</h3>
 
         <div class="fare-options-list" role="radiogroup" aria-label="Fare options for Siargao">
-          <label class="fare-option" data-baseprice="3999">
+          <label class="fare-option" data-baseprice="2899">
             <input type="radio" name="fare_siargao" value="lite">
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
               <span class="fare-tier-name">Lite Escape</span>
               <span class="fare-tier-desc">Flight only</span>
             </div>
-            <span class="fare-tier-price">₱3,999</span>
+            <span class="fare-tier-price">₱2,899</span>
           </label>
 
-          <label class="fare-option is-active" data-baseprice="5499">
+          <label class="fare-option is-active" data-baseprice="3699">
             <input type="radio" name="fare_siargao" value="smart" checked>
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
               <span class="fare-tier-name">Smart Saver</span>
               <span class="fare-tier-desc">Flight + checked baggage</span>
             </div>
-            <span class="fare-tier-price">₱5,499</span>
+            <span class="fare-tier-price">₱3,699</span>
           </label>
 
-          <label class="fare-option" data-baseprice="6999">
+          <label class="fare-option" data-baseprice="4499">
             <input type="radio" name="fare_siargao" value="budget">
             <span class="fare-radio-dot"></span>
             <div class="fare-details">
-              <span class="fare-tier-name">Budget Employer</span>
+              <span class="fare-tier-name">Budget Explorer</span>
               <span class="fare-tier-desc">Flight + baggage + meal</span>
             </div>
-            <span class="fare-tier-price">₱6,999</span>
+            <span class="fare-tier-price">₱4,499</span>
           </label>
         </div>
 
@@ -615,7 +615,7 @@ $activeNav = 'home';
         <img src="<?= htmlspecialchars(asset_find(['albay']), ENT_QUOTES) ?>" alt="Mayon Volcano and Cagsawa Ruins, Albay, Philippines">
         <div class="capsule-hover-panel">
           <span class="hover-price-label">For as low as</span>
-          <strong class="hover-price">₱2,499*</strong>
+          <strong class="hover-price">₱1,899*</strong>
           <span class="hover-destination">Mayon Volcano</span>
           <span class="hover-book-btn">Book now</span>
         </div>
@@ -632,7 +632,7 @@ $activeNav = 'home';
         <img src="<?= htmlspecialchars(asset_find(['bukidnon']), ENT_QUOTES) ?>" alt="Communal Ranch, Bukidnon, Philippines">
         <div class="capsule-hover-panel">
           <span class="hover-price-label">For as low as</span>
-          <strong class="hover-price">₱2,799*</strong>
+          <strong class="hover-price">₱2,199*</strong>
           <span class="hover-destination">Bukidnon</span>
           <span class="hover-book-btn">Book now</span>
         </div>
@@ -649,7 +649,7 @@ $activeNav = 'home';
         <img src="<?= htmlspecialchars(asset_find(['chocolate']), ENT_QUOTES) ?>" alt="Chocolate Hills, Carmen, Bohol, Philippines">
         <div class="capsule-hover-panel">
           <span class="hover-price-label">For as low as</span>
-          <strong class="hover-price">₱2,299*</strong>
+          <strong class="hover-price">₱1,899*</strong>
           <span class="hover-destination">Chocolate Hills</span>
           <span class="hover-book-btn">Book now</span>
         </div>
@@ -666,7 +666,7 @@ $activeNav = 'home';
         <img src="<?= htmlspecialchars(asset_find(['malapascua']), ENT_QUOTES) ?>" alt="Malapascua Island, Cebu, Philippines">
         <div class="capsule-hover-panel">
           <span class="hover-price-label">For as low as</span>
-          <strong class="hover-price">₱3,199*</strong>
+          <strong class="hover-price">₱1,999*</strong>
           <span class="hover-destination">Malapascua Island</span>
           <span class="hover-book-btn">Book now</span>
         </div>
@@ -683,7 +683,7 @@ $activeNav = 'home';
         <img src="<?= htmlspecialchars(asset_find(['taal']), ENT_QUOTES) ?>" alt="Taal Volcano, Batangas, Philippines">
         <div class="capsule-hover-panel">
           <span class="hover-price-label">For as low as</span>
-          <strong class="hover-price">₱2,199*</strong>
+          <strong class="hover-price">₱1,699*</strong>
           <span class="hover-destination">Taal Volcano</span>
           <span class="hover-book-btn">Book now</span>
         </div>
@@ -1369,7 +1369,7 @@ $activeNav = 'home';
     btn.addEventListener('click', () => {
       const card = btn.closest('.deal-card');
       const activeOption = card ? card.querySelector('.fare-option.is-active') : null;
-      let fareVal = 'smart', fareName = 'Smart Saver', desc = 'Flight + checked baggage', price = '₱4,999';
+      let fareVal = 'smart', fareName = 'Smart Saver', desc = 'Flight + checked baggage', price = '₱2,699';
       if (activeOption) {
         const input = activeOption.querySelector('input[type="radio"]');
         if (input) fareVal = input.value;

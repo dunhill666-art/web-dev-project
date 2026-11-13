@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/user/auth_helper.php';
 require_once __DIR__ . '/database/flight_helper.php';
+require_once __DIR__ . '/database/catalog_data.php';
 
 $isLoggedIn  = auth_is_logged_in();
 $currentUser = auth_get_user();
@@ -79,7 +80,7 @@ if (!function_exists('asset_gallery')) {
         $matches = [];
         $seen = [];
 
-        // 1. Direct match on item name (e.g. "Dahilayan Eco Resort 1.jpg" contains "dahilayanecoresort")
+        // 1. Direct match on item name (e.g. "Communal Ranch Lodge 1.jpg" contains "communalranchlodge")
         if ($needle !== '') {
             foreach ($files as $f) {
                 if (isset($seen[$f['name']])) continue;
@@ -94,7 +95,7 @@ if (!function_exists('asset_gallery')) {
                 }
                 if ($isDisallowed) continue;
 
-                // Match if file contains the item name (e.g. Dahilayan Eco Resort 1.jpg contains dahilayanecoresort)
+                // Match if file contains the item name (e.g. Communal Ranch Lodge 1.jpg contains communalranchlodge)
                 if (strpos($f['squash'], $needle) !== false) {
                     $matches[] = $f;
                     $seen[$f['name']] = true;
@@ -165,10 +166,10 @@ if (!function_exists('asset_gallery')) {
                 'asset/albay/Seaside Garden Hotel 4.jpg',
             ],
             [
-                'asset/Dahilayan Eco Resort 1.jpg',
-                'asset/Dahilayan Eco Resort 2.jpg',
-                'asset/Dahilayan Eco Resort 3.jpg',
-                'asset/Dahilayan Eco Resort 4.jpg',
+                'asset/Communal Ranch Lodge 1.jpg',
+                'asset/Communal Ranch Lodge 2.jpg',
+                'asset/Communal Ranch Lodge 3.jpg',
+                'asset/Communal Ranch Lodge 4.jpg',
             ],
         ];
 
@@ -189,188 +190,27 @@ $origin     = isset($_GET['origin'])      ? strtoupper(trim($_GET['origin'])) : 
 $departDate = isset($_GET['departDate'])  ? trim($_GET['departDate'])  : (isset($_GET['date']) ? trim($_GET['date']) : date('Y-m-d'));
 $returnDate = isset($_GET['returnDate'])  ? trim($_GET['returnDate'])  : '';
 
-$fareValue  = isset($_GET['fare'])        ? trim($_GET['fare'])        : 'smart';
-$fareName   = isset($_GET['fareName'])    ? trim($_GET['fareName'])    : 'Smart Saver';
-$fareDesc   = isset($_GET['desc'])        ? trim($_GET['desc'])        : 'Flight + checked baggage';
-$farePriceRaw = isset($_GET['price'])     ? trim($_GET['price'])       : '₱4,999';
+// Centralized Destination Catalog & Single Source of Truth
+$catalog     = ag_get_catalog();
+$destination = ag_resolve_catalog_city($city);
+$cityKey     = $destination['key'];
 
-$basePrice = (float) preg_replace('/[^0-9.]/', '', $farePriceRaw);
-if ($basePrice <= 0) {
-    $basePrice = 4999;
-}
+// Fare Tier Resolution (Lite Escape, Smart Saver, Budget Explorer)
+$fareValueRaw = isset($_GET['fare'])     ? trim($_GET['fare'])     : '';
+$fareNameRaw  = isset($_GET['fareName']) ? trim($_GET['fareName']) : '';
+$tierInfo     = ag_resolve_tier($fareValueRaw ?: $fareNameRaw, $cityKey);
+$fareValue    = $tierInfo['key'];
+$fareName     = $tierInfo['name'];
+$fareDesc     = isset($_GET['desc']) && trim($_GET['desc']) !== '' ? trim($_GET['desc']) : $tierInfo['desc'];
+$tierUpgrade  = (float)$tierInfo['upgrade'];
 
-$cabinMult = 1.0;
-if (strpos($cabin, 'Premium') !== false) {
-    $cabinMult = 1.3;
-} else if (strpos($cabin, 'Business') !== false) {
-    $cabinMult = 1.8;
-} else if (strpos($cabin, 'First') !== false) {
-    $cabinMult = 2.5;
-}
+$cabinMult = ag_cabin_multiplier($cabin);
 
+$defaultNights = ($mode === 'flights') ? 0 : 3;
+$defaultDays   = ($mode === 'flights') ? 0 : 3;
 if ($mode === 'hotels') {
-    $farePriceNum = 0;
-    $farePriceRaw = '₱0 (Flight skipped)';
     $defaultNights = 1;
     $defaultDays   = 1;
-} else {
-    $farePriceNum = round($basePrice * $cabinMult * $adults);
-    $farePriceRaw = '₱' . number_format($farePriceNum);
-    $defaultNights = ($mode === 'flights') ? 0 : 3;
-    $defaultDays   = ($mode === 'flights') ? 0 : 3;
-}
-
-/* ------------------------------------------------------------
-   Destination Inventory & Catalog
------------------------------------------------------------- */
-$catalog = [
-    'albay' => [
-        'label'   => 'Mayon Volcano, Albay',
-        'asset'   => ['albay', 'mayon'],
-        'blurb'   => 'Handpicked stays and rides for your trip to the world-famous perfect cone.',
-        'hotels'  => [
-            ['name' => 'Seaside Garden Hotel',   'tier' => '4-star comfort', 'rating' => 4.5, 'price' => 5200],
-            ['name' => 'Harbor View Inn',        'tier' => '3-star cozy',    'rating' => 4.2, 'price' => 3400],
-            ['name' => 'Budget Traveler Lodge',  'tier' => '2-star basic',   'rating' => 3.9, 'price' => 1800],
-        ],
-        'cars' => [
-            ['name' => 'Economy Sedan', 'seats' => 4,  'price' => 1800],
-            ['name' => 'Midsize SUV',   'seats' => 7,  'price' => 3200],
-            ['name' => 'Tourist Van',   'seats' => 10, 'price' => 4500],
-        ],
-    ],
-    'boracay' => [
-        'label'   => 'Boracay, Aklan',
-        'asset'   => ['boracay'],
-        'blurb'   => 'Powder-white sand and turquoise water on the Philippines\' most famous island.',
-        'hotels'  => [
-            ['name' => 'Shangri-La Boracay Resort & Spa', 'tier' => '5-star beachfront', 'rating' => 4.8, 'price' => 8500],
-            ['name' => 'Discovery Shores Boracay',        'tier' => '4-star boutique',    'rating' => 4.6, 'price' => 6200],
-            ['name' => 'Henann Regency Resort & Spa',     'tier' => '3-star Station 2',   'rating' => 4.3, 'price' => 3800],
-        ],
-        'cars' => [
-            ['name' => 'Economy Sedan',   'seats' => 4,  'price' => 1800],
-            ['name' => 'Midsize SUV',     'seats' => 7,  'price' => 3200],
-            ['name' => 'Tourist Van',     'seats' => 10, 'price' => 4500],
-        ],
-    ],
-    'coron' => [
-        'label'   => 'Coron, Palawan',
-        'asset'   => ['coron'],
-        'blurb'   => 'Limestone cliffs, hidden lagoons, and legendary WWII wreck diving.',
-        'hotels'  => [
-            ['name' => 'Coron Westown Resort',      'tier' => '5-star waterfront', 'rating' => 4.7, 'price' => 7200],
-            ['name' => 'Sangat Island Dive Resort',  'tier' => '4-star dive lodge', 'rating' => 4.5, 'price' => 5400],
-            ['name' => 'Coron Soleil Garden Resort', 'tier' => '3-star town center','rating' => 4.2, 'price' => 3100],
-        ],
-        'cars' => [
-            ['name' => 'Economy Sedan',   'seats' => 4,  'price' => 1900],
-            ['name' => 'Midsize SUV',     'seats' => 7,  'price' => 3400],
-            ['name' => 'Tourist Van',     'seats' => 10, 'price' => 4700],
-        ],
-    ],
-    'siargao' => [
-        'label'   => 'Siargao, Surigao del Norte',
-        'asset'   => ['siargao'],
-        'blurb'   => 'The surfing capital of the Philippines, with laid-back island vibes.',
-        'hotels'  => [
-            ['name' => 'Nay Palad Hideaway', 'tier' => '5-star luxury villas', 'rating' => 4.9, 'price' => 15000],
-            ['name' => 'Bravo Beach Resort',  'tier' => '4-star beachfront',    'rating' => 4.6, 'price' => 6800],
-            ['name' => 'Kermit Surf Resort',  'tier' => '3-star surf lodge',    'rating' => 4.3, 'price' => 2900],
-        ],
-        'cars' => [
-            ['name' => 'Yamaha Fazzio Scooter', 'seats' => 2,  'price' => 600],
-            ['name' => 'Economy Sedan',         'seats' => 4,  'price' => 2000],
-            ['name' => 'Midsize SUV',           'seats' => 7,  'price' => 3600],
-        ],
-    ],
-    'bukidnon' => [
-        'label'   => 'Bukidnon',
-        'asset'   => ['bukidnon'],
-        'blurb'   => 'Rolling hills, pine forests, and cool mountain adventure escapes.',
-        'hotels'  => [
-            ['name' => 'Communal Ranch Lodge', 'tier' => '4-star mountain view', 'rating' => 4.7, 'price' => 4500],
-            ['name' => 'Dahilayan Eco Resort', 'tier' => '3-star adventure stay', 'rating' => 4.4, 'price' => 3200],
-            ['name' => 'Pine Breeze Inn',       'tier' => '2-star cozy cabin',    'rating' => 4.0, 'price' => 1900],
-        ],
-        'cars' => [
-            ['name' => 'Midsize SUV',   'seats' => 7,  'price' => 3500],
-            ['name' => 'Tourist Van',   'seats' => 10, 'price' => 4800],
-            ['name' => 'Economy Sedan', 'seats' => 4,  'price' => 1900],
-        ],
-    ],
-    'chocolate' => [
-        'label'   => 'Chocolate Hills, Bohol',
-        'asset'   => ['chocolate'],
-        'blurb'   => 'Iconic conical hills, tarsier sanctuaries, and pristine river cruises.',
-        'hotels'  => [
-            ['name' => 'Bellevue Resort Bohol',      'tier' => '5-star beachfront', 'rating' => 4.8, 'price' => 7800],
-            ['name' => 'Loboc River Resort',         'tier' => '4-star eco lodge',   'rating' => 4.6, 'price' => 4200],
-            ['name' => 'Chocolate Hills View Hotel', 'tier' => '3-star scenic',     'rating' => 4.2, 'price' => 2500],
-        ],
-        'cars' => [
-            ['name' => 'Economy Sedan', 'seats' => 4,  'price' => 1800],
-            ['name' => 'Midsize SUV',   'seats' => 7,  'price' => 3300],
-            ['name' => 'Tourist Van',   'seats' => 10, 'price' => 4600],
-        ],
-    ],
-    'malapascua' => [
-        'label'   => 'Malapascua Island, Cebu',
-        'asset'   => ['malapascua'],
-        'blurb'   => 'World-famous thresher shark diving and serene white sand beaches.',
-        'hotels'  => [
-            ['name' => 'Ocean Vida Beach & Dive Resort', 'tier' => '4-star beachfront', 'rating' => 4.7, 'price' => 4900],
-            ['name' => 'Tepanee Beach Resort',           'tier' => '4-star cliffside',  'rating' => 4.5, 'price' => 4200],
-            ['name' => 'Exotic Island Dive Resort',      'tier' => '3-star dive lodge', 'rating' => 4.3, 'price' => 2800],
-        ],
-        'cars' => [
-            ['name' => 'Island Motorbike Rental', 'seats' => 2,  'price' => 500],
-            ['name' => 'Outrigger Boat Transfer', 'seats' => 6,  'price' => 1500],
-            ['name' => 'Economy Sedan',           'seats' => 4,  'price' => 1800],
-        ],
-    ],
-    'taal' => [
-        'label'   => 'Taal Volcano, Batangas',
-        'asset'   => ['taal'],
-        'blurb'   => 'Stunning volcanic crater lake views and relaxing cool highland breezes.',
-        'hotels'  => [
-            ['name' => 'Taalisay Ridge Resort',   'tier' => '4-star volcano view', 'rating' => 4.6, 'price' => 5400],
-            ['name' => 'Lakeview Haven Hotel',    'tier' => '3-star lakeside',     'rating' => 4.3, 'price' => 3100],
-            ['name' => 'Batangas Travelers Inn', 'tier' => '2-star budget',       'rating' => 3.9, 'price' => 1600],
-        ],
-        'cars' => [
-            ['name' => 'Economy Sedan', 'seats' => 4,  'price' => 1700],
-            ['name' => 'Midsize SUV',   'seats' => 7,  'price' => 3100],
-            ['name' => 'Tourist Van',   'seats' => 10, 'price' => 4400],
-        ],
-    ],
-    'default' => [
-        'label'   => null,
-        'asset'   => ['albay', 'coron'],
-        'blurb'   => 'Handpicked stays and rides for your trip.',
-        'hotels'  => [
-            ['name' => 'Seaside Garden Hotel',   'tier' => '4-star comfort', 'rating' => 4.5, 'price' => 5200],
-            ['name' => 'Harbor View Inn',        'tier' => '3-star cozy',    'rating' => 4.2, 'price' => 3400],
-            ['name' => 'Budget Traveler Lodge',  'tier' => '2-star basic',   'rating' => 3.9, 'price' => 1800],
-        ],
-        'cars' => [
-            ['name' => 'Economy Sedan', 'seats' => 4,  'price' => 1800],
-            ['name' => 'Midsize SUV',   'seats' => 7,  'price' => 3200],
-            ['name' => 'Tourist Van',   'seats' => 10, 'price' => 4500],
-        ],
-    ],
-];
-
-$cityKey = 'default';
-foreach (array_keys($catalog) as $key) {
-    if ($key !== 'default' && stripos($city, $key) !== false) {
-        $cityKey = $key;
-        break;
-    }
-}
-$destination = $catalog[$cityKey];
-if ($destination['label'] === null) {
-    $destination['label'] = $city;
 }
 
 $heroImage = asset_find($destination['asset']);
@@ -389,25 +229,26 @@ foreach ($availableFlights as $af) {
     }
 }
 
-// Curate flight price to match lowest available flight card if no explicit override is provided
-if ($mode !== 'hotels' && (!isset($_GET['price']) || $basePrice === 4999.0)) {
-    if ($firstAvailableFlight) {
-        $basePrice = (float)$firstAvailableFlight['base_price'];
-        $farePriceNum = round($basePrice * $cabinMult * $adults);
-        $farePriceRaw = '₱' . number_format($farePriceNum);
-    } elseif (!empty($availableFlights)) {
-        $basePrice = (float)$availableFlights[0]['base_price'];
-        $farePriceNum = round($basePrice * $cabinMult * $adults);
-        $farePriceRaw = '₱' . number_format($farePriceNum);
-    } elseif (!empty($routeInfo['base_rate'])) {
-        $basePrice = (float)$routeInfo['base_rate'];
-        $farePriceNum = round($basePrice * $cabinMult * $adults);
-        $farePriceRaw = '₱' . number_format($farePriceNum);
-    } else {
-        $basePrice = 0;
-        $farePriceNum = 0;
-        $farePriceRaw = 'Unavailable';
-    }
+// Single Source of Truth for base flight:
+if ($firstAvailableFlight) {
+    $selectedFlightBase = (float)$firstAvailableFlight['base_price'];
+} elseif (!empty($availableFlights)) {
+    $selectedFlightBase = (float)$availableFlights[0]['base_price'];
+} elseif (!empty($routeInfo['base_rate'])) {
+    $selectedFlightBase = (float)$routeInfo['base_rate'];
+} else {
+    $selectedFlightBase = 2100;
+}
+
+if ($mode === 'hotels') {
+    $basePrice = 0;
+    $farePriceNum = 0;
+    $farePriceRaw = '₱0 (Flight skipped)';
+} else {
+    // Exact dynamic formula: (Base Flight + Tier Upgrade) * Cabin Multiplier
+    $basePrice = round(($selectedFlightBase + $tierUpgrade) * $cabinMult);
+    $farePriceNum = $basePrice * $adults;
+    $farePriceRaw = peso($farePriceNum);
 }
 
 $pageTitle = htmlspecialchars($destination['label'], ENT_QUOTES) . ' — AeroGlide Flights & Packages';

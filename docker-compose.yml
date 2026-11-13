@@ -20,6 +20,8 @@ services:
       APP_ENV: dev
       APP_SECRET: "4f8b2c1e7a903d6521e84c9f1a2b3c4d"
       DEFAULT_URI: "http://localhost:8080"
+      TRUSTED_PROXIES: "127.0.0.1,REMOTE_ADDR,private_ranges"
+      TRUSTED_HOSTS: "^.*$"
       MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
       MAILER_DSN: "null://null"
     volumes:
@@ -78,6 +80,29 @@ services:
         condition: service_healthy
     networks:
       - aeroglide_net
+
+  # ============================================================
+  # Optional: Ngrok Public Tunnel Service (Dockerized)
+  # Launch with: docker compose --profile tunnel up -d
+  # Requires NGROK_AUTHTOKEN in .env or shell environment
+  # ============================================================
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: aeroglide_ngrok
+    restart: unless-stopped
+    command:
+      - "http"
+      - "web:80"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    ports:
+      - "4040:4040"
+    depends_on:
+      - web
+    networks:
+      - aeroglide_net
+    profiles:
+      - tunnel
 
 # ============================================================
 # Named Volumes & Isolated Bridge Network

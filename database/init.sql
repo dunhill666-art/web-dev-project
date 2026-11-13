@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` VARCHAR(120) NOT NULL,
   `email` VARCHAR(180) NOT NULL UNIQUE,
   `password` VARCHAR(255) NOT NULL,
-  `role` ENUM('user','admin') NOT NULL DEFAULT 'user',
+  `role` ENUM('user','staff','admin') NOT NULL DEFAULT 'user',
   `used_coupon` VARCHAR(30) NULL DEFAULT NULL COMMENT '1 coupon restriction per user',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `last_login` DATETIME NULL
@@ -104,10 +104,25 @@ CREATE TABLE IF NOT EXISTS `flights` (
 -- Default Seed Accounts
 -- ============================================================
 
--- Administrator: admin / admin2026!
+-- Administrator 1: admin / admin2026!
 INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)
 VALUES (1, 'admin', 'AeroGlide Admin', 'admin@aeroglide.com', '$2y$12$vovP1I4rrpsGlmmgxcN1m.9EUgwBoOgUAgDGeuoDn7at6xqD/yZN.', 'admin', 'SEPTDEAL2026')
 ON DUPLICATE KEY UPDATE `password` = '$2y$12$vovP1I4rrpsGlmmgxcN1m.9EUgwBoOgUAgDGeuoDn7at6xqD/yZN.', `role` = 'admin';
+
+-- Administrator 2: admin2 / Admin@1234
+INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)
+VALUES (3, 'admin2', 'AeroGlide Admin 2', 'admin2@aeroglide.com', '$2y$12$M7MVnd0cT9nmR6eTH8aRzurkVkR7vpiivcAnPW9YNJT6xvwcS61um', 'admin', 'SEPTDEAL2026')
+ON DUPLICATE KEY UPDATE `password` = '$2y$12$M7MVnd0cT9nmR6eTH8aRzurkVkR7vpiivcAnPW9YNJT6xvwcS61um', `role` = 'admin';
+
+-- Operations Staff 1: staff1 / Staff@1234
+INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)
+VALUES (7, 'staff1', 'Flight Staff 1', 'staff1@aeroglide.com', '$2y$12$DKN1Gi1e4396e.mxU/vUrehzF8IRiuX6iR7nOyjSw9u.2R1.O28h6', 'staff', 'SEPTDEAL2026')
+ON DUPLICATE KEY UPDATE `password` = '$2y$12$DKN1Gi1e4396e.mxU/vUrehzF8IRiuX6iR7nOyjSw9u.2R1.O28h6', `role` = 'staff';
+
+-- Operations Staff 2: staff2 / Staff@1234
+INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)
+VALUES (8, 'staff2', 'Flight Staff 2', 'staff2@aeroglide.com', '$2y$12$DKN1Gi1e4396e.mxU/vUrehzF8IRiuX6iR7nOyjSw9u.2R1.O28h6', 'staff', 'SEPTDEAL2026')
+ON DUPLICATE KEY UPDATE `password` = '$2y$12$DKN1Gi1e4396e.mxU/vUrehzF8IRiuX6iR7nOyjSw9u.2R1.O28h6', `role` = 'staff';
 
 -- Traveler Demo: demo / password123
 INSERT INTO `users` (`id`, `username`, `name`, `email`, `password`, `role`, `used_coupon`)

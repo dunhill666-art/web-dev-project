@@ -38,7 +38,7 @@ class DashboardController extends AbstractController
     {
         // 1. Session & Access Guard Check
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            @session_start(['read_and_close' => true]);
         }
         
         $authHelper = dirname(__DIR__, 3) . '/user/auth_helper.php';
@@ -46,13 +46,35 @@ class DashboardController extends AbstractController
             require_once $authHelper;
         }
 
-        if (function_exists('auth_is_logged_in') && function_exists('auth_is_admin')) {
-            if (!auth_is_logged_in() || !auth_is_admin()) {
+        if (function_exists('auth_is_logged_in')) {
+            if (!auth_is_logged_in()) {
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_write_close();
+                }
                 $loginUrl = function_exists('ag_base_url')
                     ? ag_base_url('user/login.php?error=' . urlencode('Admin access only. Please log in with an administrator account.'))
                     : '/user/login.php';
                 return $this->redirect($loginUrl);
             }
+            if (function_exists('auth_is_staff_only') && auth_is_staff_only()) {
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_write_close();
+                }
+                $staffTarget = function_exists('ag_base_url') ? ag_base_url('admin/bookings.php') : '/admin/bookings.php';
+                return $this->redirect($staffTarget);
+            }
+            if (function_exists('auth_is_admin') && !auth_is_admin()) {
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_write_close();
+                }
+                $loginUrl = function_exists('ag_base_url')
+                    ? ag_base_url('user/login.php?error=' . urlencode('Admin access only. Please log in with an administrator account.'))
+                    : '/user/login.php';
+                return $this->redirect($loginUrl);
+            }
+        }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
         }
 
         $adminUser = function_exists('auth_get_user') ? (auth_get_user() ?? ['name' => 'Administrator', 'username' => 'admin']) : ['name' => 'Administrator', 'username' => 'admin'];

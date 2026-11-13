@@ -33,6 +33,10 @@ $activeNav   = $activeNav ?? '';
         <a class="nav-auth-btn" href="<?= ag_base_url('admin') ?>" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;margin-right:6px;" title="Admin Dashboard">
           <span>🛡️ Admin Panel</span>
         </a>
+      <?php elseif (function_exists('auth_is_staff_only') && auth_is_staff_only()): ?>
+        <a class="nav-auth-btn" href="<?= ag_base_url('admin/bookings.php') ?>" style="background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;margin-right:6px;" title="Staff Portal">
+          <span>💼 Staff Portal</span>
+        </a>
       <?php endif; ?>
 
       <?php if ($isLoggedIn): ?>

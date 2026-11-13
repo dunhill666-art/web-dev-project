@@ -96,6 +96,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setLastLogin(?\DateTimeInterface $lastLogin): self { $this->lastLogin = $lastLogin; return $this; }
 
     public function isAdmin(): bool { return $this->role === 'admin'; }
+    public function isStaff(): bool { return $this->role === 'staff' || $this->role === 'admin'; }
+    public function isStaffOnly(): bool { return $this->role === 'staff'; }
 
     /**
      * Symfony Security UserInterface methods
@@ -110,6 +112,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $roles = ['ROLE_USER'];
         if ($this->role === 'admin') {
             $roles[] = 'ROLE_ADMIN';
+            $roles[] = 'ROLE_STAFF';
+        } elseif ($this->role === 'staff') {
+            $roles[] = 'ROLE_STAFF';
         }
         return array_unique($roles);
     }

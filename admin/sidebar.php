@@ -1,8 +1,10 @@
 <?php
 require_once dirname(__DIR__) . '/user/auth_helper.php';
 
-// Shared sidebar for all admin pages
-$admin = auth_get_user() ?? ['name' => 'Admin'];
+// Shared sidebar for admin & staff pages
+$admin = auth_get_user() ?? ['name' => 'User', 'role' => 'user'];
+$isStaffOnly = ($admin['role'] ?? '') === 'staff';
+$isAdmin = ($admin['role'] ?? '') === 'admin';
 $currentPage = basename($_SERVER['PHP_SELF']);
 $nav = function($file, $icon, $label) use ($currentPage) {
     $active = ($currentPage === $file) ? ' active' : '';
@@ -14,19 +16,25 @@ $nav = function($file, $icon, $label) use ($currentPage) {
     <img src="<?= htmlspecialchars(asset_find(['logo']), ENT_QUOTES) ?>" alt="Logo">
     <div>
       <span class="brand-text">AeroGlide</span>
-      <span class="brand-badge">ADMIN</span>
+      <span class="brand-badge" style="<?= $isStaffOnly ? 'background:linear-gradient(135deg,#0284c7,#0369a1);' : '' ?>"><?= $isStaffOnly ? 'STAFF' : 'ADMIN' ?></span>
     </div>
   </a>
 
   <nav class="sidebar-nav">
-    <div class="nav-section-label">Overview</div>
-    <?php $nav(ag_base_url('admin'), '📊', 'Dashboard'); ?>
+    <div class="nav-section-label">Operations</div>
+    <?php if ($isAdmin): ?>
+      <?php $nav(ag_base_url('admin'), '📊', 'Dashboard'); ?>
+    <?php endif; ?>
     <?php $nav('bookings.php', '🎫', 'All Bookings'); ?>
-    <?php $nav('users.php', '👥', 'Users'); ?>
+    <?php if ($isAdmin): ?>
+      <?php $nav('users.php', '👥', 'Users'); ?>
+    <?php endif; ?>
 
-    <div class="nav-section-label" style="margin-top:.75rem;">Reports</div>
-    <?php $nav('revenue.php', '💰', 'Revenue'); ?>
-    <?php $nav('logs.php', '📋', 'Activity Logs'); ?>
+    <?php if ($isAdmin): ?>
+      <div class="nav-section-label" style="margin-top:.75rem;">Reports</div>
+      <?php $nav('revenue.php', '💰', 'Revenue'); ?>
+      <?php $nav('logs.php', '📋', 'Activity Logs'); ?>
+    <?php endif; ?>
 
     <div class="nav-section-label" style="margin-top:.75rem;">Site</div>
     <a href="<?= ag_base_url('index.php') ?>" class="nav-link" target="_blank"><span class="nav-icon">🌐</span> View Website</a>
@@ -34,10 +42,10 @@ $nav = function($file, $icon, $label) use ($currentPage) {
 
   <div class="sidebar-footer">
     <div class="admin-info">
-      <div class="admin-avatar"><?= strtoupper(substr($admin['name'] ?? 'A', 0, 1)) ?></div>
+      <div class="admin-avatar" style="<?= $isStaffOnly ? 'background:#0284c7;' : '' ?>"><?= strtoupper(substr($admin['name'] ?? 'S', 0, 1)) ?></div>
       <div>
-        <div class="admin-name"><?= htmlspecialchars($admin['name'] ?? 'Admin') ?></div>
-        <div class="admin-role">Administrator</div>
+        <div class="admin-name"><?= htmlspecialchars($admin['name'] ?? ($isStaffOnly ? 'Staff' : 'Admin')) ?></div>
+        <div class="admin-role"><?= $isStaffOnly ? 'Staff Member' : 'Administrator' ?></div>
       </div>
     </div>
     <a href="<?= ag_base_url('user/logout.php') ?>">Sign Out</a>

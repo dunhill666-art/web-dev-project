@@ -9,9 +9,22 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0', true);
 header('Pragma: no-cache', true);
 header('Expires: 0', true);
 
-if (!auth_is_logged_in() || !auth_is_admin()) {
-    header('Location: ' . ag_base_url('user/login.php?error=' . urlencode('Admin access only. Please log in with an administrator account.')));
+// 1. Base access guard: user must be logged in with admin or staff role
+if (!auth_is_logged_in() || (!auth_is_admin() && !auth_is_staff())) {
+    header('Location: ' . ag_base_url('user/login.php?error=' . urlencode('Authorized staff or administrator access only. Please log in.')));
     exit;
+}
+
+// 2. Strict Administrator-Only Gatekeeper
+if (!function_exists('admin_require_full_admin')) {
+    function admin_require_full_admin(string $deniedMessage = 'Access Denied: Full administrator privileges required.'): void
+    {
+        if (!auth_is_admin()) {
+            $target = ag_base_url('admin/bookings.php?err=denied&msg=' . urlencode($deniedMessage));
+            header('Location: ' . $target);
+            exit;
+        }
+    }
 }
 
 if (!function_exists('admin_log')) {

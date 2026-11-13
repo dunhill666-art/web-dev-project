@@ -4,6 +4,7 @@
 // Revenue Report
 // ============================================================
 require_once __DIR__ . '/guard.php';
+admin_require_full_admin('Access Denied: Staff accounts do not have permission to access financial revenue reports.');
 
 $db = ag_db();
 

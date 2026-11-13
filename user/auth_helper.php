@@ -1,8 +1,8 @@
 <?php
 // user auth and booking helpers
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    @session_start();
 }
 
 if (file_exists(__DIR__ . '/../database/config.php')) {
@@ -64,6 +64,23 @@ if (!function_exists('auth_is_admin')) {
     {
         $u = auth_get_user();
         return ($u !== null && ($u['role'] ?? '') === 'admin');
+    }
+}
+
+if (!function_exists('auth_is_staff')) {
+    function auth_is_staff(): bool
+    {
+        $u = auth_get_user();
+        $r = $u['role'] ?? '';
+        return ($u !== null && ($r === 'staff' || $r === 'admin'));
+    }
+}
+
+if (!function_exists('auth_is_staff_only')) {
+    function auth_is_staff_only(): bool
+    {
+        $u = auth_get_user();
+        return ($u !== null && ($u['role'] ?? '') === 'staff');
     }
 }
 

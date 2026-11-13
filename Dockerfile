@@ -17,14 +17,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pdo \
     pdo_mysql \
     opcache \
+    zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Install Composer binary from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# 3. Enable essential Apache modules
-RUN a2enmod rewrite headers
+# 3. Enable essential Apache modules & configure reverse proxy / Ngrok support
+RUN a2enmod rewrite headers remoteip \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+    && printf "<IfModule mod_remoteip.c>\n    RemoteIPHeader X-Forwarded-For\n    RemoteIPTrustedProxy 10.0.0.0/8\n    RemoteIPTrustedProxy 172.16.0.0/12\n    RemoteIPTrustedProxy 192.168.0.0/16\n    RemoteIPTrustedProxy 127.0.0.1\n    RemoteIPTrustedProxy ::1\n</IfModule>\n" > /etc/apache2/conf-available/remoteip.conf \
+    && a2enconf remoteip
 
 # 4. Configure Apache DocumentRoot to permit .htaccess rewrites
 RUN sed -ri -e 's!AllowOverride None!AllowOverride All!g' /etc/apache2/apache2.conf \
