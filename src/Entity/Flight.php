@@ -2,27 +2,71 @@
 
 namespace App\Entity;
 
+use App\Repository\FlightRepository;
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity(repositoryClass: FlightRepository::class)]
+#[ORM\Table(name: 'flights')]
 class Flight
 {
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
     private ?int $id = null;
+
+    #[ORM\Column(name: 'flight_number', type: 'string', length: 30)]
     private string $flightNumber = '';
+
+    #[ORM\Column(type: 'string', length: 80)]
     private string $airline = '';
+
+    #[ORM\Column(name: 'airline_code', type: 'string', length: 10)]
     private string $airlineCode = '';
+
+    #[ORM\Column(type: 'string', length: 60)]
     private string $aircraft = '';
+
+    #[ORM\Column(name: 'origin_code', type: 'string', length: 10)]
     private string $originCode = '';
+
+    #[ORM\Column(name: 'origin_name', type: 'string', length: 100)]
     private string $originName = '';
+
+    #[ORM\Column(name: 'dest_code', type: 'string', length: 10)]
     private string $destCode = '';
+
+    #[ORM\Column(name: 'dest_name', type: 'string', length: 120)]
     private string $destName = '';
+
+    #[ORM\Column(name: 'departure_time', type: 'string', length: 15)]
     private string $departureTime = '';
+
+    #[ORM\Column(name: 'arrival_time', type: 'string', length: 15)]
     private string $arrivalTime = '';
+
+    #[ORM\Column(type: 'string', length: 30)]
     private string $duration = '';
+
+    #[ORM\Column(name: 'flight_date', type: 'string', length: 15)]
     private string $flightDate = '';
-    private float $basePrice = 0.0;
+
+    #[ORM\Column(name: 'base_price', type: 'decimal', precision: 10, scale: 2)]
+    private float|string $basePrice = 0.0;
+
+    #[ORM\Column(type: 'string', length: 30)]
     private string $stops = 'Nonstop';
+
+    #[ORM\Column(name: 'seats_available', type: 'integer')]
     private int $seatsAvailable = 45;
+
+    #[ORM\Column(type: 'string', length: 40)]
     private string $cabin = 'Economy';
+
+    #[ORM\Column(type: 'string', length: 30)]
     private string $status = 'available';
-    private ?string $createdAt = null;
+
+    #[ORM\Column(name: 'created_at', type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $createdAt = null;
 
     public function __construct(array $data = [])
     {
@@ -45,7 +89,9 @@ class Flight
             $this->seatsAvailable = (int)($data['seats_available'] ?? 45);
             $this->cabin = $data['cabin'] ?? 'Economy';
             $this->status = $data['status'] ?? 'available';
-            $this->createdAt = $data['created_at'] ?? null;
+            if (!empty($data['created_at'])) {
+                $this->createdAt = is_string($data['created_at']) ? new \DateTime($data['created_at']) : $data['created_at'];
+            }
         }
     }
 
@@ -62,12 +108,12 @@ class Flight
     public function getArrivalTime(): string { return $this->arrivalTime; }
     public function getDuration(): string { return $this->duration; }
     public function getFlightDate(): string { return $this->flightDate; }
-    public function getBasePrice(): float { return $this->basePrice; }
+    public function getBasePrice(): float { return (float)$this->basePrice; }
     public function getStops(): string { return $this->stops; }
     public function getSeatsAvailable(): int { return $this->seatsAvailable; }
     public function getCabin(): string { return $this->cabin; }
     public function getStatus(): string { return $this->status; }
-    public function getCreatedAt(): ?string { return $this->createdAt; }
+    public function getCreatedAt(): ?string { return $this->createdAt ? $this->createdAt->format('Y-m-d H:i:s') : null; }
 
     public function toArray(): array
     {
@@ -90,7 +136,7 @@ class Flight
             'seats_available' => $this->seatsAvailable,
             'cabin' => $this->cabin,
             'status' => $this->status,
-            'created_at' => $this->createdAt,
+            'created_at' => $this->getCreatedAt(),
         ];
     }
 }

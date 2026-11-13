@@ -3,67 +3,44 @@
 namespace App\Controller\Admin;
 
 use App\Service\DashboardService;
+use App\Service\DatabaseFactory;
+use App\Twig\AeroGlideExtension;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Routing\Attribute\Route;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
-use Twig\TwigFunction;
-use Twig\TwigFilter;
 use PDO;
 
-class DashboardController
+class DashboardController extends AbstractController
 {
     private PDO $pdo;
     private DashboardService $dashboardService;
-    private Environment $twig;
+    private ?Environment $customTwig = null;
 
-    public function __construct(PDO $pdo)
-    {
-        $this->pdo = $pdo;
-        $this->dashboardService = new DashboardService($pdo);
+    public function __construct(
+        ?PDO $pdo = null,
+        ?DashboardService $dashboardService = null
+    ) {
+        $this->pdo = $pdo ?? DatabaseFactory::getConnection();
+        $this->dashboardService = $dashboardService ?? new DashboardService($this->pdo);
 
+        // Standalone Twig fallback for direct invocation without full Symfony kernel
         $templatesDir = dirname(__DIR__, 3) . '/templates';
-        $loader = new FilesystemLoader($templatesDir);
-        $this->twig = new Environment($loader, [
-            'auto_reload' => true,
-            'strict_variables' => false,
-        ]);
-
-        // Register custom Twig helper functions and filters matching the application
-        $this->twig->addFunction(new TwigFunction('ag_base_url', function (string $path = '') {
-            if (function_exists('ag_base_url')) {
-                return ag_base_url($path);
-            }
-            return '/' . ltrim($path, '/');
-        }));
-
-        $this->twig->addFunction(new TwigFunction('asset_find', function (array $terms) {
-            if (function_exists('asset_find')) {
-                return asset_find($terms);
-            }
-            return 'asset/logo.png';
-        }));
-
-        $this->twig->addFilter(new TwigFilter('peso', function ($amount) {
-            return '₱' . number_format((float)$amount, 2);
-        }));
-
-        $this->twig->addFilter(new TwigFilter('peso_int', function ($amount) {
-            return '₱' . number_format((float)$amount, 0);
-        }));
-
-        $this->twig->addFilter(new TwigFilter('format_date', function ($datetime) {
-            if (!$datetime) return '—';
-            return date('M j, Y — g:i A', strtotime($datetime));
-        }));
-
-        $this->twig->addFilter(new TwigFilter('format_date_short', function ($datetime) {
-            if (!$datetime) return '—';
-            return date('M j, Y', strtotime($datetime));
-        }));
+        if (is_dir($templatesDir)) {
+            $loader = new FilesystemLoader($templatesDir);
+            $this->customTwig = new Environment($loader, [
+                'auto_reload' => true,
+                'strict_variables' => false,
+            ]);
+            $this->customTwig->addExtension(new AeroGlideExtension());
+        }
     }
 
+    #[Route('/admin', name: 'admin_dashboard', methods: ['GET'])]
+    #[Route('/admin/dashboard', name: 'admin_dashboard_alias', methods: ['GET'])]
     public function index(Request $request): Response
     {
         $adminUser = function_exists('auth_get_user') ? auth_get_user() : ['name' => 'Administrator', 'username' => 'admin'];
@@ -73,7 +50,7 @@ class DashboardController
             admin_log('Viewed Dashboard');
         }
 
-        $html = $this->twig->render('admin/dashboard.html.twig', [
+        $context = [
             'admin' => $adminUser,
             'summary' => $data['summary'],
             'modes' => $data['modes'],
@@ -86,11 +63,18 @@ class DashboardController
             'upcoming_flights' => $data['upcoming_flights'],
             'generated_at' => $data['generated_at'],
             'current_page' => 'index.php',
-        ]);
+        ];
 
+        // Prefer Symfony's containerized Twig if available; otherwise use custom loader
+        if ($this->container && $this->container->has('twig')) {
+            return $this->render('admin/dashboard.html.twig', $context);
+        }
+
+        $html = $this->customTwig->render('admin/dashboard.html.twig', $context);
         return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
 
+    #[Route('/admin/api/stats', name: 'admin_dashboard_api_stats', methods: ['GET'])]
     public function apiStats(Request $request): JsonResponse
     {
         $data = $this->dashboardService->getDashboardData();
@@ -100,4 +84,3 @@ class DashboardController
         ]);
     }
 }
-

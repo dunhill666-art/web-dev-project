@@ -1,6 +1,7 @@
 # AeroGlide — Airline Booking & Travel Platform
+### Full Symfony 7.4 Enterprise Stack & Production Docker Environment
 
-> **Zero-Configuration Dockerized Stack**: Designed for seamless evaluation on any machine (Windows, macOS, or Linux) with a single command. No local WAMP, Apache, or MySQL installation required.
+> **Academic Finals 2026–2027 Edition**: Complete integration of the official Symfony 7.4 WebApp architecture, Doctrine ORM 3.x, Symfony Console CLI, and Web Debug Profiler, orchestrated via Docker Compose for zero-configuration evaluation on Windows, macOS, or Linux.
 
 ---
 
@@ -8,36 +9,36 @@
 
 ### Prerequisites
 - **Docker Desktop** (Windows / macOS) or **Docker Engine + Docker Compose v2** (Linux).
-- Ensure Docker Desktop is running before executing commands.
+- Ensure Docker Desktop is active before running commands.
 
 ### 1-Step Startup Command
 
-Open your terminal or command prompt inside the project root folder and run:
+From the root project folder (`c:\wamp64\www\website`), execute:
 
 ```bash
 docker compose up --build
 ```
-*(To run in the background, append `-d`: `docker compose up --build -d`)*
+*(To run in detached background mode, add `-d`: `docker compose up --build -d`)*
 
 Docker will automatically:
-1. Pull and compile the PHP 8.3 Apache image with all required extensions (`pdo_mysql`, `intl`, `opcache`, `rewrite`).
-2. Launch the isolated MariaDB database container and health-check the socket.
-3. Automatically execute `database/init.sql` to generate all 5 core tables, the default admin account, and demo traveler records.
-4. Dynamically seed 9,000+ forward-looking flight schedules spanning the next 90 days from the current date.
-5. Spin up a standalone **phpMyAdmin** dashboard for visual database inspection.
+1. Compile the PHP 8.3 Apache image loaded with `pdo_mysql`, `intl`, `opcache`, `mod_rewrite`, and Composer CLI.
+2. Spin up the isolated MariaDB 10.11 database engine and initialize all 5 relational tables via `database/init.sql`.
+3. Auto-seed the system with default administrator (`admin`), demo customer (`demo`), sample booking (`AG-DEMO2026`), and dynamically generate 9,000+ forward-looking flight schedules spanning 90 days.
+4. Launch the standalone **phpMyAdmin** visual management console on port 8081.
+5. Boot the **Symfony 7.4 MicroKernel** and compile all routes, Twig extensions, and Doctrine entity mappings.
 
 ---
 
 ## 🌐 Application Endpoints
 
-Once the startup log outputs `AeroGlide Web Server Ready`, access the following services in your web browser:
-
-| Service | URL | Notes |
+| Service / Tool | URL | Description |
 | :--- | :--- | :--- |
 | **Main Website** | [http://localhost:8080](http://localhost:8080) | Search flights, explore Philippine destinations, book travel |
-| **Admin Portal** | [http://localhost:8080/admin/](http://localhost:8080/admin/) | Unified management dashboard, bookings, users, analytics |
-| **phpMyAdmin GUI** | [http://localhost:8081](http://localhost:8081) | Visual DB management (auto-authenticates to MariaDB) |
-| **Database Direct Port** | `localhost:3307` | For external DB clients like DBeaver, TablePlus, or VS Code |
+| **Admin Portal** | [http://localhost:8080/admin/](http://localhost:8080/admin/) | Unified Symfony 7.4 administrative dashboard & analytics |
+| **Admin API Endpoint** | [http://localhost:8080/admin/api/stats](http://localhost:8080/admin/api/stats) | JSON live metrics endpoint powered by `DashboardController` |
+| **Symfony Web Profiler** | [http://localhost:8080/_profiler/](http://localhost:8080/_profiler/) | Live Symfony developer toolbar, database queries, and routing inspector |
+| **phpMyAdmin GUI** | [http://localhost:8081](http://localhost:8081) | Visual DB management console (auto-authenticated to MariaDB) |
+| **MariaDB Direct Port** | `localhost:3307` | External DB port for DBeaver, TablePlus, DataGrip, or VS Code |
 
 ---
 
@@ -46,34 +47,53 @@ Once the startup log outputs `AeroGlide Web Server Ready`, access the following 
 ### Web Portals
 | Account Type | Username | Password | Access Rights |
 | :--- | :--- | :--- | :--- |
-| **Super Admin** | `admin` | `admin2026!` | Full administrative dashboard, flight analytics, revenue & logs |
-| **Traveler Demo** | `demo` | `password123` | Active customer profile, booking history, checkout flow |
+| **Super Admin** | `admin` | `admin2026!` | Unified management dashboard, bookings, fleet stats, audit logs |
+| **Traveler Demo** | `demo` | `password123` | Customer portal, flight search, reservation history, checkout |
 
 ### Database Credentials (phpMyAdmin / Direct SQL Client)
 | Parameter | Value |
 | :--- | :--- |
-| **Server / Host** | `db` *(inside Docker)* or `127.0.0.1:3307` *(from host)* |
+| **Host** | `db` *(inside Docker)* or `127.0.0.1:3307` *(from host machine)* |
 | **Database Name** | `aeroglide` |
 | **Root User** | `root` / `root_secret` |
-| **Application User** | `aeroglide` / `aeroglide_secret` |
+| **App User** | `aeroglide` / `aeroglide_secret` |
 
 ---
 
-## 📋 Evaluation & Testing Walkthrough
+## ⚡ Symfony 7.4 Console & Architecture Commands
 
-1. **Explore Flights & Booking**:
-   - Navigate to [http://localhost:8080](http://localhost:8080).
-   - Search for domestic flights (e.g., **Manila (MNL)** to **Caticlan / Boracay (MPH)** or **Cebu (CEB)** to **Siargao (IAO)**).
-   - Select departure/return dates, pick a flight class (Economy, Premium, Business), and proceed to checkout.
-2. **Review User Dashboard**:
-   - Log in at [http://localhost:8080/user/login.php](http://localhost:8080/user/login.php) with `demo` / `password123`.
-   - View active flight bookings and reservation references under **My Bookings**.
-3. **Inspect Unified Admin Dashboard**:
-   - Visit [http://localhost:8080/admin/](http://localhost:8080/admin/) and log in with `admin` / `admin2026!`.
-   - Inspect live KPIs (Total Bookings, Active Passengers, Revenue metrics, Flight operations).
-4. **Inspect Live Database Records**:
-   - Open [http://localhost:8081](http://localhost:8081) to view the phpMyAdmin console.
-   - Inspect the 5 core relational tables: `users`, `bookings`, `flights`, `password_tokens`, and `admin_logs`.
+The project now includes the full Symfony CLI console suite (`bin/console`). You can run these commands directly on your host (if PHP 8.2+ is installed) or inside the Docker web container (`docker compose exec web php bin/console <command>`):
+
+```bash
+# 1. Inspect registered routes (including /admin, /admin/dashboard, and /admin/api/stats)
+php bin/console debug:router
+
+# 2. Validate Doctrine ORM entity mappings
+php bin/console doctrine:schema:validate --skip-sync
+
+# 3. Inspect registered Twig extensions, filters, and functions
+php bin/console debug:twig
+
+# 4. Clear and rebuild Symfony cache
+php bin/console cache:clear
+
+# 5. Inspect autowired services and dependencies
+php bin/console debug:autowiring
+```
+
+---
+
+## 🏗️ Architecture & Component Integration
+
+| Layer | Component | Implementation |
+| :--- | :--- | :--- |
+| **Framework Kernel** | Symfony 7.4 LTS | `src/Kernel.php` utilizing `MicroKernelTrait`, `public/index.php` runtime entry point |
+| **Database / ORM** | Doctrine ORM 3.x + DBAL | MariaDB 10.11 mapping 4 core entities: `User`, `Booking`, `Flight`, and `AdminLog` |
+| **Admin Controller** | `DashboardController` | Extends `AbstractController`, mapped via `#[Route('/admin')]` and `#[Route('/admin/api/stats')]` |
+| **Security Layer** | `symfony/security-bundle` | `App\Entity\User` implements `UserInterface` & `PasswordAuthenticatedUserInterface` |
+| **Frontend Assets** | `symfony/asset-mapper` | AssetMapper + Hotwired Stimulus & Turbo (`importmap.php`, `assets/`) |
+| **Templating Engine** | Twig 3.x | Custom extension `AeroGlideExtension` providing `peso`, `format_date`, and asset helpers |
+| **Hybrid Routing** | Apache `.htaccess` | Serves physical assets/legacy pages directly, rewrites virtual routes to `public/index.php` |
 
 ---
 
@@ -87,17 +107,7 @@ Once the startup log outputs `AeroGlide Web Server Ready`, access the following 
 | **Full Reset (Wipe & Re-seed DB)** | `docker compose down -v && docker compose up --build` |
 | **View Live Web Server Logs** | `docker compose logs -f web` |
 | **View Database Logs** | `docker compose logs -f db` |
-| **Open Shell in Web Container** | `docker compose exec web bash` |
-
----
-
-## 🏗️ Architecture & Stack Details
-
-- **Backend Runtime**: PHP 8.3 Apache with Apache `mod_rewrite` enabled.
-- **MVC & Templating**: PHP with Symfony Components (`HttpFoundation`, `Yaml`) and Twig templating engine.
-- **Relational Database**: MariaDB 10.11 LTS with persistent Docker named volume (`db_data`).
-- **Networking**: Isolated bridge network (`aeroglide_net`) connecting `web`, `db`, and `phpmyadmin` via Docker internal DNS.
-- **Backward Compatibility**: Dual-mode database configuration (`database/config.php`) automatically checks container environment variables first, while gracefully falling back to local WAMP/XAMPP defaults if run outside Docker.
+| **Open Bash Shell in Web Container** | `docker compose exec web bash` |
 
 ---
 
@@ -113,8 +123,8 @@ ports:
 ### 2. Docker Daemon connection error
 If you see `failed to connect to docker API`, ensure the Docker Desktop application is launched and running in your taskbar/menu bar.
 
-### 3. Re-running on Local WAMP / XAMPP (Without Docker)
-If you ever want to run the project on local WAMP again without Docker:
-1. Ensure WAMP is running (Apache + MySQL).
+### 3. Running on Local WAMP / XAMPP (Outside Docker)
+If running on local WAMP without Docker:
+1. Ensure WAMP is active (Apache + MySQL).
 2. The project reads `.env` with fallback to `127.0.0.1:3306`, user `root`, empty password.
-3. Access via your local virtual host or `http://localhost/website/`.
+3. Access via `http://localhost/website/` or your configured virtual host.

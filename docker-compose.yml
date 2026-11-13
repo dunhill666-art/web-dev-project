@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # ============================================================
-  # AeroGlide Web Application (PHP 8.3 + Apache + Symfony Components)
+  # AeroGlide Web Application (PHP 8.3 + Apache + Symfony 7.4 WebApp)
   # ============================================================
   web:
     build:
@@ -18,7 +18,12 @@ services:
       DB_NAME: aeroglide
       DB_USER: aeroglide
       DB_PASSWORD: aeroglide_secret
-      APP_ENV: prod
+      DATABASE_URL: "mysql://aeroglide:aeroglide_secret@db:3306/aeroglide?serverVersion=mariadb-10.11.0&charset=utf8mb4"
+      APP_ENV: dev
+      APP_SECRET: "4f8b2c1e7a903d6521e84c9f1a2b3c4d"
+      DEFAULT_URI: "http://localhost:8080"
+      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
+      MAILER_DSN: "null://null"
     depends_on:
       db:
         condition: service_healthy
@@ -84,4 +89,3 @@ volumes:
 networks:
   aeroglide_net:
     driver: bridge
-

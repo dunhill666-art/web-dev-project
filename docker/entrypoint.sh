@@ -56,6 +56,10 @@ try {
 }
 " || true
 
+# 3. Ensure var/ cache and log directories are writable by Apache
+mkdir -p /var/www/html/var/cache /var/www/html/var/log
+chown -R www-data:www-data /var/www/html/var
+
 echo "=========================================================="
 echo " AeroGlide Web Server Ready at http://localhost:8080"
 echo " phpMyAdmin Visual GUI Ready at http://localhost:8081"
