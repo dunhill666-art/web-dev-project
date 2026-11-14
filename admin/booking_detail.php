@@ -75,13 +75,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $refund = max(0.00, $grandTotal - $fee);
         $notes = 'Booking cancelled by Administrator.';
         $cancelledAt = date('Y-m-d H:i:s');
-        $up = $db->prepare("UPDATE bookings SET status='cancelled', cancellation_fee=:fee, refund_amount=:refund, cancelled_at=:cat, admin_notes=:notes WHERE id=:id");
+        $up = $db->prepare("UPDATE bookings SET status='cancelled', cancellation_fee=:fee, refund_amount=:refund, cancelled_at=:cat, admin_notes=:notes WHERE id=:id AND status NOT IN ('confirmed','cancelled')");
         $up->execute([':fee' => $fee, ':refund' => $refund, ':cat' => $cancelledAt, ':notes' => $notes, ':id' => $id]);
+        if ($up->rowCount() !== 1) {
+            admin_log("Rejected stale/duplicate cancellation for booking #{$id}", "booking:{$id}");
+            header("Location: booking_detail.php?id={$id}&err=locked");
+            exit;
+        }
         admin_log("Admin permanently finalized booking #{$id} ({$b['booking_ref']}) to CANCELLED. Fee: P{$fee}, Refund: P{$refund}", "booking:{$id}");
         $msg = 'Flight cancelled successfully. Booking status is now Cancelled and permanently finalized.';
     } else {
-        $up = $db->prepare("UPDATE bookings SET status='confirmed' WHERE id=:id");
+        $up = $db->prepare("UPDATE bookings SET status='confirmed' WHERE id=:id AND status NOT IN ('confirmed','cancelled')");
         $up->execute([':id' => $id]);
+        if ($up->rowCount() !== 1) {
+            admin_log("Rejected stale/duplicate confirmation for booking #{$id}", "booking:{$id}");
+            header("Location: booking_detail.php?id={$id}&err=locked");
+            exit;
+        }
         admin_log("Admin permanently finalized booking #{$id} ({$b['booking_ref']}) to CONFIRMED.", "booking:{$id}");
         $msg = 'Flight accepted successfully. Booking status is now Confirmed and permanently locked.';
     }
@@ -332,6 +342,10 @@ $isCancelled = ($bStatus === 'cancelled');
             <?php if ($b['promo_code']): ?>
             <div class="detail-row"><span class="detail-key">Promo Code</span><span class="detail-val"><code style="background:#f1f5f9;padding:2px 8px;border-radius:6px;"><?= htmlspecialchars($b['promo_code']) ?></code></span></div>
             <?php endif; ?>
+            <div class="detail-row">
+              <span class="detail-key">Payment Method</span>
+              <span class="detail-val"><?= !empty($b['payment_method']) ? htmlspecialchars($b['payment_method']) : '<span style="color:var(--muted);">Not recorded</span>' ?></span>
+            </div>
             <div class="detail-row">
               <span class="detail-key" style="color:var(--ink);">Grand Total</span>
               <span class="detail-val" style="font-size:1.1rem;font-weight:900;color:var(--green);">₱<?= number_format($b['grand_total'], 2) ?></span>

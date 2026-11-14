@@ -15,6 +15,19 @@ if (!auth_is_logged_in() || (!auth_is_admin() && !auth_is_staff())) {
     exit;
 }
 
+// 1b. Revoke access immediately if the account was deactivated or removed.
+try {
+    $guardUser = auth_find_user_by_id((int)($_SESSION['user_id'] ?? 0));
+    if (!$guardUser || (($guardUser['status'] ?? 'active') !== 'active')) {
+        auth_logout();
+        header('Location: ' . ag_base_url('user/login.php?error=' . urlencode('This account is no longer active. Please contact an administrator.')));
+        exit;
+    }
+} catch (Throwable $e) {
+    // Never lock out administrators because of a transient database error.
+    auth_log_exception($e, 'admin_guard_status');
+}
+
 // 2. Strict Administrator-Only Gatekeeper
 if (!function_exists('admin_require_full_admin')) {
     function admin_require_full_admin(string $deniedMessage = 'Access Denied: Full administrator privileges required.'): void

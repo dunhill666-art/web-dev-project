@@ -40,6 +40,8 @@ class DashboardService
         $totalRefunds = $this->bookingRepo->getTotalRefunds();
 
         $totalUsers = $this->userRepo->countTotalUsers();
+        $totalStaff = $this->userRepo->countTotalStaff();
+        $totalRecords = $this->userRepo->countAllRecords();
         $newUsersMonth = $this->userRepo->countNewUsersThisMonth();
 
         $totalFlights = $this->flightRepo->countTotalFlights();
@@ -130,6 +132,8 @@ class DashboardService
                 'pending_bookings' => $pendingCount,
                 'cancellation_rate' => $cancellationRate,
                 'total_users' => $totalUsers,
+                'total_staff' => $totalStaff,
+                'total_records' => $totalRecords,
                 'new_users_month' => $newUsersMonth,
                 'total_flights' => $totalFlights,
                 'available_flights' => $availableFlights,

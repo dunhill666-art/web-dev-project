@@ -72,11 +72,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $gt = (float)($bRow['grand_total'] ?? 0);
             $fee = min(500.00, $gt);
             $refund = max(0.00, $gt - $fee);
-            $db->prepare("UPDATE bookings SET status='cancelled', cancellation_fee=:fee, refund_amount=:ref, cancelled_at=NOW(), admin_notes='Cancelled by Administrator' WHERE id=:id")
-               ->execute([':fee' => $fee, ':ref' => $refund, ':id' => $bId]);
+            // Atomic guard: only a non-finalized booking may change.
+            $up = $db->prepare("UPDATE bookings SET status='cancelled', cancellation_fee=:fee, refund_amount=:ref, cancelled_at=NOW(), admin_notes='Cancelled by Administrator' WHERE id=:id AND status NOT IN ('confirmed','cancelled')");
+            $up->execute([':fee' => $fee, ':ref' => $refund, ':id' => $bId]);
+            if ($up->rowCount() !== 1) {
+                admin_log("Rejected stale/duplicate cancellation for booking #{$bId}", "booking:{$bId}");
+                header('Location: bookings.php?err=locked');
+                exit;
+            }
             admin_log("Admin finalized booking #{$bId} ({$bRow['booking_ref']}) to CANCELLED (Permanent Final State). Fee: P{$fee}, Refund: P{$refund}", "booking:{$bId}");
         } else {
-            $db->prepare("UPDATE bookings SET status='confirmed' WHERE id=:id")->execute([':id' => $bId]);
+            $up = $db->prepare("UPDATE bookings SET status='confirmed' WHERE id=:id AND status NOT IN ('confirmed','cancelled')");
+            $up->execute([':id' => $bId]);
+            if ($up->rowCount() !== 1) {
+                admin_log("Rejected stale/duplicate confirmation for booking #{$bId}", "booking:{$bId}");
+                header('Location: bookings.php?err=locked');
+                exit;
+            }
             admin_log("Admin finalized booking #{$bId} ({$bRow['booking_ref']}) to CONFIRMED (Permanent Final State)", "booking:{$bId}");
         }
         header('Location: bookings.php?updated=1'); 
@@ -132,9 +144,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="aeroglide_bookings_'.date('Ymd').'.csv"');
     $out = fopen('php://output','w');
-    fputcsv($out, ['ID','Ref','Traveler','Email','Phone','Username','City','Mode','Adults','Cabin','Hotel','Nights','Car','Days','SubTotal','Discount','GrandTotal','Promo','Date','Status','CancellationReason','AdminNotes']);
+    fputcsv($out, ['ID','Ref','Traveler','Email','Phone','Username','City','Mode','Adults','Cabin','Hotel','Nights','Car','Days','SubTotal','Discount','GrandTotal','Promo','PaymentMethod','Date','Status','CancellationReason','AdminNotes']);
     foreach ($bookings as $b) {
-        fputcsv($out, [$b['id'],$b['booking_ref'],$b['traveler_name'],$b['traveler_email'],$b['traveler_phone'],$b['username'],$b['city'],$b['mode'],$b['adults'],$b['cabin'],$b['hotel_name'],$b['nights'],$b['car_name'],$b['days'],$b['subtotal'],$b['discount_num'],$b['grand_total'],$b['promo_code'],$b['booking_date'],$b['status'],$b['cancellation_reason']??'',$b['admin_notes']??'']);
+        fputcsv($out, [$b['id'],$b['booking_ref'],$b['traveler_name'],$b['traveler_email'],$b['traveler_phone'],$b['username'],$b['city'],$b['mode'],$b['adults'],$b['cabin'],$b['hotel_name'],$b['nights'],$b['car_name'],$b['days'],$b['subtotal'],$b['discount_num'],$b['grand_total'],$b['promo_code'],$b['payment_method']??'', $b['booking_date'],$b['status'],$b['cancellation_reason']??'',$b['admin_notes']??'']);
     }
     fclose($out); exit;
 }
@@ -374,11 +386,11 @@ admin_log('Viewed bookings list');
       <div class="table-wrap">
         <table class="data-table">
           <thead>
-            <tr><th>#</th><th>Ref</th><th>Traveler</th><th>Destination</th><th>Mode</th><th>Guests</th><th>Total</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>#</th><th>Ref</th><th>Traveler</th><th>Destination</th><th>Mode</th><th>Guests</th><th>Payment</th><th>Total</th><th>Date</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             <?php if (empty($bookings)): ?>
-              <tr><td colspan="10"><div class="empty-state"><div class="empty-state-icon">🎫</div><p>No bookings found.</p></div></td></tr>
+              <tr><td colspan="11"><div class="empty-state"><div class="empty-state-icon">🎫</div><p>No bookings found.</p></div></td></tr>
             <?php else: ?>
               <?php foreach ($bookings as $i => $b): 
                 $bStatus = strtolower($b['status'] ?? 'confirmed');
@@ -400,6 +412,11 @@ admin_log('Viewed bookings list');
                 <td style="font-weight:600;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?= htmlspecialchars($b['city']) ?></td>
                 <td><span class="badge badge-<?= $b['mode'] ?>"><?= ucfirst($b['mode']) ?></span></td>
                 <td style="text-align:center;"><?= $b['adults'] ?></td>
+                <td style="font-size:.78rem;">
+                  <?php if (!empty($b['payment_method'])): ?>
+                    <span style="background:#f1f5f9;padding:2px 8px;border-radius:6px;font-weight:700;"><?= htmlspecialchars($b['payment_method']) ?></span>
+                  <?php else: ?><span style="color:var(--muted);">—</span><?php endif; ?>
+                </td>
                 <td style="font-weight:800;color:var(--green);">₱<?= number_format($b['grand_total'],0) ?></td>
                 <td style="color:var(--muted);font-size:.78rem;white-space:nowrap;"><?= date('M j, Y',strtotime($b['booking_date'])) ?></td>
                 <td>

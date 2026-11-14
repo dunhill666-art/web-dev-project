@@ -140,7 +140,7 @@
       </div>
     {% endif %}
 
-    <!-- 4 TOP STAT CARDS -->
+    <!-- TOP STAT CARDS -->
     <div class="stats-grid">
       <div class="stat-card green">
         <div class="stat-icon green">💰</div>
@@ -159,8 +159,22 @@
       <div class="stat-card purple">
         <div class="stat-icon purple">👥</div>
         <div class="stat-value" id="valTotalUsers">{{ summary.total_users }}</div>
-        <div class="stat-label">Traveler Accounts</div>
+        <div class="stat-label">Total Users</div>
         <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">+{{ summary.new_users_month }} signups this month</div>
+      </div>
+
+      <div class="stat-card blue">
+        <div class="stat-icon blue">🧑‍✈️</div>
+        <div class="stat-value" id="valTotalStaff">{{ summary.total_staff }}</div>
+        <div class="stat-label">Total Staff</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">Operations team accounts</div>
+      </div>
+
+      <div class="stat-card red">
+        <div class="stat-icon red">🗂️</div>
+        <div class="stat-value" id="valTotalRecords">{{ summary.total_records|number_format }}</div>
+        <div class="stat-label">Total Records</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">Users · bookings · flights · logs</div>
       </div>
 
       <div class="stat-card yellow">
@@ -461,6 +475,12 @@ function refreshDashboardData() {
       }
       if (document.getElementById('valTotalUsers')) {
         document.getElementById('valTotalUsers').textContent = summary.total_users;
+      }
+      if (document.getElementById('valTotalStaff')) {
+        document.getElementById('valTotalStaff').textContent = summary.total_staff;
+      }
+      if (document.getElementById('valTotalRecords')) {
+        document.getElementById('valTotalRecords').textContent = Number(summary.total_records).toLocaleString();
       }
       if (document.getElementById('valTotalFlights')) {
         document.getElementById('valTotalFlights').textContent = summary.total_flights;

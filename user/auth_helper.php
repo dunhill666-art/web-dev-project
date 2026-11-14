@@ -19,6 +19,20 @@ if (file_exists(__DIR__ . '/../database/config.php')) {
     require_once dirname(__DIR__) . '/database/validation.php';
 }
 
+// log authentication/database errors privately (never on the public page)
+if (!function_exists('auth_log_exception')) {
+    function auth_log_exception(Throwable $e, string $context = 'authentication'): void
+    {
+        error_log(sprintf(
+            '[AeroGlide auth] %s: %s in %s:%d',
+            $context,
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        ));
+    }
+}
+
 // session helpers
 if (!function_exists('auth_is_logged_in')) {
     function auth_is_logged_in(): bool
@@ -42,11 +56,12 @@ if (!function_exists('auth_get_user')) {
             $stmt->execute([':id' => $_SESSION['user_id']]);
             $user = $stmt->fetch();
             if ($user) {
+                unset($user['password']);
                 $_SESSION['user_data'] = $user;
                 return $user;
             }
         } catch (Exception $e) {
-            // session fallback
+            auth_log_exception($e, 'auth_get_user');
         }
 
         return [
@@ -194,12 +209,16 @@ if (!function_exists('auth_request_cancel_user_booking')) {
             SET status = 'pending_cancellation', 
                 cancellation_reason = :reason, 
                 cancellation_requested_at = NOW()
-            WHERE id = :bid
+            WHERE id = :bid AND status NOT IN ('cancelled', 'pending_cancellation')
         ");
         $up->execute([
             ':reason' => $reqReason,
             ':bid'    => $booking['id']
         ]);
+
+        if ($up->rowCount() !== 1) {
+            return ['success' => false, 'message' => 'The booking status changed while processing your request. Please refresh and try again.'];
+        }
 
         if (function_exists('admin_log')) {
             admin_log("User #{$userId} requested cancellation for booking #{$bookingRef} (Pending Admin Approval)", "booking:{$booking['id']}");
@@ -234,12 +253,21 @@ if (!function_exists('auth_admin_approve_cancellation')) {
             return ['success' => false, 'message' => 'Booking not found.'];
         }
 
+        $currentStatus = strtolower((string)($booking['status'] ?? ''));
+        if ($currentStatus === 'cancelled') {
+            return ['success' => false, 'message' => 'This booking has already been cancelled.'];
+        }
+        if ($currentStatus !== 'pending_cancellation') {
+            return ['success' => false, 'message' => 'No pending cancellation request exists for this booking.'];
+        }
+
         $grandTotal      = (float)($booking['grand_total'] ?? 0);
         $cancellationFee = min(500.00, $grandTotal);
         $refundAmount    = max(0.00, $grandTotal - $cancellationFee);
         $cancelledAt     = date('Y-m-d H:i:s');
         $notes           = !empty($adminNotes) ? trim($adminNotes) : 'Cancellation approved by Admin. Refund processed.';
 
+        // Atomic transition: only a still-pending cancellation request can be approved.
         $up = $db->prepare("
             UPDATE bookings 
             SET status = 'cancelled', 
@@ -247,7 +275,7 @@ if (!function_exists('auth_admin_approve_cancellation')) {
                 refund_amount = :refund, 
                 cancelled_at = :cat,
                 admin_notes = :notes
-            WHERE id = :bid
+            WHERE id = :bid AND status = 'pending_cancellation'
         ");
         $up->execute([
             ':fee'    => $cancellationFee,
@@ -256,6 +284,10 @@ if (!function_exists('auth_admin_approve_cancellation')) {
             ':notes'  => $notes,
             ':bid'    => $booking['id']
         ]);
+
+        if ($up->rowCount() !== 1) {
+            return ['success' => false, 'message' => 'This cancellation request was already processed. Refresh the page to see the current status.'];
+        }
 
         if (function_exists('admin_log')) {
             admin_log("Admin #{$adminId} approved cancellation for booking #{$booking['booking_ref']}. Fee: P{$cancellationFee}, Refund: P{$refundAmount}", "booking:{$booking['id']}");
@@ -290,18 +322,31 @@ if (!function_exists('auth_admin_reject_cancellation')) {
             return ['success' => false, 'message' => 'Booking not found.'];
         }
 
+        $currentStatus = strtolower((string)($booking['status'] ?? ''));
+        if ($currentStatus === 'cancelled') {
+            return ['success' => false, 'message' => 'This booking has already been cancelled.'];
+        }
+        if ($currentStatus !== 'pending_cancellation') {
+            return ['success' => false, 'message' => 'No pending cancellation request exists for this booking.'];
+        }
+
         $notes = !empty($adminNotes) ? trim($adminNotes) : 'Cancellation request rejected by Admin.';
 
+        // Atomic transition: only a still-pending cancellation request can be rejected.
         $up = $db->prepare("
             UPDATE bookings 
             SET status = 'confirmed', 
                 admin_notes = :notes
-            WHERE id = :bid
+            WHERE id = :bid AND status = 'pending_cancellation'
         ");
         $up->execute([
             ':notes'  => $notes,
             ':bid'    => $booking['id']
         ]);
+
+        if ($up->rowCount() !== 1) {
+            return ['success' => false, 'message' => 'This cancellation request was already processed. Refresh the page to see the current status.'];
+        }
 
         if (function_exists('admin_log')) {
             admin_log("Admin #{$adminId} rejected cancellation request for booking #{$booking['booking_ref']}. Reason: {$notes}", "booking:{$booking['id']}");
@@ -393,18 +438,37 @@ if (!function_exists('auth_login')) {
     function auth_login(string $username, string $password): array
     {
         $username = trim($username);
-        $user = auth_find_user_by_username($username) ?? auth_find_user_by_email($username);
+        $genericError = 'We could not complete your login right now. Please try again later.';
 
-        if (!$user) {
-            return ['success' => false, 'message' => 'Account not found. Please check your credentials or sign up.'];
+        try {
+            $user = auth_find_user_by_username($username) ?? auth_find_user_by_email($username);
+
+            if (!$user) {
+                return ['success' => false, 'message' => 'Account not found. Please check your credentials or sign up.'];
+            }
+
+            if (!password_verify($password, $user['password'] ?? '')) {
+                return ['success' => false, 'message' => 'Incorrect password. Please try again.'];
+            }
+
+            // account status check (column exists in the current schema)
+            if (isset($user['status']) && $user['status'] !== '' && $user['status'] !== 'active') {
+                return ['success' => false, 'message' => 'This account has been deactivated. Please contact support.'];
+            }
+
+            // update timestamp
+            ag_db()->prepare("UPDATE users SET last_login=NOW() WHERE id=:id")->execute([':id' => $user['id']]);
+        } catch (PDOException $e) {
+            auth_log_exception($e, 'auth_login');
+            return ['success' => false, 'message' => $genericError];
+        } catch (Throwable $e) {
+            auth_log_exception($e, 'auth_login');
+            return ['success' => false, 'message' => $genericError];
         }
 
-        if (!password_verify($password, $user['password'])) {
-            return ['success' => false, 'message' => 'Incorrect password. Please try again.'];
-        }
-
-        // update timestamp
-        ag_db()->prepare("UPDATE users SET last_login=NOW() WHERE id=:id")->execute([':id' => $user['id']]);
+        // never keep the password hash in the session payload
+        $sessionUser = $user;
+        unset($sessionUser['password']);
 
         session_regenerate_id(true);
         $_SESSION['user_id']    = $user['id'];
@@ -412,9 +476,9 @@ if (!function_exists('auth_login')) {
         $_SESSION['user_name']  = $user['name'];
         $_SESSION['user_email'] = $user['email'];
         $_SESSION['user_role']  = $user['role'];
-        $_SESSION['user_data']  = $user;
+        $_SESSION['user_data']  = $sessionUser;
 
-        return ['success' => true, 'user' => $user];
+        return ['success' => true, 'user' => $sessionUser];
     }
 }
 
@@ -430,17 +494,25 @@ if (!function_exists('auth_register')) {
         if (strlen($username) < 3) return ['success' => false, 'message' => 'Username must be at least 3 characters.'];
         if (strlen($password) < 6) return ['success' => false, 'message' => 'Password must be at least 6 characters.'];
 
-        if (auth_find_user_by_username($username)) {
-            return ['success' => false, 'message' => 'Username already taken. Please choose another username.'];
-        }
-        if (auth_find_user_by_email($email)) {
-            return ['success' => false, 'message' => 'Email address already registered. Please log in instead.'];
-        }
+        try {
+            if (auth_find_user_by_username($username)) {
+                return ['success' => false, 'message' => 'Username already taken. Please choose another username.'];
+            }
+            if (auth_find_user_by_email($email)) {
+                return ['success' => false, 'message' => 'Email address already registered. Please log in instead.'];
+            }
 
-        $hash = password_hash($password, PASSWORD_BCRYPT);
-        $stmt = ag_db()->prepare("INSERT INTO users (username,name,email,password,role) VALUES (:u,:n,:e,:p,'user')");
-        $stmt->execute([':u' => $username, ':n' => $name, ':e' => $email, ':p' => $hash]);
-        $newId = (int)ag_db()->lastInsertId();
+            $hash = password_hash($password, PASSWORD_BCRYPT);
+            $stmt = ag_db()->prepare("INSERT INTO users (username,name,email,password,role) VALUES (:u,:n,:e,:p,'user')");
+            $stmt->execute([':u' => $username, ':n' => $name, ':e' => $email, ':p' => $hash]);
+            $newId = (int)ag_db()->lastInsertId();
+        } catch (PDOException $e) {
+            auth_log_exception($e, 'auth_register');
+            return ['success' => false, 'message' => 'We could not create your account right now. Please try again later.'];
+        } catch (Throwable $e) {
+            auth_log_exception($e, 'auth_register');
+            return ['success' => false, 'message' => 'We could not create your account right now. Please try again later.'];
+        }
 
         $userData = ['id' => $newId, 'username' => $username, 'name' => $name, 'email' => $email, 'role' => 'user'];
 
@@ -477,16 +549,24 @@ if (!function_exists('auth_forgot_password')) {
             return ['success' => false, 'message' => 'Please enter your email address or username.'];
         }
 
-        $user = auth_find_user_by_username($identity) ?? auth_find_user_by_email($identity);
-        if (!$user) {
-            return ['success' => false, 'message' => 'No account found matching that email or username.'];
+        try {
+            $user = auth_find_user_by_username($identity) ?? auth_find_user_by_email($identity);
+            if (!$user) {
+                return ['success' => false, 'message' => 'No account found matching that email or username.'];
+            }
+
+            $token   = bin2hex(random_bytes(32));
+            $expires = date('Y-m-d H:i:s', time() + 7200);
+
+            $stmt = ag_db()->prepare("INSERT INTO password_tokens (user_id,token,expires_at) VALUES (:uid,:tok,:exp)");
+            $stmt->execute([':uid' => $user['id'], ':tok' => $token, ':exp' => $expires]);
+        } catch (PDOException $e) {
+            auth_log_exception($e, 'auth_forgot_password');
+            return ['success' => false, 'message' => 'We could not process your request right now. Please try again later.'];
+        } catch (Throwable $e) {
+            auth_log_exception($e, 'auth_forgot_password');
+            return ['success' => false, 'message' => 'We could not process your request right now. Please try again later.'];
         }
-
-        $token   = bin2hex(random_bytes(32));
-        $expires = date('Y-m-d H:i:s', time() + 7200);
-
-        $stmt = ag_db()->prepare("INSERT INTO password_tokens (user_id,token,expires_at) VALUES (:uid,:tok,:exp)");
-        $stmt->execute([':uid' => $user['id'], ':tok' => $token, ':exp' => $expires]);
 
         return [
             'success'  => true,
@@ -505,20 +585,28 @@ if (!function_exists('auth_reset_password')) {
             return ['success' => false, 'message' => 'Password must be at least 6 characters long.'];
         }
 
-        $stmt = ag_db()->prepare("SELECT * FROM password_tokens WHERE token=:tok AND used=0 LIMIT 1");
-        $stmt->execute([':tok' => $token]);
-        $row = $stmt->fetch();
+        try {
+            $stmt = ag_db()->prepare("SELECT * FROM password_tokens WHERE token=:tok AND used=0 LIMIT 1");
+            $stmt->execute([':tok' => $token]);
+            $row = $stmt->fetch();
 
-        if (!$row) {
-            return ['success' => false, 'message' => 'Invalid or expired password reset code.'];
-        }
-        if (strtotime($row['expires_at']) < time()) {
-            return ['success' => false, 'message' => 'Reset link has expired. Please request a new one.'];
-        }
+            if (!$row) {
+                return ['success' => false, 'message' => 'Invalid or expired password reset code.'];
+            }
+            if (strtotime($row['expires_at']) < time()) {
+                return ['success' => false, 'message' => 'Reset link has expired. Please request a new one.'];
+            }
 
-        $hash = password_hash($newPassword, PASSWORD_BCRYPT);
-        ag_db()->prepare("UPDATE users SET password=:p WHERE id=:id")->execute([':p' => $hash, ':id' => $row['user_id']]);
-        ag_db()->prepare("UPDATE password_tokens SET used=1 WHERE id=:id")->execute([':id' => $row['id']]);
+            $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+            ag_db()->prepare("UPDATE users SET password=:p WHERE id=:id")->execute([':p' => $hash, ':id' => $row['user_id']]);
+            ag_db()->prepare("UPDATE password_tokens SET used=1 WHERE id=:id")->execute([':id' => $row['id']]);
+        } catch (PDOException $e) {
+            auth_log_exception($e, 'auth_reset_password');
+            return ['success' => false, 'message' => 'We could not reset your password right now. Please try again later.'];
+        } catch (Throwable $e) {
+            auth_log_exception($e, 'auth_reset_password');
+            return ['success' => false, 'message' => 'We could not reset your password right now. Please try again later.'];
+        }
 
         return ['success' => true, 'message' => 'Password updated successfully. You can now log in.'];
     }

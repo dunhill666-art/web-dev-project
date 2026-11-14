@@ -20,6 +20,27 @@ class UserRepository
         return (int)$stmt->fetchColumn();
     }
 
+    public function countTotalStaff(): int
+    {
+        $stmt = $this->pdo->query("SELECT COUNT(*) FROM users WHERE role='staff'");
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Total operational records across users, bookings, flights and admin logs.
+     */
+    public function countAllRecords(): int
+    {
+        $stmt = $this->pdo->query("
+            SELECT
+                (SELECT COUNT(*) FROM users) +
+                (SELECT COUNT(*) FROM bookings) +
+                (SELECT COUNT(*) FROM flights) +
+                (SELECT COUNT(*) FROM admin_logs)
+        ");
+        return (int)$stmt->fetchColumn();
+    }
+
     public function countNewUsersThisMonth(): int
     {
         $stmt = $this->pdo->query("SELECT COUNT(*) FROM users WHERE role='user' AND MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())");

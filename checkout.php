@@ -3,6 +3,7 @@
 
 
 require_once __DIR__ . '/user/auth_helper.php';
+require_once __DIR__ . '/database/validation.php';
 
 $isLoggedIn = auth_is_logged_in();
 $currentUser = auth_get_user();
@@ -93,6 +94,7 @@ $grandTotal = max(0, $subTotal - $discountNum);
    Handle Traveler Form Submission
 ------------------------------------------------------------ */
 $errors        = [];
+$fieldErrors   = [];
 $bookingRef    = null;
 $isSubmission  = ($_SERVER['REQUEST_METHOD'] === 'POST');
 
@@ -113,30 +115,44 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     $cardExpiry    = trim($_POST['cardExpiry']     ?? '');
     $cardCvv       = trim($_POST['cardCvv']        ?? '');
 
-    if ($travelerName === '') {
-        $errors[] = "Please enter the lead traveler's full name.";
+    $nameError = validateRequired($travelerName, "Lead traveler's full name");
+    if ($nameError !== null) {
+        $fieldErrors['travelerName'] = $nameError;
+        $errors[] = $nameError;
     }
-    if (!filter_var($travelerEmail, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Please enter a valid email address.';
+
+    $emailError = val_email($travelerEmail);
+    if ($emailError !== null) {
+        $fieldErrors['travelerEmail'] = $emailError;
+        $errors[] = $emailError;
     }
-    $cleanPhone = preg_replace('/[^0-9+]/', '', $travelerPhone);
-    if (strlen($cleanPhone) < 10 || strlen($cleanPhone) > 13) {
-        $errors[] = 'Please enter a valid phone number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).';
+
+    $phoneError = val_phone($travelerPhone, true);
+    if ($phoneError !== null) {
+        $fieldErrors['travelerPhone'] = $phoneError;
+        $errors[] = $phoneError;
     }
+
     if (!in_array($paymentMethod, ['card', 'gcash', 'bank'], true)) {
         $paymentMethod = 'card';
     }
     if ($paymentMethod === 'card') {
-        $cleanCard = preg_replace('/[^0-9]/', '', $cardNumber);
-        if (strlen($cleanCard) !== 16) {
-            $errors[] = 'Please enter a valid 16-digit card number.';
+        $cardError = val_card_number($cardNumber);
+        if ($cardError !== null) {
+            $fieldErrors['cardNumber'] = $cardError;
+            $errors[] = $cardError;
         }
-        if (!preg_match('/^(0[1-9]|1[0-2])\/[0-9]{2}$/', $cardExpiry)) {
-            $errors[] = 'Please enter a valid expiry date in MM/YY format (e.g. 08/29).';
+
+        $expiryError = val_card_expiry($cardExpiry);
+        if ($expiryError !== null) {
+            $fieldErrors['cardExpiry'] = $expiryError;
+            $errors[] = $expiryError;
         }
-        $cleanCvv = preg_replace('/[^0-9]/', '', $cardCvv);
-        if (strlen($cleanCvv) !== 3) {
-            $errors[] = 'Please enter a 3-digit CVV security code.';
+
+        $cvvError = val_cvv($cardCvv, $cardNumber);
+        if ($cvvError !== null) {
+            $fieldErrors['cardCvv'] = $cvvError;
+            $errors[] = $cvvError;
         }
     }
 
@@ -315,6 +331,15 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     outline:none; border-color:var(--ag-blue-1);
     box-shadow:0 0 0 4px rgba(13, 110, 253, .12); background:#fff;
   }
+  .field-input.is-invalid{ border-color:#dc2626; background:#fff7f7; }
+  .field-input.is-invalid:focus{
+    border-color:#dc2626; box-shadow:0 0 0 4px rgba(220, 38, 38, .12);
+  }
+  .field-error{
+    display:block; margin-top:6px; color:#b91c1c; font-size:.8rem;
+    font-weight:600; line-height:1.35;
+  }
+  .field-error:empty{ display:none; }
 
   .pay-methods{ display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
   .pay-method{
@@ -741,7 +766,7 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   <div class="checkout-container">
 
     <div>
-      <form class="checkout-card" method="POST" action="checkout.php" id="checkout-payment-form">
+      <form class="checkout-card" method="POST" action="checkout.php" id="checkout-payment-form" novalidate>
         <?php if (!empty($errors)): ?>
           <div class="error-box">
             <strong>Please fix the following:</strong>
@@ -761,16 +786,19 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         </h2>
         <div class="field-group">
           <label class="field-label" for="travelerName">Full name</label>
-          <input class="field-input" type="text" id="travelerName" name="travelerName" placeholder="Juan Dela Cruz" value="<?= htmlspecialchars($travelerName, ENT_QUOTES) ?>" required>
+          <input class="field-input<?= isset($fieldErrors['travelerName']) ? ' is-invalid' : '' ?>" type="text" id="travelerName" name="travelerName" placeholder="Juan Dela Cruz" value="<?= htmlspecialchars($travelerName, ENT_QUOTES) ?>" aria-describedby="error-travelerName" aria-invalid="<?= isset($fieldErrors['travelerName']) ? 'true' : 'false' ?>" required>
+          <small class="field-error" id="error-travelerName" role="alert"><?= htmlspecialchars($fieldErrors['travelerName'] ?? '', ENT_QUOTES) ?></small>
         </div>
         <div class="field-row">
           <div class="field-group">
             <label class="field-label" for="travelerEmail">Email</label>
-            <input class="field-input" type="email" id="travelerEmail" name="travelerEmail" placeholder="you@example.com" value="<?= htmlspecialchars($travelerEmail, ENT_QUOTES) ?>" required>
+            <input class="field-input<?= isset($fieldErrors['travelerEmail']) ? ' is-invalid' : '' ?>" type="email" id="travelerEmail" name="travelerEmail" placeholder="you@example.com" value="<?= htmlspecialchars($travelerEmail, ENT_QUOTES) ?>" aria-describedby="error-travelerEmail" aria-invalid="<?= isset($fieldErrors['travelerEmail']) ? 'true' : 'false' ?>" required>
+            <small class="field-error" id="error-travelerEmail" role="alert"><?= htmlspecialchars($fieldErrors['travelerEmail'] ?? '', ENT_QUOTES) ?></small>
           </div>
           <div class="field-group">
             <label class="field-label" for="travelerPhone">Phone</label>
-            <input class="field-input" type="tel" id="travelerPhone" name="travelerPhone" placeholder="+63 9XX XXX XXXX" value="<?= htmlspecialchars($travelerPhone, ENT_QUOTES) ?>" required>
+            <input class="field-input<?= isset($fieldErrors['travelerPhone']) ? ' is-invalid' : '' ?>" type="tel" id="travelerPhone" name="travelerPhone" placeholder="+63 9XX XXX XXXX" value="<?= htmlspecialchars($travelerPhone, ENT_QUOTES) ?>" aria-describedby="error-travelerPhone" aria-invalid="<?= isset($fieldErrors['travelerPhone']) ? 'true' : 'false' ?>" required>
+            <small class="field-error" id="error-travelerPhone" role="alert"><?= htmlspecialchars($fieldErrors['travelerPhone'] ?? '', ENT_QUOTES) ?></small>
           </div>
         </div>
 
@@ -807,16 +835,19 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         <div class="card-fields<?= $paymentMethod === 'card' ? ' is-visible' : '' ?>" id="card-fields">
           <div class="field-group">
             <label class="field-label" for="cardNumber">Card number</label>
-            <input class="field-input" type="text" id="cardNumber" name="cardNumber" placeholder="1234 5678 9012 3456" inputmode="numeric" value="<?= htmlspecialchars($cardNumber, ENT_QUOTES) ?>">
+            <input class="field-input<?= isset($fieldErrors['cardNumber']) ? ' is-invalid' : '' ?>" type="text" id="cardNumber" name="cardNumber" placeholder="1234 5678 9012 3456" inputmode="numeric" value="<?= htmlspecialchars($cardNumber, ENT_QUOTES) ?>" aria-describedby="error-cardNumber" aria-invalid="<?= isset($fieldErrors['cardNumber']) ? 'true' : 'false' ?>">
+            <small class="field-error" id="error-cardNumber" role="alert"><?= htmlspecialchars($fieldErrors['cardNumber'] ?? '', ENT_QUOTES) ?></small>
           </div>
           <div class="field-row">
             <div class="field-group">
               <label class="field-label" for="cardExpiry">Expiry (MM/YY)</label>
-              <input class="field-input" type="text" id="cardExpiry" name="cardExpiry" placeholder="08/29" value="<?= htmlspecialchars($cardExpiry, ENT_QUOTES) ?>">
+              <input class="field-input<?= isset($fieldErrors['cardExpiry']) ? ' is-invalid' : '' ?>" type="text" id="cardExpiry" name="cardExpiry" placeholder="08/29" value="<?= htmlspecialchars($cardExpiry, ENT_QUOTES) ?>" aria-describedby="error-cardExpiry" aria-invalid="<?= isset($fieldErrors['cardExpiry']) ? 'true' : 'false' ?>">
+              <small class="field-error" id="error-cardExpiry" role="alert"><?= htmlspecialchars($fieldErrors['cardExpiry'] ?? '', ENT_QUOTES) ?></small>
             </div>
             <div class="field-group">
               <label class="field-label" for="cardCvv">CVV</label>
-              <input class="field-input" type="text" id="cardCvv" name="cardCvv" placeholder="123" inputmode="numeric" value="<?= htmlspecialchars($cardCvv, ENT_QUOTES) ?>">
+              <input class="field-input<?= isset($fieldErrors['cardCvv']) ? ' is-invalid' : '' ?>" type="text" id="cardCvv" name="cardCvv" placeholder="123" inputmode="numeric" value="<?= htmlspecialchars($cardCvv, ENT_QUOTES) ?>" aria-describedby="error-cardCvv" aria-invalid="<?= isset($fieldErrors['cardCvv']) ? 'true' : 'false' ?>">
+              <small class="field-error" id="error-cardCvv" role="alert"><?= htmlspecialchars($fieldErrors['cardCvv'] ?? '', ENT_QUOTES) ?></small>
             </div>
           </div>
         </div>
@@ -948,16 +979,137 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
   });
 
   /* ================= STRICT INPUT RESTRICTIONS & FORMATTING ================= */
+  const form         = document.getElementById('checkout-payment-form');
+  const nameInput    = document.getElementById('travelerName');
+  const emailInput   = document.getElementById('travelerEmail');
   const cardNumInput = document.getElementById('cardNumber');
   const cardExpInput = document.getElementById('cardExpiry');
   const cardCvvInput = document.getElementById('cardCvv');
   const phoneInput   = document.getElementById('travelerPhone');
 
+  const errorEls = {
+    travelerName:  document.getElementById('error-travelerName'),
+    travelerEmail: document.getElementById('error-travelerEmail'),
+    travelerPhone: document.getElementById('error-travelerPhone'),
+    cardNumber:    document.getElementById('error-cardNumber'),
+    cardExpiry:    document.getElementById('error-cardExpiry'),
+    cardCvv:       document.getElementById('error-cardCvv')
+  };
+
+  function setFieldError(input, key, message) {
+    const el = errorEls[key];
+    if (el) el.textContent = message || '';
+    if (input) {
+      input.classList.toggle('is-invalid', !!message);
+      input.setAttribute('aria-invalid', message ? 'true' : 'false');
+    }
+  }
+
+  function digitsOf(value) {
+    return (value || '').replace(/\D/g, '');
+  }
+
+  function luhnValid(digits) {
+    if (!digits) return false;
+    let sum = 0;
+    let double = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let n = parseInt(digits.charAt(i), 10);
+      if (double) {
+        n *= 2;
+        if (n > 9) n -= 9;
+      }
+      sum += n;
+      double = !double;
+    }
+    return sum % 10 === 0;
+  }
+
+  function cardNetwork(digits) {
+    const len = digits.length;
+    if (len < 13 || len > 19) return null;
+
+    if (/^4\d{12}(\d{3})?(\d{3})?$/.test(digits)) return 'visa';
+
+    if (len === 16) {
+      const first2 = parseInt(digits.substring(0, 2), 10);
+      const first4 = parseInt(digits.substring(0, 4), 10);
+      const first6 = parseInt(digits.substring(0, 6), 10);
+
+      if ((first2 >= 51 && first2 <= 55) || (first4 >= 2221 && first4 <= 2720)) return 'mastercard';
+      if (digits.startsWith('6011') || digits.startsWith('65') ||
+          (first4 >= 6440 && first4 <= 6499) ||
+          (first6 >= 622126 && first6 <= 622925)) return 'discover';
+      if (first4 >= 3528 && first4 <= 3589) return 'jcb';
+    }
+
+    if (len === 15 && /^3[47]\d{13}$/.test(digits)) return 'amex';
+    return null;
+  }
+
+  function validateCardNumber(value) {
+    const raw = (value || '').trim();
+    if (raw === '') return 'Card number is required.';
+    if (!/^[0-9 \-]+$/.test(raw)) return 'Card number may only contain digits, spaces, or hyphens.';
+    const digits = digitsOf(raw);
+    if (digits.length < 13 || digits.length > 19) return 'Please enter a valid card number (13-19 digits).';
+    if (!cardNetwork(digits)) return 'Unsupported or invalid card number. Use a valid Visa, Mastercard, American Express, Discover, or JCB card.';
+    if (!luhnValid(digits)) return 'Please enter a valid card number. The card number failed the checksum test.';
+    return '';
+  }
+
+  function validateExpiry(value) {
+    const raw = (value || '').trim();
+    if (raw === '') return 'Expiry date is required.';
+    const m = raw.match(/^(0[1-9]|1[0-2])\/(\d{2})$/);
+    if (!m) return 'Please enter a valid expiry date in MM/YY format (e.g. 08/29).';
+
+    const month = parseInt(m[1], 10);
+    const year = 2000 + parseInt(m[2], 10);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    if (year < currentYear || (year === currentYear && month < currentMonth)) {
+      return 'This card has expired. Please use a card with a future expiry date.';
+    }
+    if (year > currentYear + 20) return 'Please enter a valid expiry year.';
+    return '';
+  }
+
+  function validateCvv(value, cardValue) {
+    const raw = (value || '').trim();
+    if (raw === '') return 'CVV is required.';
+    const cardDigits = digitsOf(cardValue);
+    const expected = (cardDigits.length === 15 && /^3[47]/.test(cardDigits)) ? 4 : 3;
+    if (!new RegExp('^\\d{' + expected + '}$').test(raw)) {
+      return 'Please enter the ' + expected + '-digit CVV security code.';
+    }
+    return '';
+  }
+
+  function validateEmail(value) {
+    const raw = (value || '').trim();
+    if (raw === '') return 'Email address is required.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) return 'Please enter a valid email address (e.g., user@example.com).';
+    return '';
+  }
+
+  function validatePhone(value) {
+    const raw = (value || '').trim();
+    if (raw === '') return 'Phone number is required.';
+    const clean = raw.replace(/[\s\-().]/g, '');
+    if (!/^(09\d{9}|\+639\d{9})$/.test(clean)) {
+      return 'Please enter a valid phone number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).';
+    }
+    return '';
+  }
+
   if (cardNumInput) {
-    cardNumInput.setAttribute('maxlength', '19');
+    cardNumInput.setAttribute('maxlength', '23');
     cardNumInput.setAttribute('inputmode', 'numeric');
     cardNumInput.addEventListener('input', (e) => {
-      let digits = e.target.value.replace(/\D/g, '').substring(0, 16);
+      let digits = e.target.value.replace(/\D/g, '').substring(0, 19);
       let formatted = digits.match(/.{1,4}/g)?.join(' ') || digits;
       e.target.value = formatted;
     });
@@ -967,23 +1119,17 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
     cardExpInput.setAttribute('maxlength', '5');
     cardExpInput.setAttribute('inputmode', 'numeric');
     cardExpInput.addEventListener('input', (e) => {
-      let digits = e.target.value.replace(/\D/g, '').substring(0, 4);
-      if (digits.length >= 2) {
-        let mm = parseInt(digits.substring(0, 2), 10);
-        if (mm > 12) digits = '12' + digits.substring(2);
-        if (mm === 0) digits = '01' + digits.substring(2);
-        e.target.value = digits.substring(0, 2) + (digits.length > 2 ? '/' + digits.substring(2) : '');
-      } else {
-        e.target.value = digits;
-      }
+      // Format as MM/YY only; invalid months/years are left untouched and rejected by validation.
+      const digits = e.target.value.replace(/\D/g, '').substring(0, 4);
+      e.target.value = digits.length > 2 ? digits.substring(0, 2) + '/' + digits.substring(2) : digits;
     });
   }
 
   if (cardCvvInput) {
-    cardCvvInput.setAttribute('maxlength', '3');
+    cardCvvInput.setAttribute('maxlength', '4');
     cardCvvInput.setAttribute('inputmode', 'numeric');
     cardCvvInput.addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/\D/g, '').substring(0, 3);
+      e.target.value = e.target.value.replace(/\D/g, '').substring(0, 4);
     });
   }
 
@@ -995,6 +1141,52 @@ if ($isSubmission && $hasTrip && $isLoggedIn) {
         e.target.value = '+' + val.substring(1).replace(/\D/g, '').substring(0, 12);
       } else {
         e.target.value = val.replace(/\D/g, '').substring(0, 11);
+      }
+    });
+  }
+
+  // Clear a field's error as soon as the user edits it; re-validate on submit.
+  [
+    [nameInput, 'travelerName'],
+    [emailInput, 'travelerEmail'],
+    [phoneInput, 'travelerPhone'],
+    [cardNumInput, 'cardNumber'],
+    [cardExpInput, 'cardExpiry'],
+    [cardCvvInput, 'cardCvv']
+  ].forEach(function (pair) {
+    if (pair[0]) {
+      pair[0].addEventListener('input', function () { setFieldError(pair[0], pair[1], ''); });
+    }
+  });
+
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      const methodEl = form.querySelector('input[name="paymentMethod"]:checked');
+      const method = methodEl ? methodEl.value : 'card';
+      let firstInvalid = null;
+
+      function check(input, key, message) {
+        setFieldError(input, key, message);
+        if (message && !firstInvalid) firstInvalid = input;
+      }
+
+      check(nameInput, 'travelerName', nameInput && nameInput.value.trim() === '' ? "Lead traveler's full name is required." : '');
+      check(emailInput, 'travelerEmail', validateEmail(emailInput ? emailInput.value : ''));
+      check(phoneInput, 'travelerPhone', validatePhone(phoneInput ? phoneInput.value : ''));
+
+      if (method === 'card') {
+        check(cardNumInput, 'cardNumber', validateCardNumber(cardNumInput ? cardNumInput.value : ''));
+        check(cardExpInput, 'cardExpiry', validateExpiry(cardExpInput ? cardExpInput.value : ''));
+        check(cardCvvInput, 'cardCvv', validateCvv(cardCvvInput ? cardCvvInput.value : '', cardNumInput ? cardNumInput.value : ''));
+      } else {
+        setFieldError(cardNumInput, 'cardNumber', '');
+        setFieldError(cardExpInput, 'cardExpiry', '');
+        setFieldError(cardCvvInput, 'cardCvv', '');
+      }
+
+      if (firstInvalid) {
+        e.preventDefault();
+        firstInvalid.focus();
       }
     });
   }

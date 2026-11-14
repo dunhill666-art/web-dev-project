@@ -7,6 +7,20 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     @session_start();
 }
 
+// log authentication/database errors privately (never on the public page)
+if (!function_exists('auth_log_exception')) {
+    function auth_log_exception(Throwable $e, string $context = 'authentication'): void
+    {
+        error_log(sprintf(
+            '[AeroGlide auth] %s: %s in %s:%d',
+            $context,
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        ));
+    }
+}
+
 // base url builder
 if (!function_exists('ag_base_url')) {
     function ag_base_url(string $path = ''): string
@@ -45,11 +59,12 @@ if (!function_exists('auth_get_user')) {
             $stmt->execute([':id' => $_SESSION['user_id']]);
             $user = $stmt->fetch();
             if ($user) {
+                unset($user['password']);
                 $_SESSION['user_data'] = $user;
                 return $user;
             }
         } catch (Exception $e) {
-            // fallback
+            auth_log_exception($e, 'auth_get_user');
         }
 
         return [
@@ -83,16 +98,19 @@ if (!function_exists('auth_is_admin')) {
 if (!function_exists('auth_login_user')) {
     function auth_login_user(array $user): void
     {
-        $_SESSION['user_id']   = $user['id'];
-        $_SESSION['role']      = $user['role'];
-        $_SESSION['user_data'] = $user;
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['role']    = $user['role'];
+
+        $sessionUser = $user;
+        unset($sessionUser['password']);
+        $_SESSION['user_data'] = $sessionUser;
 
         try {
             $db = ag_db();
             $stmt = $db->prepare("UPDATE users SET last_login = NOW() WHERE id = :id");
             $stmt->execute([':id' => $user['id']]);
         } catch (Exception $e) {
-            // ignore timestamp failure
+            auth_log_exception($e, 'auth_login_user');
         }
     }
 }
